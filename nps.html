@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="NPS計算">
+<meta name="theme-color" content="#f5f5f7">
+<title>NPS 目標達成 計算ツール</title>
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --card: #ffffff;
+    --text: #1d1d1f;
+    --sub: #6e6e73;
+    --line: #e3e3e6;
+    --blue: #0071e3;
+    --green: #34c759;
+    --orange: #ff9f0a;
+    --red: #ff3b30;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 24px 16px 64px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 26px; font-weight: 600; text-align: center; margin: 8px 0 4px; }
+  .tagline { text-align: center; color: var(--sub); font-size: 14px; margin-bottom: 28px; }
+  .card {
+    background: var(--card);
+    border-radius: 18px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .card h2 { font-size: 15px; font-weight: 600; color: var(--sub); margin: 0 0 18px; letter-spacing: .02em; }
+
+  /* settings */
+  .field-row { display: flex; flex-wrap: wrap; gap: 20px; }
+  .field { flex: 1 1 200px; }
+  .field label { display: block; font-size: 13px; color: var(--sub); margin-bottom: 6px; }
+  .field input {
+    width: 100%; font-size: 18px; padding: 10px 12px;
+    border: 1px solid var(--line); border-radius: 10px; background: #fafafa;
+    font-family: inherit; color: var(--text);
+  }
+  .field input:focus { outline: none; border-color: var(--blue); background: #fff; }
+  .days { font-size: 13px; color: var(--sub); margin-top: 6px; min-height: 18px; }
+
+  /* tally rows */
+  .tally { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .tally:last-child { border-bottom: none; }
+  .tally .score { width: 96px; flex-shrink: 0; }
+  .tally .score .num { font-size: 22px; font-weight: 600; }
+  .tally .score .tag { font-size: 11px; color: var(--sub); display: block; }
+  .tally.top .score .num { color: var(--green); }
+  .tally.top .tag { color: var(--green); }
+  .tally.det .score .num { color: var(--red); }
+  .btn-step {
+    width: 48px; height: 48px; border-radius: 50%; border: 1px solid var(--line);
+    background: #fff; font-size: 24px; line-height: 1; cursor: pointer; color: var(--text);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    transition: background .12s; -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation; -webkit-user-select: none; user-select: none;
+  }
+  .btn-step:hover { background: #f0f0f2; }
+  .btn-step:active { background: #e0e0e3; }
+  .tally input.count {
+    width: 72px; text-align: center; font-size: 20px; padding: 8px;
+    border: 1px solid var(--line); border-radius: 10px; font-family: inherit;
+  }
+  .tally input.count:focus { outline: none; border-color: var(--blue); }
+  .tally .pts { margin-left: auto; font-size: 13px; color: var(--sub); width: 64px; text-align: right; }
+  .total-line { text-align: right; font-size: 14px; color: var(--sub); margin-top: 14px; }
+
+  /* result */
+  .result { text-align: center; }
+  .score-big { font-size: 64px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
+  .score-label { font-size: 13px; color: var(--sub); }
+  .bar { height: 8px; background: var(--line); border-radius: 4px; margin: 22px 0 6px; position: relative; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; background: var(--blue); width: 0; transition: width .3s; }
+  .bar-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--sub); }
+  .headline {
+    margin-top: 24px; padding: 22px; border-radius: 14px; background: #f0f7ff;
+    font-size: 17px;
+  }
+  .headline.done { background: #effaf1; }
+  .headline.warn { background: #fff6e9; }
+  .headline .big { font-size: 40px; font-weight: 700; color: var(--blue); display: block; margin: 4px 0; }
+  .headline.done .big { color: var(--green); }
+  .headline .sub { font-size: 13px; color: var(--sub); }
+
+  .actions { text-align: center; margin-top: 8px; }
+  .btn-reset {
+    background: none; border: none; color: var(--blue); font-size: 14px; cursor: pointer; font-family: inherit;
+  }
+  .btn-reset:hover { text-decoration: underline; }
+
+  details.how { margin-top: 4px; }
+  details.how summary { cursor: pointer; color: var(--sub); font-size: 13px; }
+  details.how p, details.how code { font-size: 13px; color: var(--sub); }
+  details.how code { background: #f0f0f2; padding: 2px 6px; border-radius: 6px; }
+
+  /* save-image button */
+  .btn-save {
+    display: inline-flex; align-items: center; gap: 6px; background: #fff; border: 1px solid var(--line);
+    border-radius: 12px; padding: 11px 18px; font-size: 15px; font-weight: 600; color: var(--blue);
+    cursor: pointer; font-family: inherit; margin-bottom: 12px; transition: opacity .15s;
+  }
+  .btn-save:active { opacity: .6; }
+
+  /* image export sheet */
+  .img-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 300; display: flex; align-items: flex-end; justify-content: center; }
+  .img-sheet {
+    background: #fff; width: 100%; max-width: 640px; border-radius: 20px 20px 0 0;
+    padding: 20px 16px calc(20px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 40px rgba(0,0,0,.2);
+  }
+  .img-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .img-note { font-size: 13px; color: var(--sub); margin-bottom: 14px; }
+  .img-wrap { max-height: 60vh; overflow: auto; border-radius: 14px; border: 1px solid var(--line); background: var(--bg); -webkit-overflow-scrolling: touch; }
+  .img-wrap img { width: 100%; display: block; }
+  .img-acts { display: flex; gap: 10px; margin-top: 16px; }
+  .img-acts button { flex: 1; border: none; border-radius: 12px; padding: 13px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .img-acts .ig { background: #f0f0f3; color: var(--text); }
+  .img-acts .ip { background: var(--blue); color: #fff; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>NPS 目標達成 計算ツール</h1>
+  <p class="tagline">目標まで「Promoter（5）」をあと何個取ればいいかを計算します</p>
+
+  <!-- 設定 -->
+  <div class="card">
+    <h2>設定</h2>
+    <div class="field-row">
+      <div class="field">
+        <label for="target">目標 NPS スコア（−100〜100）</label>
+        <input type="number" id="target" min="-100" max="100" step="1" value="70">
+      </div>
+      <div class="field">
+        <label for="qend">クォーター終了日（任意）</label>
+        <input type="date" id="qend">
+        <div class="days" id="daysLeft"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 回答入力 -->
+  <div class="card">
+    <h2>回答の入力（評価ごとの件数）</h2>
+    <div id="tallies"></div>
+    <div class="total-line">回答数の合計: <strong id="totalCount">0</strong> 件</div>
+  </div>
+
+  <!-- 結果 -->
+  <div class="card result">
+    <h2 style="text-align:left;">結果</h2>
+    <div class="score-big" id="npsScore">–</div>
+    <div class="score-label">現在の NPS スコア</div>
+
+    <div class="bar"><div class="bar-fill" id="barFill"></div></div>
+    <div class="bar-meta"><span>−100</span><span id="targetMark">目標 70</span><span>+100</span></div>
+
+    <div class="headline" id="headline">
+      <span class="sub">回答を入力すると計算されます</span>
+    </div>
+
+    <div class="actions">
+      <div><button class="btn-save" id="saveImgBtn">🖼 結果を画像で保存</button></div>
+      <button class="btn-reset" id="resetBtn">このクォーターをリセット</button>
+    </div>
+
+    <details class="how">
+      <summary>計算方法について</summary>
+      <p>各回答を点数化します：<code>5 → +100</code>、<code>4 → 0</code>、<code>1・2・3 → −100</code>。<br>
+      NPS =（点数の合計）÷（回答数）。<br>
+      「あと何個」は、<strong>残りの回答がすべて Promoter（5）だった場合の最小数</strong>です：<br>
+      <code>k = 切り上げ( (目標×回答数 − 100×(5の数 − 3〜1の数)) ÷ (100 − 目標) )</code></p>
+    </details>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var STORAGE_KEY = "nps-calc-v1";
+
+  // 評価定義: key(保存キー), num(表示), ラベル, 寄与点
+  // 3・2・1 はいずれも −100 で同じ扱いのため、1つの欄(det)にまとめる
+  var SCORES = [
+    { key: 5,     num: "5",   tag: "Promoter (+100)",  cls: "top", pts: 100 },
+    { key: 4,     num: "4",   tag: "Passive (0)",      cls: "",    pts: 0 },
+    { key: "det", num: "3〜1", tag: "Detractor (−100)", cls: "det", pts: -100 }
+  ];
+
+  var state = { target: 70, qend: "", counts: { 5: 0, 4: 0, det: 0 } };
+
+  var el = {
+    target: document.getElementById("target"),
+    qend: document.getElementById("qend"),
+    daysLeft: document.getElementById("daysLeft"),
+    tallies: document.getElementById("tallies"),
+    totalCount: document.getElementById("totalCount"),
+    npsScore: document.getElementById("npsScore"),
+    barFill: document.getElementById("barFill"),
+    targetMark: document.getElementById("targetMark"),
+    headline: document.getElementById("headline"),
+    resetBtn: document.getElementById("resetBtn"),
+    saveImgBtn: document.getElementById("saveImgBtn")
+  };
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        var s = JSON.parse(raw);
+        if (typeof s.target === "number") state.target = s.target;
+        if (typeof s.qend === "string") state.qend = s.qend;
+        if (s.counts) {
+          state.counts[5] = Number(s.counts[5]) || 0;
+          state.counts[4] = Number(s.counts[4]) || 0;
+          // 旧データ(3/2/1別々)と新データ(det)の両対応で合算
+          state.counts.det =
+            (Number(s.counts.det) || 0) +
+            (Number(s.counts[3]) || 0) +
+            (Number(s.counts[2]) || 0) +
+            (Number(s.counts[1]) || 0);
+        }
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  function save() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+  }
+
+  function buildTallies() {
+    SCORES.forEach(function (s) {
+      var row = document.createElement("div");
+      row.className = "tally " + s.cls;
+      row.innerHTML =
+        '<div class="score"><span class="num">' + s.num + '</span>' +
+        '<span class="tag">' + s.tag + '</span></div>' +
+        '<button class="btn-step" data-act="dec" data-v="' + s.key + '" aria-label="減らす">−</button>' +
+        '<input class="count" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" data-v="' + s.key + '" value="0">' +
+        '<button class="btn-step" data-act="inc" data-v="' + s.key + '" aria-label="増やす">+</button>' +
+        '<span class="pts">' + (s.pts > 0 ? "+" : "") + s.pts + ' 点</span>';
+      el.tallies.appendChild(row);
+    });
+
+    el.tallies.addEventListener("click", function (e) {
+      var btn = e.target.closest(".btn-step");
+      if (!btn) return;
+      var v = btn.getAttribute("data-v");
+      var delta = btn.getAttribute("data-act") === "inc" ? 1 : -1;
+      state.counts[v] = Math.max(0, (state.counts[v] || 0) + delta);
+      syncInputs(); render(); save();
+    });
+
+    el.tallies.addEventListener("input", function (e) {
+      var inp = e.target.closest("input.count");
+      if (!inp) return;
+      var v = inp.getAttribute("data-v");
+      var n = parseInt(inp.value, 10);
+      state.counts[v] = isNaN(n) || n < 0 ? 0 : n;
+      render(); save();
+    });
+  }
+
+  function syncInputs() {
+    var inputs = el.tallies.querySelectorAll("input.count");
+    inputs.forEach(function (inp) {
+      inp.value = state.counts[inp.getAttribute("data-v")] || 0;
+    });
+  }
+
+  function computeDaysLeft() {
+    if (!state.qend) { el.daysLeft.textContent = ""; return; }
+    var end = new Date(state.qend + "T23:59:59");
+    var now = new Date();
+    var ms = end - now;
+    var days = Math.ceil(ms / 86400000);
+    if (isNaN(days)) { el.daysLeft.textContent = ""; return; }
+    if (days > 1) el.daysLeft.textContent = "残り約 " + days + " 日";
+    else if (days === 1) el.daysLeft.textContent = "残り1日";
+    else if (days === 0) el.daysLeft.textContent = "本日が最終日";
+    else el.daysLeft.textContent = "終了済み";
+  }
+
+  function render() {
+    var c = state.counts;
+    var promoters = c[5] || 0;
+    var detractors = c.det || 0;
+    var total = promoters + (c[4] || 0) + detractors;
+    var net = promoters - detractors;
+    var G = clamp(Number(state.target), -100, 100);
+
+    el.totalCount.textContent = total;
+    el.targetMark.textContent = "目標 " + G;
+
+    if (total === 0) {
+      el.npsScore.textContent = "–";
+      el.barFill.style.width = "0";
+      setHeadline("", '<span class="sub">回答を入力すると計算されます</span>');
+      return;
+    }
+
+    var nps = (net * 100) / total; // = 点数合計 ÷ 回答数
+    el.npsScore.textContent = formatScore(nps);
+    el.npsScore.style.color = nps >= G ? "var(--green)" : "var(--text)";
+
+    // bar: -100..100 -> 0..100%
+    el.barFill.style.width = ((nps + 100) / 2) + "%";
+    el.barFill.style.background = nps >= G ? "var(--green)" : "var(--blue)";
+
+    // 「あと何個」
+    if (nps >= G) {
+      setHeadline("done",
+        '<span class="sub">目標達成中です</span>' +
+        '<span class="big">達成 🎉</span>' +
+        '<span class="sub">現在 ' + formatScore(nps) + ' ／ 目標 ' + G + '</span>');
+      return;
+    }
+
+    if (G >= 100) {
+      // ここに来る時点で未達 = 100点でない回答が必ず存在する。
+      // Passive(4)やDetractor(3〜1)が1件でもあると、Promoterをいくつ足しても100には届かない。
+      setHeadline("warn",
+        '<span class="sub">目標が100の場合</span>' +
+        '<span class="big">到達不可</span>' +
+        '<span class="sub">Passive(4)やDetractor(3〜1)が1件でもあると、Promoterをいくつ足しても100には届きません</span>');
+      return;
+    }
+
+    var k = Math.ceil((G * total - 100 * net) / (100 - G));
+    if (k < 0) k = 0;
+    setHeadline("",
+      '<span class="sub">目標達成まで、Promoter（5）があと</span>' +
+      '<span class="big">' + k + ' 個</span>' +
+      '<span class="sub">（残りの回答がすべて Promoter だった場合の最小数）<br>' +
+      '達成後の回答数: ' + (total + k) + ' 件</span>');
+  }
+
+  function setHeadline(cls, html) {
+    el.headline.className = "headline" + (cls ? " " + cls : "");
+    el.headline.innerHTML = html;
+  }
+
+  function formatScore(n) {
+    var r = Math.round(n * 10) / 10;
+    return (r > 0 ? "+" : "") + r;
+  }
+
+  function clamp(n, lo, hi) {
+    if (isNaN(n)) return 0;
+    return Math.min(hi, Math.max(lo, n));
+  }
+
+  function reset() {
+    if (!confirm("回答数をすべて0に戻します。よろしいですか？")) return;
+    state.counts = { 5: 0, 4: 0, det: 0 };
+    syncInputs(); render(); save();
+  }
+
+  /* ---------- 画像で保存 ---------- */
+  function fmtDate(ts) {
+    var d = new Date(ts);
+    return d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate();
+  }
+  function imgFont(w, s) {
+    return w + " " + s + 'px -apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif';
+  }
+  function wrapPara(ctx, text, maxW) {
+    var out = [];
+    (text || "").split("\n").forEach(function (p) {
+      if (!p) { out.push(""); return; }
+      var line = "";
+      for (var i = 0; i < p.length; i++) {
+        var ch = p[i];
+        if (ctx.measureText(line + ch).width > maxW && line) { out.push(line); line = ch; }
+        else line += ch;
+      }
+      out.push(line);
+    });
+    return out;
+  }
+  function exportImage() {
+    var c = state.counts;
+    var promoters = c[5] || 0, neutral = c[4] || 0, detr = c.det || 0;
+    var total = promoters + neutral + detr, net = promoters - detr;
+    var G = clamp(Number(state.target), -100, 100);
+    var has = total > 0;
+    var nps = has ? (net * 100) / total : 0;
+
+    var hlTitle = "", hlBig = "", hlSub = "", hlBg = "#f0f7ff", hlAccent = "#0071e3";
+    if (!has) { hlBig = "—"; hlSub = "回答を入力すると計算されます"; }
+    else if (nps >= G) { hlBg = "#effaf1"; hlAccent = "#34c759"; hlTitle = "目標達成中です"; hlBig = "達成 🎉"; hlSub = "現在 " + formatScore(nps) + " ／ 目標 " + G; }
+    else if (G >= 100) { hlBg = "#fff6e9"; hlAccent = "#ff9f0a"; hlTitle = "目標が100の場合"; hlBig = "到達不可"; hlSub = "Passive(4)やDetractor(3〜1)が1件でもあると、Promoterをいくつ足しても100には届きません"; }
+    else { var k = Math.ceil((G * total - 100 * net) / (100 - G)); if (k < 0) k = 0; hlTitle = "目標達成まで、Promoter（5）があと"; hlBig = k + " 個"; hlSub = "残りの回答がすべて Promoter だった場合の最小数 ・ 達成後の回答数 " + (total + k) + " 件"; }
+
+    var W = 540, PAD = 24, IN = 20, GAP = 12, CW = W - PAD * 2;
+    var mc = document.createElement("canvas").getContext("2d");
+
+    var rows = [
+      { k: "5", label: "Promoter (+100)", n: promoters, col: "#34c759" },
+      { k: "4", label: "Passive (0)", n: neutral, col: "#6e6e73" },
+      { k: "3〜1", label: "Detractor (−100)", n: detr, col: "#ff3b30" }
+    ];
+
+    var c1 = IN * 2 + 116;
+    var c2 = IN * 2 + 28 + rows.length * 30 + 10 + 18;
+    mc.font = imgFont("500", 13);
+    var subLines = wrapPara(mc, hlSub, CW - IN * 2);
+    var c3 = IN + (hlTitle ? 24 : 0) + 48 + subLines.length * 20 + IN;
+    var footerH = 38;
+    var totalH = Math.ceil(60 + c1 + GAP + c2 + GAP + c3 + GAP + footerH);
+
+    var scale = 2, cv = document.createElement("canvas");
+    cv.width = W * scale; cv.height = totalH * scale;
+    var ctx = cv.getContext("2d"); ctx.scale(scale, scale); ctx.textBaseline = "top";
+    ctx.fillStyle = "#f5f5f7"; ctx.fillRect(0, 0, W, totalH);
+    function rr(x, yy, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, yy); ctx.arcTo(x + w, yy, x + w, yy + h, r); ctx.arcTo(x + w, yy + h, x, yy + h, r); ctx.arcTo(x, yy + h, x, yy, r); ctx.arcTo(x, yy, x + w, yy, r); ctx.closePath(); }
+
+    var y = 24;
+    // タイトル ＋ 日付チップ
+    ctx.fillStyle = "#0071e3"; ctx.font = imgFont("800", 16); ctx.fillText("📊 NPS 目標達成", PAD, y + 2);
+    var dtxt = fmtDate(Date.now()); ctx.font = imgFont("700", 13); var dw = ctx.measureText(dtxt).width;
+    ctx.fillStyle = "#e8f1fd"; rr(W - PAD - dw - 20, y - 2, dw + 20, 24, 12); ctx.fill();
+    ctx.fillStyle = "#0071e3"; ctx.fillText(dtxt, W - PAD - dw - 10, y + 3);
+    y += 36;
+
+    // カード1：スコア
+    var c1Y = y;
+    ctx.fillStyle = "#fff"; rr(PAD, c1Y, CW, c1, 16); ctx.fill();
+    ctx.strokeStyle = "#ececf0"; ctx.lineWidth = 1; rr(PAD + .5, c1Y + .5, CW - 1, c1 - 1, 16); ctx.stroke();
+    var cy = c1Y + IN;
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#6e6e73"; ctx.font = imgFont("600", 13); ctx.fillText("現在の NPS スコア", W / 2, cy); cy += 22;
+    ctx.fillStyle = has ? (nps >= G ? "#34c759" : "#1d1d1f") : "#c4c4c9"; ctx.font = imgFont("700", 46);
+    ctx.fillText(has ? formatScore(nps) : "–", W / 2, cy); cy += 58;
+    var barX = PAD + IN, barW = CW - IN * 2, barY = cy, barH = 8;
+    ctx.fillStyle = "#ececf0"; rr(barX, barY, barW, barH, 4); ctx.fill();
+    if (has) { var fw = barW * ((nps + 100) / 200); if (fw < 4) fw = 4; if (fw > barW) fw = barW; ctx.fillStyle = nps >= G ? "#34c759" : "#0071e3"; rr(barX, barY, fw, barH, 4); ctx.fill(); }
+    var tx = barX + barW * ((G + 100) / 200); ctx.fillStyle = "#1d1d1f"; ctx.fillRect(tx - 1, barY - 3, 2, barH + 6);
+    cy += barH + 8;
+    ctx.fillStyle = "#6e6e73"; ctx.font = imgFont("500", 12);
+    ctx.textAlign = "left"; ctx.fillText("−100", barX, cy);
+    ctx.textAlign = "center"; ctx.fillText("目標 " + G, W / 2, cy);
+    ctx.textAlign = "right"; ctx.fillText("+100", barX + barW, cy);
+    ctx.textAlign = "left";
+    y = c1Y + c1 + GAP;
+
+    // カード2：内訳
+    var c2Y = y;
+    ctx.fillStyle = "#fff"; rr(PAD, c2Y, CW, c2, 16); ctx.fill();
+    ctx.strokeStyle = "#ececf0"; rr(PAD + .5, c2Y + .5, CW - 1, c2 - 1, 16); ctx.stroke();
+    cy = c2Y + IN;
+    ctx.fillStyle = "#6e6e73"; ctx.font = imgFont("600", 13); ctx.fillText("回答の内訳", PAD + IN, cy); cy += 28;
+    rows.forEach(function (r) {
+      ctx.fillStyle = r.col; ctx.font = imgFont("700", 18); ctx.fillText(r.k, PAD + IN, cy);
+      ctx.fillStyle = "#6e6e73"; ctx.font = imgFont("500", 13); ctx.fillText(r.label, PAD + IN + 50, cy + 3);
+      ctx.fillStyle = "#1d1d1f"; ctx.font = imgFont("700", 17); ctx.textAlign = "right"; ctx.fillText(r.n + " 件", W - PAD - IN, cy + 1); ctx.textAlign = "left";
+      cy += 30;
+    });
+    ctx.strokeStyle = "#ececf0"; ctx.beginPath(); ctx.moveTo(PAD + IN, cy); ctx.lineTo(W - PAD - IN, cy); ctx.stroke(); cy += 10;
+    ctx.fillStyle = "#6e6e73"; ctx.font = imgFont("500", 13); ctx.fillText("回答数の合計", PAD + IN, cy);
+    ctx.fillStyle = "#1d1d1f"; ctx.font = imgFont("700", 15); ctx.textAlign = "right"; ctx.fillText(total + " 件", W - PAD - IN, cy); ctx.textAlign = "left";
+    y = c2Y + c2 + GAP;
+
+    // カード3：ヘッドライン
+    var c3Y = y;
+    ctx.fillStyle = hlBg; rr(PAD, c3Y, CW, c3, 16); ctx.fill();
+    cy = c3Y + IN;
+    if (hlTitle) { ctx.fillStyle = "#6e6e73"; ctx.font = imgFont("500", 13); ctx.fillText(hlTitle, PAD + IN, cy); cy += 24; }
+    ctx.fillStyle = hlAccent; ctx.font = imgFont("800", 32); ctx.fillText(hlBig, PAD + IN, cy); cy += 48;
+    ctx.fillStyle = "#6e6e73"; ctx.font = imgFont("500", 13); subLines.forEach(function (l) { ctx.fillText(l, PAD + IN, cy); cy += 20; });
+    y = c3Y + c3 + GAP;
+
+    // フッター
+    ctx.fillStyle = "#9a9aa0"; ctx.font = imgFont("500", 12);
+    ctx.fillText("NPS 目標達成 計算ツール ・ " + fmtDate(Date.now()), PAD, y + 4);
+
+    var now = new Date();
+    var ymd = now.getFullYear() + String(now.getMonth() + 1).padStart(2, "0") + String(now.getDate()).padStart(2, "0");
+    var fname = "NPS_" + (has ? Math.round(nps) : "0") + "_" + ymd + ".png";
+    cv.toBlob(function (b) { if (!b) return; showImageSheet(URL.createObjectURL(b), b, fname); }, "image/png");
+  }
+  function showImageSheet(url, blob, fname) {
+    var ov = document.createElement("div");
+    ov.className = "img-overlay";
+    ov.innerHTML =
+      '<div class="img-sheet">' +
+      '<div class="img-title">🖼 結果を画像で保存</div>' +
+      '<div class="img-note">画像を長押しでも保存・共有できます。下のボタンからもどうぞ。</div>' +
+      '<div class="img-wrap"><img src="' + url + '" alt="NPS結果"></div>' +
+      '<div class="img-acts"><button class="ig">閉じる</button><button class="ip">保存・共有</button></div>' +
+      '</div>';
+    document.body.appendChild(ov);
+    function close() { ov.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 500); }
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    ov.querySelector(".ig").onclick = close;
+    ov.querySelector(".ip").onclick = async function () {
+      try {
+        var file = new File([blob], fname, { type: "image/png" });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: "NPS 目標達成" }); }
+        else { var a = document.createElement("a"); a.href = url; a.download = fname; document.body.appendChild(a); a.click(); a.remove(); }
+      } catch (e) {}
+    };
+  }
+
+  // init
+  load();
+  buildTallies();
+  el.target.value = state.target;
+  el.qend.value = state.qend;
+  syncInputs();
+  computeDaysLeft();
+  render();
+
+  el.target.addEventListener("input", function () {
+    state.target = clamp(Number(el.target.value), -100, 100);
+    render(); save();
+  });
+  el.qend.addEventListener("change", function () {
+    state.qend = el.qend.value;
+    computeDaysLeft(); save();
+  });
+  el.resetBtn.addEventListener("click", reset);
+  el.saveImgBtn.addEventListener("click", exportImage);
+})();
+</script>
+</body>
+</html>
