@@ -418,5 +418,39 @@ $('resetLink').addEventListener('click', async ()=>{
   else { $('onboard').style.display='flex'; renderStep(); }
 })();
 </script>
+<!-- tsumiki-back-button -->
+<style>
+  #tsumikiBack{
+    position:fixed; top:calc(env(safe-area-inset-top) + 8px); left:12px; z-index:1000;
+    display:none; align-items:center; gap:3px;
+    background:rgba(255,255,255,.82);
+    -webkit-backdrop-filter:saturate(180%) blur(12px); backdrop-filter:saturate(180%) blur(12px);
+    border:1px solid rgba(0,0,0,.08); border-radius:999px;
+    padding:7px 14px 7px 11px; font-size:14px; font-weight:600;
+    color:#0071e3; text-decoration:none; line-height:1;
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Helvetica Neue",Arial,sans-serif;
+    box-shadow:0 4px 14px rgba(0,0,0,.12); -webkit-tap-highlight-color:transparent;
+  }
+  #tsumikiBack:active{transform:scale(.96);}
+</style>
+<a id="tsumikiBack" href="index.html">‹ つみき</a>
+<script>
+  (function(){
+    var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+      || window.navigator.standalone === true;
+    var fromTsumiki = false;
+    try{
+      if(document.referrer){
+        var r = new URL(document.referrer);
+        fromTsumiki = (r.origin === location.origin);
+      }
+    }catch(e){}
+    if(standalone && fromTsumiki){
+      var b = document.getElementById('tsumikiBack');
+      if(b) b.style.display = 'inline-flex';
+    }
+  })();
+</script>
+<!-- /tsumiki-back-button -->
 </body>
 </html>
