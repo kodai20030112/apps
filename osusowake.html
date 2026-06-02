@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<link rel="apple-touch-icon" href="icons/icon-osusowake.png">
+<meta name="apple-mobile-web-app-title" content="おすそわけ">
+<title>おすそわけ — 作ったアプリを誰に届けたか</title>
+<style>
+  :root{
+    --bg:#fbf6f2; --card:#ffffff; --ink:#1d1d1f; --sub:#86827d;
+    --line:#efe7e0; --accent:#ff7a59; --accent-soft:#fff0eb; --radius:20px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Helvetica Neue",Arial,sans-serif;
+    background:var(--bg); color:var(--ink);
+    line-height:1.6; padding:env(safe-area-inset-top) 16px 120px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:640px; margin:0 auto;}
+  header{padding:36px 4px 22px; text-align:center;}
+  .logo{font-size:42px; line-height:1;}
+  h1{font-size:28px; font-weight:700; letter-spacing:-.02em; margin-top:10px;}
+  .tagline{color:var(--sub); font-size:14px; margin-top:8px;}
+
+  .stats{display:flex; gap:12px; margin-top:22px;}
+  .stat{flex:1; background:var(--card); border:1px solid var(--line);
+    border-radius:16px; padding:14px 12px; text-align:center;}
+  .stat .num{font-size:26px; font-weight:700; letter-spacing:-.02em; color:var(--accent);}
+  .stat .lab{font-size:12px; color:var(--sub); margin-top:2px;}
+
+  .section{margin-top:30px;}
+  .section h2{font-size:14px; font-weight:700; color:var(--sub); letter-spacing:.02em;
+    padding:0 4px 10px; text-transform:uppercase;}
+
+  .appcard{background:var(--card); border:1px solid var(--line);
+    border-radius:var(--radius); padding:16px 16px 6px; margin-bottom:12px;}
+  .appcard.empty{opacity:.62;}
+  .apphead{display:flex; align-items:center; gap:13px; padding-bottom:4px;}
+  .apphead .emoji{font-size:26px; flex:0 0 auto; width:46px; height:46px;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--bg); border-radius:13px;}
+  .apphead .meta{min-width:0; flex:1;}
+  .apphead .title{display:block; font-size:16px; font-weight:600; letter-spacing:-.01em;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .apphead .cat{display:block; font-size:12px; color:var(--sub); margin-top:1px;}
+  .apphead .badge{flex:0 0 auto; font-size:13px; font-weight:700; color:var(--accent);
+    background:var(--accent-soft); border-radius:999px; padding:4px 12px;}
+
+  .people{list-style:none; margin-top:8px;}
+  .person{display:flex; align-items:center; gap:10px; padding:9px 2px;
+    border-top:1px solid var(--line);}
+  .person .who{font-size:15px; font-weight:500; flex:1; min-width:0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .person .when{font-size:12px; color:var(--sub); flex:0 0 auto;}
+  .person .del{flex:0 0 auto; background:none; border:none; color:#c7c2bc;
+    font-size:18px; padding:4px 6px; cursor:pointer; line-height:1;}
+  .person .del:active{color:var(--accent);}
+  .none{font-size:13px; color:var(--sub); padding:6px 2px 10px;}
+
+  /* 追加ボタン（固定） */
+  .fab{position:fixed; left:50%; transform:translateX(-50%);
+    bottom:calc(20px + env(safe-area-inset-bottom)); z-index:30;
+    background:var(--accent); color:#fff; border:none; border-radius:999px;
+    font-size:16px; font-weight:700; padding:15px 28px; cursor:pointer;
+    box-shadow:0 8px 22px rgba(255,122,89,.4); letter-spacing:.01em;}
+  .fab:active{transform:translateX(-50%) scale(.97);}
+
+  /* シート */
+  .backdrop{position:fixed; inset:0; background:rgba(0,0,0,.32); z-index:40;
+    display:none; align-items:flex-end; justify-content:center;}
+  .backdrop.show{display:flex;}
+  .sheet{background:var(--card); width:100%; max-width:640px;
+    border-radius:24px 24px 0 0; padding:22px 18px calc(26px + env(safe-area-inset-bottom));
+    animation:up .22s ease;}
+  @keyframes up{from{transform:translateY(40px); opacity:.4;} to{transform:none; opacity:1;}}
+  .sheet h3{font-size:19px; font-weight:700; letter-spacing:-.01em; margin-bottom:18px;}
+  .field{margin-bottom:16px;}
+  .field label{display:block; font-size:13px; font-weight:600; color:var(--sub); margin-bottom:7px;}
+  .field select, .field input{
+    width:100%; font-size:16px; font-family:inherit; color:var(--ink);
+    background:var(--bg); border:1px solid var(--line); border-radius:13px;
+    padding:13px 14px; appearance:none; -webkit-appearance:none;}
+  .field select{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2386827d' stroke-width='2.5'><path d='M6 9l6 6 6-6'/></svg>");
+    background-repeat:no-repeat; background-position:right 14px center; padding-right:40px;}
+  .field input:focus, .field select:focus{outline:none; border-color:var(--accent);}
+  .sheet-btns{display:flex; gap:10px; margin-top:6px;}
+  .btn{flex:1; font-size:16px; font-weight:700; font-family:inherit;
+    border:none; border-radius:14px; padding:15px; cursor:pointer;}
+  .btn.cancel{background:var(--bg); color:var(--sub);}
+  .btn.save{background:var(--accent); color:#fff;}
+  .btn.save:disabled{opacity:.45;}
+  .btn:active{transform:scale(.98);}
+
+  footer{text-align:center; color:var(--sub); font-size:12px; margin-top:34px; line-height:1.8;}
+  .loading{text-align:center; color:var(--sub); font-size:14px; padding:40px 0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">🎁</div>
+    <h1>おすそわけ</h1>
+    <p class="tagline">作ったアプリを、誰に届けたか</p>
+    <div class="stats">
+      <div class="stat"><div class="num" id="statPeople">0</div><div class="lab">届けた人</div></div>
+      <div class="stat"><div class="num" id="statApps">0</div><div class="lab">届けたアプリ</div></div>
+    </div>
+  </header>
+
+  <main id="main"><p class="loading">アプリ一覧を読み込み中…</p></main>
+
+  <footer>
+    記録はこの端末にのみ保存されます<br>
+    tsumiki-apps.github.io
+  </footer>
+</div>
+
+<button class="fab" id="fab">＋ 記録する</button>
+
+<div class="backdrop" id="backdrop">
+  <div class="sheet">
+    <h3>おすそわけを記録</h3>
+    <div class="field">
+      <label for="fApp">どのアプリ</label>
+      <select id="fApp"></select>
+    </div>
+    <div class="field">
+      <label for="fWho">誰に</label>
+      <input id="fWho" type="text" placeholder="例：ゆずは、職場の田中さん" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="fWhen">いつ</label>
+      <input id="fWhen" type="date">
+    </div>
+    <div class="sheet-btns">
+      <button class="btn cancel" id="btnCancel">やめる</button>
+      <button class="btn save" id="btnSave">保存する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORE_KEY = "osusowake.records.v1";
+
+/* ===== データ保存 ===== */
+function loadRecords(){
+  try{ return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
+  catch(e){ return []; }
+}
+function saveRecords(r){ localStorage.setItem(STORE_KEY, JSON.stringify(r)); }
+
+/* ===== アプリ一覧を index.html から自動取り込み ===== */
+// メニュー(index.html)の categories 配列をそのまま読むので、
+// 新しいアプリをメニューに追加すれば、ここにも自動で増える。
+const FALLBACK_APPS = [ // fetch できない時用（自分自身は除外）
+  {emoji:"📊", title:"NPS 目標達成 計算ツール", href:"nps.html", cat:"Work"},
+  {emoji:"📈", title:"Weekly Recap", href:"recap.html", cat:"Work"},
+  {emoji:"🌟", title:"Recognition", href:"recognition.html", cat:"Work"},
+  {emoji:"🌳", title:"GROW ノート", href:"grownote.html", cat:"Work"},
+  {emoji:"🔍", title:"5Whys ノート", href:"team5whys.html", cat:"Work"},
+  {emoji:"🪞", title:"STARS 振り返り", href:"reflection.html", cat:"Work"},
+  {emoji:"🔐", title:"Password manager", href:"vault.html", cat:"Work"},
+  {emoji:"🍳", title:"ゆずごはん日記", href:"cooking.html", cat:"Private"},
+  {emoji:"🌱", title:"ツナグ", href:"tsunagu.html", cat:"Private"},
+  {emoji:"💳", title:"クレジット明細マネージャー", href:"credit.html", cat:"Asset"},
+  {emoji:"💴", title:"お金の残高 計算ツール", href:"money.html", cat:"Asset"},
+  {emoji:"📉", title:"資産予測グラフ", href:"forecast.html", cat:"Asset"},
+];
+
+async function fetchApps(){
+  try{
+    const res = await fetch("index.html", {cache:"no-store"});
+    if(!res.ok) throw new Error("not ok");
+    const text = await res.text();
+    const m = text.match(/const\s+categories\s*=\s*(\[[\s\S]*?\]);/);
+    if(!m) throw new Error("no categories");
+    // unquoted keys を含む JS リテラルなので Function で評価（同一オリジン・自作データ）
+    const cats = (new Function("return " + m[1]))();
+    const list = [];
+    cats.forEach(c => (c.apps||[]).forEach(a => {
+      if(a.href === "osusowake.html") return; // 自分自身は除外
+      list.push({emoji:a.emoji, title:a.title, href:a.href, cat:c.label});
+    }));
+    if(!list.length) throw new Error("empty");
+    return list;
+  }catch(e){
+    return FALLBACK_APPS;
+  }
+}
+
+/* ===== 描画 ===== */
+let APPS = [];
+function appByHref(href){ return APPS.find(a => a.href === href); }
+
+function fmtDate(iso){
+  if(!iso) return "";
+  const [y,m,d] = iso.split("-");
+  return Number(m)+"/"+Number(d);
+}
+
+function render(){
+  const recs = loadRecords();
+  const main = document.getElementById("main");
+
+  // アプリごとに記録をまとめる
+  const byApp = {};
+  recs.forEach(r => { (byApp[r.href] = byApp[r.href] || []).push(r); });
+
+  // 統計
+  const uniquePeople = new Set(recs.map(r => r.who.trim()));
+  document.getElementById("statPeople").textContent = uniquePeople.size;
+  document.getElementById("statApps").textContent = Object.keys(byApp).length;
+
+  // 並び順：現在のアプリ一覧（共有数が多い順）→ 一覧から消えたアプリ
+  const known = APPS.slice();
+  const shared = [], unshared = [];
+  known.forEach(a => {
+    const list = byApp[a.href] || [];
+    (list.length ? shared : unshared).push({app:a, list});
+  });
+  shared.sort((x,y) => y.list.length - x.list.length);
+
+  // 一覧に無いがログには残っている（削除されたアプリ等）
+  const ghosts = Object.keys(byApp)
+    .filter(h => !appByHref(h))
+    .map(h => ({app:{emoji:byApp[h][0].emoji||"📦", title:byApp[h][0].title||h, href:h, cat:"その他"}, list:byApp[h]}));
+
+  let html = "";
+
+  function appCardHTML({app, list}, empty){
+    const people = list
+      .slice().sort((a,b) => (b.when||"").localeCompare(a.when||""))
+      .map(r =>
+        '<li class="person">'+
+          '<span class="who">'+esc(r.who)+'</span>'+
+          '<span class="when">'+fmtDate(r.when)+'</span>'+
+          '<button class="del" data-id="'+r.id+'" aria-label="削除">×</button>'+
+        '</li>').join("");
+    return '<div class="appcard'+(empty?" empty":"")+'">'+
+      '<div class="apphead">'+
+        '<span class="emoji">'+(app.emoji||"📦")+'</span>'+
+        '<span class="meta"><span class="title">'+esc(app.title)+'</span>'+
+          '<span class="cat">'+esc(app.cat||"")+'</span></span>'+
+        (empty ? '' : '<span class="badge">'+list.length+'人</span>')+
+      '</div>'+
+      (empty ? '<p class="none">まだ誰にも届けていない</p>'
+             : '<ul class="people">'+people+'</ul>')+
+    '</div>';
+  }
+
+  if(shared.length || ghosts.length){
+    html += '<div class="section"><h2>届けたアプリ</h2>';
+    shared.forEach(s => html += appCardHTML(s, false));
+    ghosts.forEach(s => html += appCardHTML(s, false));
+    html += '</div>';
+  }
+  if(unshared.length){
+    html += '<div class="section"><h2>これから届けたいアプリ</h2>';
+    unshared.forEach(s => html += appCardHTML(s, true));
+    html += '</div>';
+  }
+  if(!shared.length && !unshared.length && !ghosts.length){
+    html = '<p class="loading">アプリが見つかりませんでした</p>';
+  }
+
+  main.innerHTML = html;
+  main.querySelectorAll(".del").forEach(b =>
+    b.addEventListener("click", () => removeRecord(b.dataset.id)));
+}
+
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, c =>
+  ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+function removeRecord(id){
+  const recs = loadRecords().filter(r => r.id !== id);
+  saveRecords(recs);
+  render();
+}
+
+/* ===== 追加シート ===== */
+const backdrop = document.getElementById("backdrop");
+const fApp = document.getElementById("fApp");
+const fWho = document.getElementById("fWho");
+const fWhen = document.getElementById("fWhen");
+const btnSave = document.getElementById("btnSave");
+
+function openSheet(){
+  fApp.innerHTML = APPS.map(a =>
+    '<option value="'+a.href+'">'+a.emoji+'  '+esc(a.title)+'</option>').join("");
+  fWho.value = "";
+  fWhen.value = new Date().toISOString().slice(0,10);
+  backdrop.classList.add("show");
+  setTimeout(()=>fWho.focus(), 250);
+}
+function closeSheet(){ backdrop.classList.remove("show"); }
+
+document.getElementById("fab").addEventListener("click", openSheet);
+document.getElementById("btnCancel").addEventListener("click", closeSheet);
+backdrop.addEventListener("click", e => { if(e.target === backdrop) closeSheet(); });
+
+btnSave.addEventListener("click", () => {
+  const who = fWho.value.trim();
+  if(!who){ fWho.focus(); return; }
+  const app = appByHref(fApp.value) || {href:fApp.value, title:fApp.value, emoji:"📦"};
+  const recs = loadRecords();
+  recs.push({
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+    href: app.href, title: app.title, emoji: app.emoji,
+    who, when: fWhen.value || new Date().toISOString().slice(0,10)
+  });
+  saveRecords(recs);
+  closeSheet();
+  render();
+});
+
+/* ===== 起動 ===== */
+(async function init(){
+  APPS = await fetchApps();
+  render();
+})();
+</script>
+</body>
+</html>

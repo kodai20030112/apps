@@ -17,6 +17,7 @@ APPS = {
     "forecast":    ("📈", "#2fd6b0", "#00a98a"),
     "grownote":    ("🌱", "#5fd87a", "#27a34a"),
     "nps":         ("🎯", "#ff8a8a", "#e85454"),
+    "osusowake":   ("🎁", "#ff9a76", "#ef6a45"),
     "money":       ("💰", "#ffc94d", "#f0a319"),
     "recap":       ("📆", "#7d7bf0", "#4f4dd0"),
     "recognition": ("✨", "#ffd35e", "#f5a623"),
