@@ -22,7 +22,13 @@
   h1{font-size:30px; font-weight:700; letter-spacing:-.02em; margin-top:10px;}
   .tagline{color:var(--sub); font-size:15px; margin-top:8px;}
   .count{color:var(--sub); font-size:13px; margin-top:16px;}
-  .grid{display:grid; grid-template-columns:1fr; gap:12px; margin-top:8px;}
+  .section{margin-top:30px;}
+  .section h2{font-size:19px; font-weight:700; letter-spacing:-.01em;
+    padding:0 4px 12px; display:flex; align-items:center; gap:9px;}
+  .section h2 .cat-emoji{font-size:22px;}
+  .section h2 .badge{margin-left:auto; font-size:12px; font-weight:600; color:var(--sub);
+    background:var(--card); border:1px solid var(--line); border-radius:999px; padding:3px 11px;}
+  .grid{display:grid; grid-template-columns:1fr; gap:12px;}
   @media(min-width:560px){ .grid{grid-template-columns:1fr 1fr;} }
   a.card{
     display:flex; align-items:center; gap:14px; text-decoration:none;
@@ -35,9 +41,9 @@
   .emoji{font-size:30px; flex:0 0 auto; width:48px; height:48px;
     display:flex; align-items:center; justify-content:center;
     background:var(--bg); border-radius:14px;}
-  .txt{min-width:0;}
-  .title{font-size:16px; font-weight:600; letter-spacing:-.01em;}
-  .desc{font-size:13px; color:var(--sub); margin-top:2px;
+  .txt{min-width:0; display:flex; flex-direction:column;}
+  .title{display:block; font-size:16px; font-weight:600; letter-spacing:-.01em;}
+  .desc{display:block; font-size:13px; color:var(--sub); margin-top:2px;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .arrow{margin-left:auto; color:#c7c7cc; font-size:20px; flex:0 0 auto;}
   footer{text-align:center; color:var(--sub); font-size:12px; margin-top:36px; line-height:1.8;}
@@ -52,7 +58,7 @@
     <p class="count" id="count"></p>
   </header>
 
-  <main class="grid" id="grid"></main>
+  <main id="app"></main>
 
   <footer>
     更新日 2026-06-03<br>
@@ -61,32 +67,46 @@
 </div>
 
 <script>
-  const apps = [
-    {emoji:"📊", title:"NPS 目標達成 計算ツール", desc:"NPS目標から必要Promoter数を逆算", href:"nps.html"},
-    {emoji:"📈", title:"Weekly Recap", desc:"週次リキャップ画像を作成", href:"recap.html"},
-    {emoji:"🍳", title:"ゆずごはん日記", desc:"ふたりで共有する献立ノート", href:"cooking.html"},
-    {emoji:"💳", title:"クレジット明細マネージャー", desc:"立て替え＆クレカ支出を分けて管理", href:"credit.html"},
-    {emoji:"💰", title:"お金の残高 計算ツール", desc:"残高をサッと計算", href:"money.html"},
-    {emoji:"📉", title:"資産予測グラフ", desc:"資産の推移を予測して可視化", href:"forecast.html"},
-    {emoji:"🌟", title:"Recognition", desc:"承認・称賛を記録", href:"recognition.html"},
-    {emoji:"🌱", title:"ツナグ", desc:"夢と今日をつなぐ努力の記録", href:"tsunagu.html"},
-    {emoji:"🌳", title:"GROW ノート", desc:"1on1の成長に伴走するノート", href:"grownote/"},
-    {emoji:"🪞", title:"STARS 振り返り", desc:"面接で使える経験を蓄積", href:"reflection/"},
-    {emoji:"🔍", title:"5Whys ノート", desc:"連鎖型5Whysで本音を深掘り", href:"team5whys/"},
+  const categories = [
+    {key:"work", emoji:"💼", label:"Work", apps:[
+      {emoji:"📊", title:"NPS 目標達成 計算ツール", desc:"NPS目標から必要Promoter数を逆算", href:"nps.html"},
+      {emoji:"📈", title:"Weekly Recap", desc:"週次リキャップ画像を作成", href:"recap.html"},
+      {emoji:"🌟", title:"Recognition", desc:"承認・称賛を記録", href:"recognition.html"},
+      {emoji:"🌳", title:"GROW ノート", desc:"1on1の成長に伴走するノート", href:"grownote/"},
+      {emoji:"🔍", title:"5Whys ノート", desc:"連鎖型5Whysで本音を深掘り", href:"team5whys/"},
+      {emoji:"🪞", title:"STARS 振り返り", desc:"面接で使える経験を蓄積", href:"reflection/"},
+    ]},
+    {key:"private", emoji:"🌿", label:"Private", apps:[
+      {emoji:"🍳", title:"ゆずごはん日記", desc:"ふたりで共有する献立ノート", href:"cooking.html"},
+      {emoji:"🌱", title:"ツナグ", desc:"夢と今日をつなぐ努力の記録", href:"tsunagu.html"},
+    ]},
+    {key:"asset", emoji:"💰", label:"Asset", apps:[
+      {emoji:"💳", title:"クレジット明細マネージャー", desc:"立て替え＆クレカ支出を分けて管理", href:"credit.html"},
+      {emoji:"💴", title:"お金の残高 計算ツール", desc:"残高をサッと計算", href:"money.html"},
+      {emoji:"📉", title:"資産予測グラフ", desc:"資産の推移を予測して可視化", href:"forecast.html"},
+    ]},
   ];
-  const grid = document.getElementById("grid");
-  apps.forEach(a=>{
-    const el = document.createElement("a");
-    el.className = "card";
-    el.href = a.href;
-    el.innerHTML =
-      '<span class="emoji">'+a.emoji+'</span>'+
-      '<span class="txt"><span class="title">'+a.title+'</span>'+
-      '<span class="desc">'+a.desc+'</span></span>'+
-      '<span class="arrow">›</span>';
-    grid.appendChild(el);
+  const app = document.getElementById("app");
+  let total = 0;
+  categories.forEach(cat=>{
+    total += cat.apps.length;
+    const sec = document.createElement("section");
+    sec.className = "section";
+    const cards = cat.apps.map(a =>
+      '<a class="card" href="'+a.href+'">'+
+        '<span class="emoji">'+a.emoji+'</span>'+
+        '<span class="txt"><span class="title">'+a.title+'</span>'+
+        '<span class="desc">'+a.desc+'</span></span>'+
+        '<span class="arrow">›</span>'+
+      '</a>'
+    ).join("");
+    sec.innerHTML =
+      '<h2><span class="cat-emoji">'+cat.emoji+'</span>'+cat.label+
+      '<span class="badge">'+cat.apps.length+'</span></h2>'+
+      '<div class="grid">'+cards+'</div>';
+    app.appendChild(sec);
   });
-  document.getElementById("count").textContent = apps.length + " 個のアプリ";
+  document.getElementById("count").textContent = total + " 個のアプリ";
 </script>
 </body>
 </html>
