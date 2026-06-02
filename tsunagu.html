@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#6d5efc">
+<title>ツナグ — 夢と今日をつなぐ</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg1: #6d5efc;
+    --bg2: #b06ffb;
+    --bg3: #ff9b7b;
+    --card: #ffffff;
+    --ink: #20203a;
+    --sub: #7a7a93;
+    --accent: #6d5efc;
+    --flame: #ff7a45;
+  }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    color: var(--ink);
+    background: linear-gradient(160deg, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 120%);
+    background-attachment: fixed;
+    min-height: 100%;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 520px; margin: 0 auto; padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+
+  /* ---------- Onboarding ---------- */
+  #onboard {
+    min-height: 100vh; display: flex; flex-direction: column; justify-content: center;
+    padding: 28px 26px; gap: 22px;
+  }
+  .ob-logo { font-size: 13px; letter-spacing: .35em; color: rgba(255,255,255,.85); font-weight: 700; }
+  .ob-title { color: #fff; font-size: 27px; font-weight: 800; line-height: 1.4; letter-spacing: .01em; }
+  .ob-sub { color: rgba(255,255,255,.9); font-size: 14.5px; line-height: 1.75; }
+  .ob-card {
+    background: rgba(255,255,255,.97); border-radius: 22px; padding: 24px 22px;
+    box-shadow: 0 22px 50px rgba(40,20,90,.28); display: flex; flex-direction: column; gap: 16px;
+  }
+  .ob-step { font-size: 12px; font-weight: 700; color: var(--accent); letter-spacing: .08em; }
+  .ob-label { font-size: 17px; font-weight: 800; }
+  .ob-hint { font-size: 13px; color: var(--sub); line-height: 1.6; margin-top: -8px; }
+  .field {
+    width: 100%; border: 2px solid #ece9ff; background: #f8f7ff; border-radius: 14px;
+    padding: 15px 16px; font-size: 16px; color: var(--ink); font-family: inherit; transition: border-color .2s;
+  }
+  .field:focus { outline: none; border-color: var(--accent); background: #fff; }
+  textarea.field { resize: none; line-height: 1.6; }
+  .dots { display: flex; gap: 7px; justify-content: center; margin-top: 2px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.4); transition: all .25s; }
+  .dot.on { background: #fff; width: 22px; border-radius: 4px; }
+
+  .btn {
+    border: none; border-radius: 16px; padding: 16px; font-size: 16.5px; font-weight: 800;
+    font-family: inherit; cursor: pointer; transition: transform .12s, box-shadow .2s; width: 100%;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 10px 24px rgba(109,94,252,.4); }
+  .btn-ghost { background: #f1effe; color: var(--accent); }
+  .btn-light { background: rgba(255,255,255,.18); color:#fff; border:1.5px solid rgba(255,255,255,.45);}
+
+  /* ---------- Main ---------- */
+  #main { display: none; padding: 20px 16px 120px; }
+  .hello { color: #fff; padding: 8px 6px 16px; }
+  .hello .greet { font-size: 14px; opacity: .9; }
+  .hello .nm { font-size: 22px; font-weight: 800; margin-top: 2px; }
+
+  .dream-card {
+    background: linear-gradient(135deg, rgba(255,255,255,.99), rgba(255,255,255,.93));
+    border-radius: 22px; padding: 20px 20px 22px; box-shadow: 0 16px 40px rgba(40,20,90,.22);
+    position: relative; overflow: hidden;
+  }
+  .dream-card::after{
+    content:"🌟"; position:absolute; right:-6px; top:-10px; font-size:74px; opacity:.10; transform:rotate(8deg);
+  }
+  .dream-tag { font-size: 11.5px; font-weight: 800; color: var(--accent); letter-spacing: .14em; }
+  .dream-text { font-size: 19px; font-weight: 800; line-height: 1.5; margin-top: 8px; color: var(--ink); }
+  .habit-row { margin-top: 14px; display:flex; align-items:center; gap:8px; color: var(--sub); font-size: 13.5px; }
+  .habit-row b { color: var(--ink); font-weight: 700; }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+  .stat {
+    background: rgba(255,255,255,.97); border-radius: 18px; padding: 18px 16px; text-align: center;
+    box-shadow: 0 10px 26px rgba(40,20,90,.16);
+  }
+  .stat .big { font-size: 34px; font-weight: 900; line-height: 1; display:flex; align-items:baseline; justify-content:center; gap:4px;}
+  .stat .big .u { font-size: 15px; font-weight: 800; color: var(--sub); }
+  .stat .lbl { font-size: 12px; color: var(--sub); margin-top: 7px; font-weight: 700; }
+  .stat.flame .big { color: var(--flame); }
+  .stat.count .big { color: var(--accent); }
+
+  .section-title { color:#fff; font-size: 15px; font-weight: 800; margin: 26px 6px 12px; display:flex; align-items:center; gap:8px;}
+  .gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .gcard {
+    background:#fff; border-radius: 16px; overflow:hidden; box-shadow: 0 8px 20px rgba(40,20,90,.15);
+    position: relative; animation: pop .3s ease;
+  }
+  @keyframes pop { from{ transform: scale(.92); opacity:0;} to{ transform:scale(1); opacity:1;} }
+  .gcard img { width: 100%; aspect-ratio: 1/1; object-fit: cover; display:block; background:#eee;}
+  .gcard .meta { padding: 10px 12px 12px; }
+  .gcard .day { font-size: 15px; font-weight: 900; color: var(--accent); }
+  .gcard .date { font-size: 11.5px; color: var(--sub); margin-top: 2px; }
+  .gcard .badge {
+    position:absolute; top:8px; left:8px; background: rgba(32,32,58,.78); color:#fff;
+    font-size: 11px; font-weight: 800; padding: 4px 9px; border-radius: 999px; backdrop-filter: blur(4px);
+  }
+  .empty { color: rgba(255,255,255,.92); text-align:center; padding: 30px 20px; font-size: 14px; line-height:1.8; }
+
+  /* Floating camera button */
+  .fab-wrap { position: fixed; left:0; right:0; bottom: 0; display:flex; justify-content:center;
+    padding: 16px 16px calc(18px + env(safe-area-inset-bottom)); pointer-events:none;
+    background: linear-gradient(to top, rgba(60,40,120,.45), rgba(60,40,120,0)); }
+  .fab {
+    pointer-events:auto; background:#fff; color: var(--accent); border:none; border-radius: 999px;
+    padding: 17px 30px; font-size: 17px; font-weight: 900; box-shadow: 0 14px 34px rgba(20,10,60,.4);
+    display:flex; align-items:center; gap:10px; cursor:pointer; transition: transform .12s;
+    max-width: 488px; width: 100%; justify-content:center;
+  }
+  .fab:active { transform: scale(.96); }
+  .fab .ic { font-size: 21px; }
+
+  /* Preview overlay */
+  #preview {
+    display:none; position: fixed; inset:0; z-index: 50; background: rgba(20,12,45,.92);
+    backdrop-filter: blur(8px); flex-direction: column; padding: 22px 18px calc(22px + env(safe-area-inset-bottom));
+    justify-content: center; gap: 18px;
+  }
+  #preview.show { display:flex; }
+  .pv-head { color:#fff; text-align:center; }
+  .pv-head .t { font-size: 19px; font-weight: 800; }
+  .pv-head .s { font-size: 13.5px; opacity:.85; margin-top:5px; }
+  .pv-img-box { border-radius: 22px; overflow:hidden; box-shadow: 0 20px 50px rgba(0,0,0,.5); background:#000;
+    display:flex; align-items:center; justify-content:center; max-height: 56vh; }
+  .pv-img-box img { width: 100%; max-height: 56vh; object-fit: contain; display:block; }
+  .pv-actions { display:flex; flex-direction: column; gap: 11px; max-width: 488px; width:100%; margin: 0 auto; }
+
+  /* toast */
+  #toast{ position: fixed; left:50%; bottom: 96px; transform: translateX(-50%) translateY(20px);
+    background: rgba(32,32,58,.95); color:#fff; padding: 13px 22px; border-radius: 999px; font-weight:700;
+    font-size: 14px; opacity:0; pointer-events:none; transition: all .3s; z-index: 60; box-shadow:0 10px 30px rgba(0,0,0,.3);}
+  #toast.show{ opacity:1; transform: translateX(-50%) translateY(0); }
+
+  .reset-link{ display:block; text-align:center; color: rgba(255,255,255,.7); font-size:12px; margin-top:28px; text-decoration: underline; cursor:pointer;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ ONBOARDING ============ -->
+  <section id="onboard">
+    <div>
+      <div class="ob-logo">T S U N A G U</div>
+      <h1 class="ob-title" id="obTitle">夢と、今日のあなたを<br>つないでいこう。</h1>
+      <p class="ob-sub" id="obSub">最高の未来へ向かう毎日を、1枚の写真で記録します。<br>まずは3つだけ教えてください。</p>
+    </div>
+
+    <div class="ob-card">
+      <div class="ob-step" id="obStep">STEP 1 / 3</div>
+
+      <!-- step 1 -->
+      <div class="ob-pane" data-pane="0">
+        <div class="ob-label">あなたの名前は？</div>
+        <div class="ob-hint">アプリの中であなたを呼ぶ名前です。</div>
+        <input class="field" id="inName" placeholder="例：こうだい" autocomplete="off">
+      </div>
+      <!-- step 2 -->
+      <div class="ob-pane" data-pane="1" style="display:none">
+        <div class="ob-label">叶えたい夢・なりたい姿は？</div>
+        <div class="ob-hint">遠くてもOK。これが努力の目的地になります。</div>
+        <textarea class="field" id="inDream" rows="3" placeholder="例：人の人生を前向きに変えられる人になる"></textarea>
+      </div>
+      <!-- step 3 -->
+      <div class="ob-pane" data-pane="2" style="display:none">
+        <div class="ob-label">そのために継続したいことは？</div>
+        <div class="ob-hint">毎日カメラで記録していく習慣です。</div>
+        <textarea class="field" id="inHabit" rows="2" placeholder="例：毎朝5分、今日の学びを書き出す"></textarea>
+      </div>
+
+      <button class="btn btn-primary" id="obNext">次へ</button>
+      <button class="btn btn-ghost" id="obBack" style="display:none">もどる</button>
+    </div>
+
+    <div class="dots">
+      <div class="dot on"></div><div class="dot"></div><div class="dot"></div>
+    </div>
+  </section>
+
+  <!-- ============ MAIN ============ -->
+  <section id="main">
+    <div class="hello">
+      <div class="greet">挑戦中 🌱</div>
+      <div class="nm" id="mName">—</div>
+    </div>
+
+    <div class="dream-card">
+      <div class="dream-tag">🎯 目指す未来</div>
+      <div class="dream-text" id="mDream">—</div>
+      <div class="habit-row">続けること：<b id="mHabit">—</b></div>
+    </div>
+
+    <div class="stats">
+      <div class="stat flame">
+        <div class="big"><span id="stStreak">0</span><span class="u">日</span></div>
+        <div class="lbl">🔥 連続記録</div>
+      </div>
+      <div class="stat count">
+        <div class="big"><span id="stTotal">0</span><span class="u">回</span></div>
+        <div class="lbl">通算の努力</div>
+      </div>
+    </div>
+
+    <div class="section-title">📸 努力の足あと</div>
+    <div class="gallery" id="gallery"></div>
+    <div class="empty" id="emptyMsg">まだ記録がありません。<br>下のボタンから、今日の一歩を残しましょう。</div>
+
+    <span class="reset-link" id="resetLink">設定をリセットする</span>
+  </section>
+
+</div>
+
+<!-- camera button -->
+<div class="fab-wrap" id="fabWrap" style="display:none">
+  <button class="fab" id="fab"><span class="ic">📷</span><span id="fabLabel">今日の努力を記録</span></button>
+</div>
+<input type="file" id="camera" accept="image/*" capture="environment" style="display:none">
+
+<!-- preview overlay -->
+<div id="preview">
+  <div class="pv-head">
+    <div class="t" id="pvTitle">この一枚を記録しますか？</div>
+    <div class="s" id="pvSub"></div>
+  </div>
+  <div class="pv-img-box"><img id="pvImg" alt="preview"></div>
+  <div class="pv-actions">
+    <button class="btn btn-primary" id="pvPost">✓ 投稿する</button>
+    <button class="btn btn-light" id="pvRetake">↺ 撮り直す</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ============ storage ============ */
+const CFG_KEY = 'tsunagu_cfg_v1';
+const DB_NAME = 'tsunagu_db';
+const STORE = 'entries';
+
+function openDB(){
+  return new Promise((res, rej)=>{
+    const r = indexedDB.open(DB_NAME, 1);
+    r.onupgradeneeded = e => {
+      const db = e.target.result;
+      if(!db.objectStoreNames.contains(STORE)){
+        db.createObjectStore(STORE, { keyPath:'id', autoIncrement:true });
+      }
+    };
+    r.onsuccess = ()=> res(r.result);
+    r.onerror = ()=> rej(r.error);
+  });
+}
+async function addEntry(entry){
+  const db = await openDB();
+  return new Promise((res,rej)=>{
+    const tx = db.transaction(STORE,'readwrite');
+    tx.objectStore(STORE).add(entry);
+    tx.oncomplete = ()=> res();
+    tx.onerror = ()=> rej(tx.error);
+  });
+}
+async function getEntries(){
+  const db = await openDB();
+  return new Promise((res,rej)=>{
+    const tx = db.transaction(STORE,'readonly');
+    const req = tx.objectStore(STORE).getAll();
+    req.onsuccess = ()=> res(req.result.sort((a,b)=> a.ts - b.ts));
+    req.onerror = ()=> rej(req.error);
+  });
+}
+async function clearEntries(){
+  const db = await openDB();
+  return new Promise((res,rej)=>{
+    const tx = db.transaction(STORE,'readwrite');
+    tx.objectStore(STORE).clear();
+    tx.oncomplete = ()=> res();
+    tx.onerror = ()=> rej(tx.error);
+  });
+}
+
+/* ============ helpers ============ */
+const $ = id => document.getElementById(id);
+function getCfg(){ try{ return JSON.parse(localStorage.getItem(CFG_KEY)); }catch(e){ return null; } }
+function dayKey(d){ const x=new Date(d); return x.getFullYear()+'-'+(x.getMonth()+1)+'-'+x.getDate(); }
+function fmtDate(ts){ const d=new Date(ts); const w=['日','月','火','水','木','金','土'][d.getDay()];
+  return (d.getMonth()+1)+'月'+d.getDate()+'日('+w+')'; }
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1900); }
+
+function computeStreak(entries){
+  if(!entries.length) return 0;
+  const days = [...new Set(entries.map(e=> dayKey(e.ts)))];
+  const set = new Set(days);
+  // start from today; if no entry today, allow starting yesterday
+  let cur = new Date();
+  if(!set.has(dayKey(cur))){ cur.setDate(cur.getDate()-1); if(!set.has(dayKey(cur))) return 0; }
+  let streak = 0;
+  while(set.has(dayKey(cur))){ streak++; cur.setDate(cur.getDate()-1); }
+  return streak;
+}
+
+/* ============ onboarding flow ============ */
+let step = 0;
+const titles = [
+  ['夢と、今日のあなたを<br>つないでいこう。','最高の未来へ向かう毎日を、1枚の写真で記録します。<br>まずは3つだけ教えてください。'],
+  ['その夢を、<br>言葉にしてみよう。','どんなに遠くても大丈夫。<br>ここがあなたの努力の「目的地」になります。'],
+  ['毎日の一歩を<br>決めよう。','小さくてOK。<br>これを写真で積み重ねていきます。']
+];
+function renderStep(){
+  document.querySelectorAll('.ob-pane').forEach((p,i)=> p.style.display = i===step?'block':'none');
+  document.querySelectorAll('.dot').forEach((d,i)=> d.classList.toggle('on', i===step));
+  $('obStep').textContent = `STEP ${step+1} / 3`;
+  $('obTitle').innerHTML = titles[step][0];
+  $('obSub').innerHTML = titles[step][1];
+  $('obBack').style.display = step===0 ? 'none':'block';
+  $('obNext').textContent = step===2 ? '🚀 はじめる' : '次へ';
+}
+$('obNext').addEventListener('click', ()=>{
+  if(step===0 && !$('inName').value.trim()){ toast('名前を入力してね'); return; }
+  if(step===1 && !$('inDream').value.trim()){ toast('夢を入力してね'); return; }
+  if(step===2){
+    const habit = $('inHabit').value.trim();
+    if(!habit){ toast('継続したいことを入力してね'); return; }
+    const cfg = { name:$('inName').value.trim(), dream:$('inDream').value.trim(), habit, created: Date.now() };
+    localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+    enterMain();
+    return;
+  }
+  step++; renderStep();
+});
+$('obBack').addEventListener('click', ()=>{ if(step>0){ step--; renderStep(); } });
+
+/* ============ main ============ */
+async function enterMain(){
+  const cfg = getCfg();
+  $('onboard').style.display = 'none';
+  $('main').style.display = 'block';
+  $('fabWrap').style.display = 'flex';
+  $('mName').textContent = cfg.name + ' の挑戦';
+  $('mDream').textContent = cfg.dream;
+  $('mHabit').textContent = cfg.habit;
+  await renderMain();
+}
+async function renderMain(){
+  const entries = await getEntries();
+  $('stTotal').textContent = entries.length;
+  $('stStreak').textContent = computeStreak(entries);
+  const g = $('gallery');
+  g.innerHTML = '';
+  if(!entries.length){ $('emptyMsg').style.display='block'; $('fabLabel').textContent='今日の努力を記録'; return; }
+  $('emptyMsg').style.display='none';
+  $('fabLabel').textContent = (entries.length+1)+'回目を記録';
+  // newest first
+  [...entries].reverse().forEach(e=>{
+    const url = URL.createObjectURL(e.blob);
+    const card = document.createElement('div');
+    card.className='gcard';
+    card.innerHTML = `<div class="badge">${e.day}回目</div>
+      <img src="${url}">
+      <div class="meta"><div class="day">${e.day}回目の努力</div><div class="date">${fmtDate(e.ts)}</div></div>`;
+    g.appendChild(card);
+  });
+}
+
+/* ============ camera + preview ============ */
+let pendingBlob = null;
+$('fab').addEventListener('click', ()=> $('camera').click());
+$('pvRetake').addEventListener('click', ()=> $('camera').click());
+
+$('camera').addEventListener('change', async (e)=>{
+  const file = e.target.files && e.target.files[0];
+  e.target.value = ''; // allow re-pick same
+  if(!file) return;
+  pendingBlob = file;
+  const entries = await getEntries();
+  const nextDay = entries.length + 1;
+  $('pvTitle').textContent = `${nextDay}回目の一歩、記録する？`;
+  $('pvSub').textContent = fmtDate(Date.now());
+  $('pvImg').src = URL.createObjectURL(file);
+  $('preview').classList.add('show');
+});
+$('pvPost').addEventListener('click', async ()=>{
+  if(!pendingBlob) return;
+  const entries = await getEntries();
+  const day = entries.length + 1;
+  await addEntry({ ts: Date.now(), day, blob: pendingBlob });
+  pendingBlob = null;
+  $('preview').classList.remove('show');
+  await renderMain();
+  toast(`${day}回目を記録しました 🎉`);
+});
+
+/* reset */
+$('resetLink').addEventListener('click', async ()=>{
+  if(confirm('名前・夢・すべての写真を消して最初からやり直します。よろしいですか？')){
+    localStorage.removeItem(CFG_KEY);
+    await clearEntries();
+    location.reload();
+  }
+});
+
+/* ============ boot ============ */
+(function init(){
+  if(getCfg()){ enterMain(); }
+  else { $('onboard').style.display='flex'; renderStep(); }
+})();
+</script>
+</body>
+</html>

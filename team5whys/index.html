@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>5Whys ノート — Team の叶えたいこと</title>
+<style>
+  :root{
+    --bg:#f5f5f7; --card:#ffffff; --ink:#1d1d1f; --sub:#6e6e73;
+    --line:#e3e3e6; --accent:#0071e3; --accent-soft:#e8f1fd;
+    --warm:#fff7e6; --warm-line:#f1d99a; --good:#34c759; --danger:#ff3b30;
+    --radius:16px; --shadow:0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Helvetica Neue",Arial,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.55;
+    -webkit-font-smoothing:antialiased; padding-bottom:env(safe-area-inset-bottom);
+  }
+  .wrap{max-width:680px;margin:0 auto;padding:0 16px 96px}
+  header.app{
+    position:sticky;top:0;z-index:20;background:rgba(245,245,247,.82);
+    backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);
+    padding:calc(env(safe-area-inset-top) + 10px) 16px 10px;border-bottom:1px solid var(--line);
+  }
+  .app-row{max-width:680px;margin:0 auto;display:flex;align-items:center;gap:10px}
+  .back{font-size:16px;color:var(--accent);background:none;border:0;padding:6px 2px;cursor:pointer;font-weight:500;display:none}
+  .back.show{display:inline-block}
+  .title{font-size:20px;font-weight:700;letter-spacing:.2px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .title small{display:block;font-size:11px;font-weight:500;color:var(--sub);letter-spacing:.3px}
+  .hbtn{font-size:14px;color:var(--accent);background:none;border:0;padding:6px;cursor:pointer;font-weight:600}
+
+  /* generic */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  button{font-family:inherit}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:12px;
+    background:var(--accent);color:#fff;font-size:15px;font-weight:600;padding:13px 18px;cursor:pointer;width:100%}
+  .btn:active{transform:scale(.985)}
+  .btn.ghost{background:var(--accent-soft);color:var(--accent)}
+  .btn.line{background:#fff;border:1px solid var(--line);color:var(--ink)}
+  .btn.danger{background:#fff;border:1px solid #ffd0cc;color:var(--danger)}
+  .muted{color:var(--sub)}
+  .empty{text-align:center;color:var(--sub);padding:48px 20px}
+  .empty .big{font-size:40px;margin-bottom:8px}
+
+  /* progress bars */
+  .bar{height:8px;border-radius:999px;background:#ececf0;overflow:hidden}
+  .bar > i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#0071e3,#34c759);transition:width .35s ease}
+  .bar.sm{height:6px}
+  .progress-row{display:flex;align-items:center;gap:10px}
+  .progress-row .bar{flex:1}
+  .progress-row .pct{font-size:13px;font-weight:700;color:var(--ink);flex:0 0 auto;min-width:42px;text-align:right}
+  .slider{-webkit-appearance:none;appearance:none;width:100%;height:10px;border-radius:999px;outline:none;background:#ececf0;margin:14px 0 2px}
+  .slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:26px;height:26px;border-radius:50%;background:#fff;border:1px solid var(--line);box-shadow:0 1px 5px rgba(0,0,0,.28);cursor:pointer;margin-top:-8px}
+  .slider::-moz-range-thumb{width:26px;height:26px;border:1px solid var(--line);border-radius:50%;background:#fff;box-shadow:0 1px 5px rgba(0,0,0,.28);cursor:pointer}
+
+  /* team summary */
+  .summary{padding:16px;margin:16px 0 4px}
+  .summary .srow{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px}
+  .summary .srow span:first-child{font-size:13px;font-weight:700;color:var(--sub);letter-spacing:.3px}
+  .summary .savg{font-size:26px;font-weight:800;line-height:1;background:linear-gradient(90deg,#0071e3,#34c759);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .summary .smeta{margin-top:9px;font-size:12px;color:var(--sub)}
+
+  /* HOME — member list */
+  .section-lead{margin:20px 4px 10px;font-size:13px;font-weight:600;color:var(--sub);letter-spacing:.4px;text-transform:uppercase}
+  .member{padding:16px;margin-bottom:12px;cursor:pointer;display:block;position:relative;overflow:hidden}
+  .member:active{background:#fafafa}
+  .member .name{font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px}
+  .avatar{width:34px;height:34px;border-radius:50%;background:var(--accent-soft);color:var(--accent);
+    display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex:0 0 auto}
+  .member .goal{margin-top:8px;font-size:14px;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .member .goal.none{color:var(--sub);font-style:italic}
+  .member .meta{margin-top:10px;font-size:12px;color:var(--sub);display:flex;gap:14px;flex-wrap:wrap}
+  .chev{position:absolute;right:16px;top:18px;color:#c4c4c9;font-size:20px}
+
+  /* MEMBER detail */
+  .goalcard{padding:16px;margin:16px 0 6px}
+  .goalcard h3{margin:0 0 6px;font-size:12px;color:var(--sub);font-weight:700;letter-spacing:.4px;text-transform:uppercase}
+  .goaltext{font-size:17px;font-weight:600;line-height:1.5;white-space:pre-wrap}
+  .goaltext.none{color:var(--sub);font-weight:400;font-style:italic}
+  .goalcard .edit{margin-top:10px}
+
+  .timeline{position:relative;margin-top:8px;padding-left:6px}
+  .sess{padding:15px 16px;margin-bottom:12px;cursor:pointer}
+  .sess:active{background:#fafafa}
+  .sess .top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .date-chip{font-size:12px;font-weight:700;color:var(--accent);background:var(--accent-soft);padding:3px 10px;border-radius:999px}
+  .sess .prob{margin-top:9px;font-size:15px;font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .sess .interim{margin-top:9px;font-size:13px;color:var(--sub);background:var(--warm);border:1px solid var(--warm-line);
+    border-radius:10px;padding:8px 10px;display:flex;gap:6px}
+  .sess .interim b{color:#9a6b00;font-weight:700;flex:0 0 auto}
+  .whycount{font-size:11px;color:var(--sub)}
+
+  /* EDITOR */
+  .field{margin:16px 0}
+  .field label{display:block;font-size:13px;font-weight:700;margin:0 2px 7px;color:var(--ink)}
+  .field .hint{font-weight:400;color:var(--sub);font-size:12px;display:block;margin-top:2px}
+  input[type=text],input[type=date],textarea{
+    width:100%;border:1px solid var(--line);border-radius:12px;background:#fff;
+    font-family:inherit;font-size:16px;color:var(--ink);padding:12px 13px;resize:none;line-height:1.5}
+  textarea{min-height:70px}
+  input:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+
+  .why-wrap{margin-top:4px}
+  .why{position:relative;padding:14px 14px 14px 16px;border:1px solid var(--line);border-radius:14px;background:#fff;margin-bottom:10px}
+  .why::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:4px 0 0 4px;background:var(--accent);opacity:.85}
+  .why .wq{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:8px;display:flex;align-items:baseline;gap:8px}
+  .why .num{flex:0 0 auto;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;
+    font-size:13px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+  .why .echo{font-weight:500;color:var(--accent)}
+  .why .echo .q{color:var(--sub);font-weight:600}
+  .root{background:var(--warm);border:1px solid var(--warm-line);border-radius:14px;padding:13px 15px;margin:6px 0 2px}
+  .root h4{margin:0 0 5px;font-size:12px;color:#9a6b00;font-weight:700;letter-spacing:.3px}
+  .root p{margin:0;font-size:15px;font-weight:600;white-space:pre-wrap}
+  .root p.none{color:#b08a3a;font-weight:400;font-style:italic}
+
+  .interim-field textarea{background:var(--warm);border-color:var(--warm-line)}
+  .editor-actions{margin-top:22px;display:flex;flex-direction:column;gap:10px}
+
+  /* SMART entry (in editor) */
+  .smart-entry{margin-top:18px;padding:16px;background:linear-gradient(135deg,#f3f8ff,#fff)}
+  .se-head{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .se-emoji{font-size:24px;flex:0 0 auto}
+  .se-title{font-size:15px;font-weight:700}
+  .se-sub{font-size:12px;color:var(--sub);margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+  /* SMART page */
+  .smartctx{padding:14px 16px;margin-top:16px;background:linear-gradient(135deg,#fffaf0,#fff)}
+  .smartctx .cl{display:flex;gap:8px;font-size:14px;margin-bottom:7px;line-height:1.5}
+  .smartctx .cl b{flex:0 0 auto;color:#9a6b00;font-size:13px;font-weight:700;min-width:78px}
+  .smartctx .ctip{margin-top:6px;font-size:12px;color:var(--sub)}
+  .smartf{margin:12px 0}
+  .sf-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .sf-badge{width:26px;height:26px;border-radius:8px;background:var(--accent);color:#fff;font-weight:800;font-size:15px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .sf-jp{font-size:15px;font-weight:700}
+  .sf-en{font-size:11px;color:var(--sub);font-weight:600;letter-spacing:.4px}
+  .sf-prompt{font-size:12px;color:var(--sub);margin:0 2px 7px}
+  .draftbox{margin-top:18px;background:var(--accent-soft);border:1px solid #cfe3fb;border-radius:14px;padding:14px 15px}
+  .draftbox h4{margin:0 0 6px;font-size:12px;color:var(--accent);font-weight:700;letter-spacing:.3px}
+  .draftbox p{margin:0;font-size:15px;font-weight:600;line-height:1.5;white-space:pre-wrap}
+  .draftbox p.none{color:#8fb4e0;font-weight:400}
+
+  /* action steps */
+  .step{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+  .step-check{flex:0 0 auto;width:28px;height:28px;border-radius:8px;border:1.5px solid var(--line);background:#fff;color:#fff;font-size:15px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+  .step-check.on{background:var(--good);border-color:var(--good)}
+  .step input[type=text]{flex:1;font-size:15px;padding:10px 12px}
+  .step.done input[type=text]{color:var(--sub);text-decoration:line-through;background:#fafafa}
+  .step-del{flex:0 0 auto;width:30px;height:30px;border:0;background:none;color:#c4c4c9;font-size:15px;cursor:pointer}
+
+  /* member timeline SMART chip */
+  .smart-chip{margin-top:9px;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--accent);background:var(--accent-soft);border:1px solid #cfe3fb;border-radius:10px;padding:6px 10px;max-width:100%}
+  .smart-chip span{font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .smart-chip .sp{flex:0 0 auto;color:var(--good);font-weight:700}
+
+  /* modal */
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:flex-end;justify-content:center;z-index:50;padding:0}
+  .scrim.show{display:flex}
+  .sheet{background:#fff;width:100%;max-width:680px;border-radius:20px 20px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom));
+    box-shadow:0 -8px 40px rgba(0,0,0,.2);animation:rise .22s ease}
+  @keyframes rise{from{transform:translateY(40px);opacity:.6}to{transform:translateY(0);opacity:1}}
+  .sheet h3{margin:0 0 4px;font-size:18px}
+  .sheet p.sub{margin:0 0 16px;font-size:13px;color:var(--sub)}
+  .sheet-actions{display:flex;gap:10px;margin-top:18px}
+  .sheet-actions .btn{flex:1}
+  .imgwrap{max-height:56vh;overflow:auto;border-radius:14px;border:1px solid var(--line);background:#f5f5f7;-webkit-overflow-scrolling:touch}
+  .imgwrap img{width:100%;display:block}
+
+  .fab{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+    background:linear-gradient(to top,var(--bg) 60%,transparent);z-index:15}
+  .fab .inner{max-width:680px;margin:0 auto}
+
+  .view{display:none}
+  .view.active{display:block}
+  .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%) translateY(20px);background:#1d1d1f;color:#fff;
+    padding:10px 18px;border-radius:999px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;z-index:99}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<header class="app">
+  <div class="app-row">
+    <button class="back" id="backBtn">‹ 戻る</button>
+    <div class="title" id="appTitle">5Whys ノート<small>Team の叶えたいことを深掘りする</small></div>
+    <button class="hbtn" id="headerAction"></button>
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- HOME -->
+  <section class="view active" id="homeView">
+    <div id="teamSummary"></div>
+    <div class="section-lead">Team members</div>
+    <div id="memberList"></div>
+  </section>
+
+  <!-- MEMBER -->
+  <section class="view" id="memberView"></section>
+
+  <!-- EDITOR -->
+  <section class="view" id="editorView"></section>
+
+  <!-- SMART -->
+  <section class="view" id="smartView"></section>
+</div>
+
+<!-- floating add button (contextual) -->
+<div class="fab" id="fab" style="display:none"><div class="inner"><button class="btn" id="fabBtn"></button></div></div>
+
+<!-- modal sheet -->
+<div class="scrim" id="scrim"><div class="sheet" id="sheet"></div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const KEY="team5whys_v1";
+const WHY_PROMPTS=[
+  "なぜ、その困りごとが起きていると思う？",
+  "それは、なぜ？",
+  "さらに、それはなぜ？",
+  "もう一歩、それはなぜ？",
+  "いちばん根っこは、なぜ？"
+];
+
+/* ---------- store ---------- */
+let DB=load();
+function load(){
+  try{const r=JSON.parse(localStorage.getItem(KEY));if(r&&Array.isArray(r.members)){
+    r.members.forEach(m=>{if(typeof m.progress!=="number")m.progress=0;});return r;}}catch(e){}
+  return {members:[]};
+}
+function save(){localStorage.setItem(KEY,JSON.stringify(DB));}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+function memberById(id){return DB.members.find(m=>m.id===id);}
+
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+function esc(s){return (s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function todayStr(){const d=new Date();return d.toISOString().slice(0,10);}
+function fmtDate(s){if(!s)return"";const[y,m,d]=s.split("-");return `${+m}/${+d}`;}
+function fmtFull(s){if(!s)return"";const[y,m,d]=s.split("-");return `${y}年${+m}月${+d}日`;}
+function initial(name){return (name||"?").trim().charAt(0)||"?";}
+function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),1600);}
+
+/* ---------- navigation ---------- */
+let route={view:"home",memberId:null,sessionId:null};
+function go(r){route={...route,...r};render();window.scrollTo(0,0);}
+
+function render(){
+  ["homeView","memberView","editorView","smartView"].forEach(v=>$("#"+v).classList.remove("active"));
+  const back=$("#backBtn"),ha=$("#headerAction"),fab=$("#fab"),title=$("#appTitle");
+  back.classList.remove("show");ha.textContent="";ha.onclick=null;fab.style.display="none";
+
+  if(route.view==="home"){
+    $("#homeView").classList.add("active");
+    title.innerHTML='5Whys ノート<small>Team の叶えたいことを深掘りする</small>';
+    ha.textContent = DB.members.length?"⤓ CSV":"";
+    ha.onclick = DB.members.length?exportCSV:null;
+    fab.style.display="block";$("#fabBtn").textContent="＋ メンバーを追加";$("#fabBtn").onclick=()=>addMember();
+    renderHome();
+  }else if(route.view==="member"){
+    $("#memberView").classList.add("active");back.classList.add("show");back.onclick=()=>go({view:"home"});
+    renderMember();
+    fab.style.display="block";$("#fabBtn").textContent="＋ 新しい会話を記録";$("#fabBtn").onclick=()=>go({view:"editor",sessionId:null});
+  }else if(route.view==="editor"){
+    $("#editorView").classList.add("active");back.classList.add("show");
+    const m=memberById(route.memberId);back.onclick=()=>go({view:"member"});
+    title.innerHTML = `${esc(m?m.name:"")}<small>${route.sessionId?"会話を編集":"新しい会話"}</small>`;
+    renderEditor();
+  }else if(route.view==="smart"){
+    $("#smartView").classList.add("active");back.classList.add("show");
+    const m=memberById(route.memberId);back.onclick=()=>go({view:"editor"});
+    title.innerHTML = `${esc(m?m.name:"")}<small>SMARTアクションプラン</small>`;
+    renderSmart();
+  }
+}
+
+/* ---------- HOME ---------- */
+function renderHome(){
+  const sum=$("#teamSummary"),el=$("#memberList");
+  if(!DB.members.length){
+    sum.innerHTML="";
+    el.innerHTML=`<div class="empty"><div class="big">🌱</div>まだメンバーがいません。<br>下のボタンから最初のメンバーを追加しましょう。</div>`;return;
+  }
+  const n=DB.members.length;
+  const avg=Math.round(DB.members.reduce((s,m)=>s+(m.progress||0),0)/n);
+  sum.innerHTML=`<div class="summary card">
+      <div class="srow"><span>🚀 チーム全体の進捗</span><span class="savg">${avg}%</span></div>
+      <div class="bar"><i style="width:${avg}%"></i></div>
+      <div class="smeta">メンバー ${n}人 ・ ゴール達成度の平均</div>
+    </div>`;
+
+  const sorted=[...DB.members].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+  el.innerHTML=sorted.map(m=>{
+    const cnt=m.sessions.length;const p=m.progress||0;
+    const last=cnt?fmtFull(m.sessions[m.sessions.length-1].date):"—";
+    const goal=m.goal?`<div class="goal">🎯 ${esc(m.goal)}</div>`:`<div class="goal none">🎯 叶えたいゴールはまだ未設定</div>`;
+    return `<div class="member card" onclick="go({view:'member',memberId:'${m.id}'})">
+      <div class="name"><span class="avatar">${esc(initial(m.name))}</span>${esc(m.name)}</div>
+      ${goal}
+      <div class="progress-row" style="margin-top:12px"><div class="bar sm"><i style="width:${p}%"></i></div><span class="pct">${p}%</span></div>
+      <div class="meta"><span>🗒 会話 ${cnt}件</span><span>最終 ${last}</span></div>
+      <span class="chev">›</span>
+    </div>`;
+  }).join("");
+}
+
+/* ---------- MEMBER ---------- */
+function renderMember(){
+  const m=memberById(route.memberId);if(!m){go({view:"home"});return;}
+  $("#appTitle").innerHTML=`${esc(m.name)}<small>叶えたいことの記録</small>`;
+  const ha=$("#headerAction");ha.textContent="編集";ha.onclick=()=>editMemberSheet(m.id);
+
+  const p=m.progress||0;
+  const goalBlock=`<div class="goalcard card">
+      <h3>🎯 叶えたいゴール</h3>
+      <div class="goaltext ${m.goal?"":"none"}">${m.goal?esc(m.goal):"このメンバーが最終的に叶えたいことを設定しましょう"}</div>
+      <div style="margin-top:14px">
+        <div class="progress-row"><div class="bar"><i id="goalFill" style="width:${p}%"></i></div><span class="pct" id="goalPct">${p}%</span></div>
+        <input type="range" class="slider" id="progSlider" min="0" max="100" step="5" value="${p}">
+        <div class="smeta" style="color:var(--sub);font-size:12px">スライドして達成度を更新（体感でOK）</div>
+      </div>
+      <button class="btn ghost edit" onclick="editGoalSheet('${m.id}')">${m.goal?"ゴールを編集":"ゴールを設定する"}</button>
+    </div>`;
+
+  let body;
+  if(!m.sessions.length){
+    body=`<div class="empty"><div class="big">💬</div>まだ会話の記録がありません。<br>下のボタンから1on1や立ち話を5Whysで記録しましょう。</div>`;
+  }else{
+    const list=[...m.sessions].sort((a,b)=>(b.date<a.date?-1:b.date>a.date?1:(b.createdAt||0)-(a.createdAt||0)));
+    body=`<div class="section-lead">会話の履歴（${m.sessions.length}）</div><div class="timeline">`+list.map(s=>{
+      const whyN=s.whys.filter(w=>w&&w.trim()).length;
+      const interim=s.interim?`<div class="interim"><b>一旦のゴール</b><span>${esc(s.interim)}</span></div>`:"";
+      let smartChip="";
+      if(smartHasContent(s.smart)){
+        const st=s.smart.steps||[],done=st.filter(x=>x.done).length;
+        const lbl=s.smart.goal?esc(s.smart.goal):"SMARTプラン設定中";
+        const sp=st.length?`<span class="sp">${done}/${st.length}</span>`:"";
+        smartChip=`<div class="smart-chip">🎯 ${sp}<span>${lbl}</span></div>`;
+      }
+      return `<div class="sess card" onclick="go({view:'editor',sessionId:'${s.id}'})">
+        <div class="top"><span class="date-chip">${fmtFull(s.date)}</span><span class="whycount">なぜ ${whyN}/5</span></div>
+        <div class="prob">🧩 ${esc(s.problem||"（困りごと未記入）")}</div>
+        ${interim}
+        ${smartChip}
+      </div>`;
+    }).join("")+`</div>`;
+  }
+  $("#memberView").innerHTML=goalBlock+body;
+
+  const slider=$("#progSlider");
+  function paint(v){slider.style.background=`linear-gradient(90deg,#0071e3 0%,#34c759 ${v}%,#ececf0 ${v}%)`;}
+  paint(p);
+  slider.addEventListener("input",()=>{const v=+slider.value;$("#goalFill").style.width=v+"%";$("#goalPct").textContent=v+"%";paint(v);});
+  slider.addEventListener("change",()=>{m.progress=+slider.value;m.updatedAt=Date.now();save();toast(`達成度 ${m.progress}%`);});
+}
+
+/* ---------- EDITOR ---------- */
+function renderEditor(){
+  const m=memberById(route.memberId);if(!m){go({view:"home"});return;}
+  const s=route.sessionId?m.sessions.find(x=>x.id===route.sessionId):null;
+  const data=s||{date:todayStr(),problem:"",whys:["","","","",""],interim:""};
+
+  const whysHTML=WHY_PROMPTS.map((q,i)=>`
+    <div class="why">
+      <div class="wq"><span class="num">${i+1}</span><span class="qtext" data-i="${i}">${q}</span></div>
+      <div class="echo" id="echo${i}" style="display:none"></div>
+      <textarea data-why="${i}" placeholder="${i===0?'相手の言葉をそのまま書こう':'一つ前の答えを受けて深掘り'}">${esc(data.whys[i]||"")}</textarea>
+    </div>`).join("");
+
+  $("#editorView").innerHTML=`
+    <div class="field">
+      <label>📅 日付</label>
+      <input type="date" id="f_date" value="${data.date}">
+    </div>
+    <div class="field">
+      <label>🧩 困りごと・課題<span class="hint">いま相手がつまずいている・モヤモヤしていることを起点に書く</span></label>
+      <textarea id="f_problem" placeholder="例：チームの朝礼で発言できない／タスクが期限に間に合わない…">${esc(data.problem)}</textarea>
+    </div>
+
+    <div class="field">
+      <label>❓ 5Whys（連鎖で深掘り）<span class="hint">前の答えに対して「それはなぜ？」を5回。根っこ＝本音に近づける</span></label>
+      <div class="why-wrap">${whysHTML}</div>
+      <div class="root"><h4>🌳 見えてきた根っこ（本音）</h4><p id="rootEcho" class="none">なぜ⑤まで埋まると、いちばん深い答えがここに表示されます</p></div>
+    </div>
+
+    <div class="field interim-field">
+      <label>🚩 この会話での一旦のゴール（次の一歩）<span class="hint">今日の話し合いとして、ここまで進めば good という地点</span></label>
+      <textarea id="f_interim" placeholder="例：次の朝礼で1回だけ質問してみる／木曜までに上長へ相談する…">${esc(data.interim)}</textarea>
+    </div>
+
+    <div class="smart-entry card" id="smartEntry">
+      <div class="se-head"><span class="se-emoji">🎯</span><div><div class="se-title">SMARTアクションプラン</div><div class="se-sub" id="smartEntrySub"></div></div></div>
+      <button class="btn ghost" id="smartBtn"></button>
+    </div>
+
+    <div class="editor-actions">
+      <button class="btn" id="saveBtn">${s?"更新する":"保存する"}</button>
+      <button class="btn line" id="imgBtn">🖼 この会話を画像で書き出す</button>
+      ${s?'<button class="btn danger" id="delBtn">この会話を削除</button>':''}
+    </div>
+  `;
+
+  const whyEls=[...document.querySelectorAll("[data-why]")];
+  function refreshChain(){
+    for(let i=1;i<5;i++){
+      const prev=whyEls[i-1].value.trim();
+      const echo=$("#echo"+i);
+      if(prev){echo.style.display="block";echo.innerHTML=`<span class="q">「</span>${esc(prev)}<span class="q">」← それはなぜ？</span>`;}
+      else{echo.style.display="none";}
+    }
+    const last=[...whyEls].map(e=>e.value.trim()).filter(Boolean).pop();
+    const root=$("#rootEcho");
+    if(last){root.textContent=last;root.classList.remove("none");}
+    else{root.textContent="なぜ⑤まで埋まると、いちばん深い答えがここに表示されます";root.classList.add("none");}
+  }
+  whyEls.forEach(e=>{e.addEventListener("input",refreshChain);autoGrow(e);e.addEventListener("input",()=>autoGrow(e));});
+  ["f_problem","f_interim"].forEach(id=>{const e=$("#"+id);autoGrow(e);e.addEventListener("input",()=>autoGrow(e));});
+  refreshChain();
+
+  let workingId=s?s.id:null;
+  function buildRec(){
+    if(!workingId)workingId=uid();
+    const ex=m.sessions.find(x=>x.id===workingId);
+    return {
+      id:workingId,
+      date:$("#f_date").value||todayStr(),
+      problem:$("#f_problem").value.trim(),
+      whys:whyEls.map(e=>e.value.trim()),
+      interim:$("#f_interim").value.trim(),
+      smart:ex?ex.smart:(s?s.smart:undefined),
+      createdAt:ex?ex.createdAt:(s?s.createdAt:Date.now()),
+      updatedAt:Date.now()
+    };
+  }
+  function persist(rec){
+    const idx=m.sessions.findIndex(x=>x.id===rec.id);
+    if(idx>=0)m.sessions[idx]=rec;else m.sessions.push(rec);
+    m.updatedAt=Date.now();save();return rec;
+  }
+
+  // SMART entry state
+  function refreshSmartEntry(){
+    const ex=m.sessions.find(x=>x.id===workingId);
+    const sm=ex?ex.smart:(s?s.smart:undefined);
+    const has=sm&&(sm.goal||sm.specific||sm.measurable||(sm.steps&&sm.steps.length));
+    const sub=$("#smartEntrySub"),btn=$("#smartBtn");
+    if(has){
+      const total=sm.steps?sm.steps.length:0,done=sm.steps?sm.steps.filter(x=>x.done).length:0;
+      sub.textContent=sm.goal?sm.goal:"S/M/A/R/T 設定中"+(total?` ・ ステップ ${done}/${total}`:"");
+      if(sm.goal&&total)sub.textContent=`${sm.goal}（ステップ ${done}/${total}）`;
+      btn.textContent="プランを編集する";
+    }else{
+      sub.textContent="根本課題が見えたら、具体的なアクションプランを一緒に設計";
+      btn.textContent="＋ SMARTプランを作る";
+    }
+  }
+  refreshSmartEntry();
+  $("#smartBtn").onclick=()=>{const rec=persist(buildRec());toast("会話を保存");go({view:"smart",sessionId:rec.id});};
+
+  $("#saveBtn").onclick=()=>{
+    const rec=buildRec();
+    if(!rec.problem && !rec.whys.some(Boolean) && !rec.interim && !rec.smart){toast("何か入力してね");return;}
+    persist(rec);toast(s?"更新しました":"保存しました");go({view:"member"});
+  };
+  $("#imgBtn").onclick=()=>{
+    const rec=buildRec();
+    if(!rec.problem && !rec.whys.some(Boolean) && !rec.interim && !smartHasContent(rec.smart)){toast("先に内容を入力してね");return;}
+    exportSessionImage(rec,m);
+  };
+  const del=$("#delBtn");
+  if(del)del.onclick=()=>confirmSheet("この会話を削除しますか？","削除した記録は元に戻せません。",()=>{
+    m.sessions=m.sessions.filter(x=>x.id!==s.id);m.updatedAt=Date.now();save();toast("削除しました");go({view:"member"});
+  });
+}
+function autoGrow(e){e.style.height="auto";e.style.height=Math.max(e.scrollHeight,e.tagName==="TEXTAREA"?70:0)+"px";}
+
+/* ---------- SMART ---------- */
+const SMART_FIELDS=[
+  {key:"specific",letter:"S",jp:"具体的",en:"Specific",prompt:"何を達成する？ 誰が・何を・どこで、を具体的に。",ph:"例：朝礼で自分の意見を1つ発言する"},
+  {key:"measurable",letter:"M",jp:"測定可能",en:"Measurable",prompt:"どうなったら達成？ 数・頻度・状態で測れる形に。",ph:"例：週3回の朝礼で各1回、計3回発言する"},
+  {key:"achievable",letter:"A",jp:"達成可能",en:"Achievable",prompt:"本人のリソースで現実的に手が届く？ ハードルを調整。",ph:"例：最初は準備した質問1つでOKにする"},
+  {key:"relevant",letter:"R",jp:"関連性",en:"Relevant",prompt:"根っこの課題・叶えたいゴールにつながっている？",ph:"例：自信を持ってリードする力につながる"}
+];
+function smartHasContent(sm){return !!(sm&&(sm.goal||sm.specific||sm.measurable||sm.achievable||sm.relevant||sm.timebound||(sm.steps&&sm.steps.length)));}
+
+function renderSmart(){
+  const m=memberById(route.memberId);if(!m){go({view:"home"});return;}
+  const s=m.sessions.find(x=>x.id===route.sessionId);
+  if(!s){go({view:"member"});return;}
+  const base=s.smart||{};
+  const draft={
+    specific:base.specific||"",measurable:base.measurable||"",achievable:base.achievable||"",
+    relevant:base.relevant||"",timebound:base.timebound||"",goal:base.goal||"",
+    steps:(base.steps||[]).map(x=>({id:x.id||uid(),text:x.text||"",done:!!x.done}))
+  };
+  const rootCause=[...s.whys].map(w=>(w||"").trim()).filter(Boolean).pop()||"";
+
+  const ctx=`<div class="smartctx card">
+      <div class="cl"><b>🧩 困りごと</b><span class="${s.problem?'':'muted'}">${s.problem?esc(s.problem):"（未記入）"}</span></div>
+      <div class="cl"><b>🌳 根っこ</b><span class="${rootCause?'':'muted'}">${rootCause?esc(rootCause):"（5Whys未記入）"}</span></div>
+      <div class="ctip">この根本課題に効く、具体的で測れるアクションを一緒に設計しよう。</div>
+    </div>`;
+
+  const fieldsHTML=SMART_FIELDS.map(f=>`
+    <div class="smartf">
+      <div class="sf-head"><span class="sf-badge">${f.letter}</span><span class="sf-jp">${f.jp}</span><span class="sf-en">${f.en}</span></div>
+      <div class="sf-prompt">${f.prompt}</div>
+      <textarea data-sm="${f.key}" placeholder="${f.ph}">${esc(draft[f.key])}</textarea>
+    </div>`).join("");
+
+  $("#smartView").innerHTML=`
+    ${ctx}
+    <div class="section-lead" style="margin-top:18px">SMARTで設計</div>
+    ${fieldsHTML}
+    <div class="smartf">
+      <div class="sf-head"><span class="sf-badge">T</span><span class="sf-jp">期限</span><span class="sf-en">Time-bound</span></div>
+      <div class="sf-prompt">いつまでに達成する？ 期限を決めると動き出せる。</div>
+      <input type="date" id="sm_time" value="${draft.timebound}">
+    </div>
+
+    <div class="draftbox">
+      <h4>💡 たたき台（自動生成）</h4>
+      <p id="smDraft" class="none">S・M・期限を埋めると、ここに目標文のたたき台が出ます</p>
+      <button class="btn line" id="useDraft" style="margin-top:12px">このたたき台を確定ゴールへ ↓</button>
+    </div>
+
+    <div class="field" style="margin-top:16px">
+      <label>✅ 確定：SMARTゴール<span class="hint">言葉を整えて、本人と合意できる一文に</span></label>
+      <textarea id="sm_goal" placeholder="例：6/30までに、朝礼で毎回1つ意見を発言できている状態にする">${esc(draft.goal)}</textarea>
+    </div>
+
+    <div class="field">
+      <label>🪜 アクションステップ（やることリスト）<span class="hint">ゴールに向けた具体的な行動。チェックで進捗管理</span></label>
+      <div id="stepList"></div>
+      <button class="btn line" id="addStep" style="margin-top:10px">＋ ステップを追加</button>
+    </div>
+
+    <div class="editor-actions">
+      <button class="btn" id="smSave">プランを保存</button>
+    </div>
+  `;
+
+  const smEls=[...document.querySelectorAll("[data-sm]")];
+  smEls.forEach(e=>{autoGrow(e);e.addEventListener("input",()=>{draft[e.dataset.sm]=e.value;autoGrow(e);refreshDraft();});});
+  const goalEl=$("#sm_goal");autoGrow(goalEl);goalEl.addEventListener("input",()=>{draft.goal=goalEl.value;autoGrow(goalEl);});
+  const timeEl=$("#sm_time");timeEl.addEventListener("change",()=>{draft.timebound=timeEl.value;refreshDraft();});
+
+  function composeDraft(){
+    const sp=draft.specific.trim(),me=draft.measurable.trim(),tb=draft.timebound;
+    if(!sp&&!me&&!tb)return "";
+    const when=tb?fmtFull(tb)+"までに、":"";
+    let core=sp||"（具体的な行動）";
+    if(me)core+=`（${me}）`;
+    return `${when}${core}`;
+  }
+  function refreshDraft(){
+    const d=composeDraft(),el=$("#smDraft");
+    if(d){el.textContent=d;el.classList.remove("none");}
+    else{el.textContent="S・M・期限を埋めると、ここに目標文のたたき台が出ます";el.classList.add("none");}
+  }
+  refreshDraft();
+  $("#useDraft").onclick=()=>{const d=composeDraft();if(!d){toast("S・M・期限を埋めてね");return;}draft.goal=d;goalEl.value=d;autoGrow(goalEl);toast("確定ゴールに反映");};
+
+  function renderSteps(){
+    const c=$("#stepList");
+    if(!draft.steps.length){c.innerHTML=`<div class="muted" style="font-size:13px;padding:6px 2px">まだステップがありません</div>`;return;}
+    c.innerHTML=draft.steps.map((st,i)=>`
+      <div class="step ${st.done?'done':''}">
+        <button class="step-check ${st.done?'on':''}" data-toggle="${i}">${st.done?'✓':''}</button>
+        <input type="text" data-step="${i}" value="${esc(st.text)}" placeholder="例：朝礼の前に質問を1つ準備する">
+        <button class="step-del" data-del="${i}">✕</button>
+      </div>`).join("");
+    c.querySelectorAll("[data-toggle]").forEach(b=>b.onclick=()=>{const i=+b.dataset.toggle;draft.steps[i].done=!draft.steps[i].done;renderSteps();});
+    c.querySelectorAll("[data-step]").forEach(inp=>inp.oninput=()=>{draft.steps[+inp.dataset.step].text=inp.value;});
+    c.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{draft.steps.splice(+b.dataset.del,1);renderSteps();});
+  }
+  renderSteps();
+  $("#addStep").onclick=()=>{draft.steps.push({id:uid(),text:"",done:false});renderSteps();
+    const inputs=$("#stepList").querySelectorAll("[data-step]");if(inputs.length)inputs[inputs.length-1].focus();};
+
+  $("#smSave").onclick=()=>{
+    draft.steps=draft.steps.filter(x=>x.text.trim());
+    s.smart=smartHasContent(draft)?draft:undefined;
+    m.updatedAt=Date.now();save();toast("プランを保存しました");go({view:"editor"});
+  };
+}
+
+/* ---------- image export ---------- */
+const IMG_FONT=(w,s)=>`${w} ${s}px -apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif`;
+function wrapPara(ctx,text,maxW){
+  const out=[];
+  (text||"").split("\n").forEach(p=>{
+    if(!p){out.push("");return;}
+    let line="";
+    for(const ch of p){
+      if(ctx.measureText(line+ch).width>maxW && line){out.push(line);line=ch;}
+      else line+=ch;
+    }
+    out.push(line);
+  });
+  return out;
+}
+function exportSessionImage(s,m){
+  const W=540,PAD=22,CARDX=PAD,CARDW=W-PAD*2,IN=18,GAP=13,maxTextW=CARDW-IN*2;
+  const mc=document.createElement("canvas").getContext("2d");
+  const root=[...s.whys].map(w=>(w||"").trim()).filter(Boolean).pop()||"";
+
+  const sections=[];
+  if(s.problem)sections.push({emoji:"🧩",label:"困りごと・課題",lc:"#9a6b00",bg:"#fffaf0",bd:"#f1d99a",
+    blocks:[{text:s.problem,font:IMG_FONT(600,19),color:"#1d1d1f",lineH:28}]});
+  const circ=["①","②","③","④","⑤"];
+  const fw=s.whys.map((w,i)=>({w:(w||"").trim(),i})).filter(x=>x.w);
+  if(fw.length)sections.push({emoji:"❓",label:"5Whys（なぜを深掘り）",lc:"#0071e3",bg:"#f4f8ff",bd:"#cfe3fb",
+    blocks:fw.map(x=>({text:`${circ[x.i]} ${x.w}`,font:IMG_FONT(500,18),color:"#1d1d1f",lineH:27}))});
+  if(root)sections.push({emoji:"🌳",label:"見えてきた根っこ（本音）",lc:"#9a6b00",bg:"#fff7e6",bd:"#f1d99a",
+    blocks:[{text:root,font:IMG_FONT(700,20),color:"#1d1d1f",lineH:29}]});
+  if(s.interim)sections.push({emoji:"🚩",label:"この会話での一旦のゴール（次の一歩）",lc:"#9a6b00",bg:"#fff7e6",bd:"#f1d99a",
+    blocks:[{text:s.interim,font:IMG_FONT(600,19),color:"#1d1d1f",lineH:28}]});
+  if(smartHasContent(s.smart)){
+    const sm=s.smart,blocks=[];
+    if(sm.goal)blocks.push({text:sm.goal,font:IMG_FONT(700,20),color:"#1d1d1f",lineH:29});
+    if(sm.timebound)blocks.push({text:`📅 期限：${fmtFull(sm.timebound)}`,font:IMG_FONT(600,15),color:"#0071e3",lineH:24,gap:4});
+    (sm.steps||[]).forEach(st=>blocks.push({text:`${st.done?"✓":"□"} ${st.text}`,font:IMG_FONT(500,17),color:st.done?"#34c759":"#1d1d1f",lineH:26}));
+    sections.push({emoji:"🎯",label:"SMARTアクションプラン",lc:"#0071e3",bg:"#f4f8ff",bd:"#cfe3fb",blocks});
+  }
+
+  mc.font=IMG_FONT(500,15);
+  const goalLines=m.goal?wrapPara(mc,"🎯 "+m.goal,CARDW):[];
+  const headH=102+8+(goalLines.length?goalLines.length*21+6:0);
+
+  sections.forEach(sec=>{
+    let h=IN+26+6;
+    sec._wrapped=sec.blocks.map(b=>{mc.font=b.font;const wl=wrapPara(mc,b.text,maxTextW);h+=wl.length*b.lineH+(b.gap||0);return wl;});
+    h+=IN;sec._h=h;
+  });
+  const footerH=42;
+  const totalH=Math.ceil(headH+sections.reduce((a,s)=>a+s._h+GAP,0)+footerH);
+
+  const scale=2,cv=document.createElement("canvas");
+  cv.width=W*scale;cv.height=totalH*scale;
+  const ctx=cv.getContext("2d");ctx.scale(scale,scale);ctx.textBaseline="top";
+  ctx.fillStyle="#f5f5f7";ctx.fillRect(0,0,W,totalH);
+  function rr(x,yy,w,h,r){ctx.beginPath();ctx.moveTo(x+r,yy);ctx.arcTo(x+w,yy,x+w,yy+h,r);ctx.arcTo(x+w,yy+h,x,yy+h,r);ctx.arcTo(x,yy+h,x,yy,r);ctx.arcTo(x,yy,x+w,yy,r);ctx.closePath();}
+
+  let y=24;
+  ctx.fillStyle="#0071e3";ctx.font=IMG_FONT(800,16);ctx.fillText("🎯 5Whys ノート",PAD,y);
+  ctx.font=IMG_FONT(700,14);const dtxt=fmtFull(s.date),dw=ctx.measureText(dtxt).width;
+  ctx.fillStyle="#e8f1fd";rr(W-PAD-dw-20,y-3,dw+20,24,12);ctx.fill();
+  ctx.fillStyle="#0071e3";ctx.fillText(dtxt,W-PAD-dw-10,y);
+  y+=26;
+  const av=40,ax=PAD,ay=y;
+  ctx.fillStyle="#e8f1fd";ctx.beginPath();ctx.arc(ax+av/2,ay+av/2,av/2,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle="#0071e3";ctx.font=IMG_FONT(700,20);ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillText(initial(m.name),ax+av/2,ay+av/2+1);ctx.textAlign="left";ctx.textBaseline="top";
+  ctx.fillStyle="#1d1d1f";ctx.font=IMG_FONT(800,24);ctx.fillText(m.name,ax+av+12,ay+8);
+  y+=52;
+  if(goalLines.length){ctx.font=IMG_FONT(500,15);ctx.fillStyle="#6e6e73";goalLines.forEach(l=>{ctx.fillText(l,PAD,y);y+=21;});y+=6;}
+  y+=8;
+
+  sections.forEach(sec=>{
+    const cardY=y;
+    ctx.fillStyle=sec.bg;rr(CARDX,cardY,CARDW,sec._h,16);ctx.fill();
+    ctx.strokeStyle=sec.bd;ctx.lineWidth=1;rr(CARDX+.5,cardY+.5,CARDW-1,sec._h-1,16);ctx.stroke();
+    let cy=cardY+IN;
+    ctx.font=IMG_FONT(700,15);ctx.fillStyle=sec.lc;ctx.fillText(`${sec.emoji} ${sec.label}`,CARDX+IN,cy);
+    cy+=32;
+    sec.blocks.forEach((b,bi)=>{ctx.font=b.font;ctx.fillStyle=b.color;sec._wrapped[bi].forEach(l=>{ctx.fillText(l,CARDX+IN,cy);cy+=b.lineH;});cy+=(b.gap||0);});
+    y=cardY+sec._h+GAP;
+  });
+  ctx.fillStyle="#9a9aa0";ctx.font=IMG_FONT(500,12);ctx.fillText(`5Whys ノート ・ ${m.name} ・ ${fmtFull(s.date)}`,PAD,y+8);
+
+  const fname=`5Whys_${(m.name||"member").replace(/[\\/:*?"<>|\s]/g,"_")}_${s.date}.png`;
+  cv.toBlob(b=>{if(!b){toast("画像化に失敗しました");return;}showImageSheet(URL.createObjectURL(b),b,fname);},"image/png");
+}
+function showImageSheet(url,blob,fname){
+  openSheet(`<h3>🖼 画像で書き出し</h3><p class="sub">画像を長押しでも保存・共有できます。下のボタンからもどうぞ。</p>
+    <div class="imgwrap"><img src="${url}" alt="会話の記録"></div>
+    <div class="sheet-actions"><button class="btn line" onclick="closeSheet()">閉じる</button><button class="btn" id="img_share">保存・共有</button></div>`);
+  $("#img_share").onclick=async()=>{
+    try{
+      const file=new File([blob],fname,{type:"image/png"});
+      if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:"5Whys ノート"});}
+      else{const a=document.createElement("a");a.href=url;a.download=fname;document.body.appendChild(a);a.click();a.remove();toast("画像を保存しました");}
+    }catch(e){}
+  };
+}
+
+/* ---------- sheets ---------- */
+function openSheet(html){$("#sheet").innerHTML=html;$("#scrim").classList.add("show");}
+function closeSheet(){$("#scrim").classList.remove("show");}
+$("#scrim").addEventListener("click",e=>{if(e.target.id==="scrim")closeSheet();});
+
+function addMember(){
+  openSheet(`<h3>メンバーを追加</h3><p class="sub">名前と、分かっていれば叶えたいゴールを入力（あとで編集可）</p>
+    <div class="field"><label>👤 名前</label><input type="text" id="m_name" placeholder="例：田中さん / Yuki" autofocus></div>
+    <div class="field"><label>🎯 叶えたいゴール（任意）</label><textarea id="m_goal" placeholder="このメンバーが最終的に目指したいこと"></textarea></div>
+    <div class="sheet-actions"><button class="btn line" onclick="closeSheet()">キャンセル</button><button class="btn" id="m_save">追加する</button></div>`);
+  setTimeout(()=>$("#m_name").focus(),50);
+  $("#m_save").onclick=()=>{
+    const name=$("#m_name").value.trim();if(!name){toast("名前を入れてね");return;}
+    const m={id:uid(),name,goal:$("#m_goal").value.trim(),progress:0,createdAt:Date.now(),updatedAt:Date.now(),sessions:[]};
+    DB.members.push(m);save();closeSheet();toast("追加しました");go({view:"member",memberId:m.id});
+  };
+}
+function editMemberSheet(id){
+  const m=memberById(id);if(!m)return;
+  openSheet(`<h3>メンバーを編集</h3>
+    <div class="field"><label>👤 名前</label><input type="text" id="m_name" value="${esc(m.name)}"></div>
+    <div class="sheet-actions"><button class="btn danger" id="m_del">削除</button><button class="btn" id="m_save">保存</button></div>`);
+  $("#m_save").onclick=()=>{const v=$("#m_name").value.trim();if(!v){toast("名前を入れてね");return;}m.name=v;m.updatedAt=Date.now();save();closeSheet();render();toast("保存しました");};
+  $("#m_del").onclick=()=>{closeSheet();confirmSheet(`「${m.name}」を削除しますか？`,"このメンバーの会話記録もすべて削除されます。",()=>{
+    DB.members=DB.members.filter(x=>x.id!==id);save();toast("削除しました");go({view:"home",memberId:null});});};
+}
+function editGoalSheet(id){
+  const m=memberById(id);if(!m)return;
+  openSheet(`<h3>🎯 叶えたいゴール</h3><p class="sub">最終的に目指したいこと。会話を重ねて変わったら更新してOK</p>
+    <div class="field"><textarea id="g_text" placeholder="例：自信を持ってチームをリードできるようになる">${esc(m.goal)}</textarea></div>
+    <div class="sheet-actions"><button class="btn line" onclick="closeSheet()">キャンセル</button><button class="btn" id="g_save">保存</button></div>`);
+  setTimeout(()=>{const t=$("#g_text");t.focus();autoGrow(t);t.addEventListener("input",()=>autoGrow(t));},50);
+  $("#g_save").onclick=()=>{m.goal=$("#g_text").value.trim();m.updatedAt=Date.now();save();closeSheet();render();toast("保存しました");};
+}
+function confirmSheet(title,sub,onYes){
+  openSheet(`<h3>${esc(title)}</h3><p class="sub">${esc(sub)}</p>
+    <div class="sheet-actions"><button class="btn line" onclick="closeSheet()">やめる</button><button class="btn danger" id="c_yes">削除する</button></div>`);
+  $("#c_yes").onclick=()=>{closeSheet();onYes();};
+}
+
+/* ---------- CSV ---------- */
+function csvCell(v){return '"'+String(v==null?"":v).replace(/"/g,'""')+'"';}
+function exportCSV(){
+  const head=["メンバー","叶えたいゴール","達成度(%)","日付","困りごと・課題","なぜ1","なぜ2","なぜ3","なぜ4","なぜ5","根っこ(本音)","一旦のゴール","SMARTゴール","期限","アクションステップ"];
+  const rows=[head];
+  const smartCols=s=>{
+    const sm=s.smart;if(!smartHasContent(sm))return ["","",""];
+    const steps=(sm.steps||[]).map(x=>`${x.done?"✓":"□"} ${x.text}`).join(" / ");
+    return [sm.goal||"",sm.timebound||"",steps];
+  };
+  DB.members.forEach(m=>{
+    const pg=m.progress||0;
+    if(!m.sessions.length){rows.push([m.name,m.goal,pg,"","","","","","","","","","","",""]);return;}
+    [...m.sessions].sort((a,b)=>a.date<b.date?-1:1).forEach(s=>{
+      const root=[...s.whys].map(w=>(w||"").trim()).filter(Boolean).pop()||"";
+      rows.push([m.name,m.goal,pg,s.date,s.problem,s.whys[0]||"",s.whys[1]||"",s.whys[2]||"",s.whys[3]||"",s.whys[4]||"",root,s.interim,...smartCols(s)]);
+    });
+  });
+  const csv="﻿"+rows.map(r=>r.map(csvCell).join(",")).join("\r\n");
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob);const a=document.createElement("a");
+  a.href=url;a.download=`5Whys_${todayStr().replace(/-/g,"")}.csv`;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast("CSVを書き出しました");
+}
+
+window.go=go;window.closeSheet=closeSheet;window.editGoalSheet=editGoalSheet;
+render();
+</script>
+</body>
+</html>

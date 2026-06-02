@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="資産予測">
+<meta name="theme-color" content="#f5f5f7">
+<title>資産予測グラフ</title>
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --card: #ffffff;
+    --text: #1d1d1f;
+    --sub: #6e6e73;
+    --line: #e3e3e6;
+    --blue: #0071e3;
+    --green: #34c759;
+    --orange: #ff9f0a;
+    --red: #ff3b30;
+    --grey: #9a9aa0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 24px 16px 64px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 26px; font-weight: 600; text-align: center; margin: 8px 0 4px; }
+  .tagline { text-align: center; color: var(--sub); font-size: 14px; margin-bottom: 18px; }
+  .topnav { text-align: center; margin: 0 0 24px; }
+  .nav-link {
+    display: inline-block; color: var(--blue); font-size: 15px; text-decoration: none;
+    padding: 8px 16px; border: 1px solid var(--line); border-radius: 999px; background: #fff;
+  }
+  .nav-link:hover { background: #f0f7ff; border-color: var(--blue); }
+
+  .card {
+    background: var(--card);
+    border-radius: 18px;
+    padding: 22px;
+    margin-bottom: 18px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .card h2 {
+    font-size: 15px; font-weight: 600; color: var(--sub);
+    margin: 0 0 6px; letter-spacing: .02em;
+  }
+  .card .h2-note { font-size: 12px; color: var(--sub); margin: 0 0 14px; }
+
+  /* form rows */
+  .frow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .frow:last-of-type { border-bottom: none; }
+  .frow .lbl { font-size: 15px; }
+  .frow .lbl .hint { display: block; font-size: 12px; color: var(--sub); }
+  .frow .amount-wrap { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  .frow .amount-wrap .yen { color: var(--sub); font-size: 16px; }
+  .frow input.amount {
+    width: 150px; text-align: right; font-size: 17px; padding: 9px 11px;
+    border: 1px solid var(--line); border-radius: 10px; background: #fafafa;
+    font-family: inherit; color: var(--text);
+  }
+  .frow input.amount:focus { outline: none; border-color: var(--blue); background: #fff; }
+
+  .pull {
+    margin-top: 14px; width: 100%; padding: 11px;
+    border: 1px dashed var(--line); border-radius: 12px; background: #fafafa;
+    color: var(--blue); font-size: 14px; font-family: inherit; cursor: pointer;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  .pull:hover { background: #f0f7ff; border-color: var(--blue); }
+
+  /* period slider */
+  .period .prow { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+  .period .pval { font-size: 20px; font-weight: 600; }
+  .period input[type=range] { width: 100%; accent-color: var(--blue); }
+  .period .pticks { display: flex; justify-content: space-between; font-size: 11px; color: var(--sub); margin-top: 2px; }
+
+  /* result */
+  .result { text-align: center; }
+  .save-row { display: flex; gap: 12px; margin-bottom: 16px; }
+  .save-box { flex: 1; background: #fafafa; border-radius: 12px; padding: 12px; }
+  .save-box .t { font-size: 12px; color: var(--sub); }
+  .save-box .v { font-size: 20px; font-weight: 700; }
+  .save-box .v.pos { color: var(--green); }
+  .save-box .v.neg { color: var(--red); }
+  .save-box.ideal { background: #effaf1; }
+
+  .res-label { font-size: 13px; color: var(--sub); }
+  .res-big {
+    font-size: 50px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1;
+    color: var(--green); word-break: break-all;
+  }
+  .res-big.neg { color: var(--red); }
+  .diff-msg {
+    margin-top: 12px; padding: 14px 16px; border-radius: 12px;
+    background: #effaf1; font-size: 15px; color: var(--text);
+  }
+  .diff-msg .big { font-size: 26px; font-weight: 700; color: var(--green); display: block; }
+  .warn {
+    margin-top: 12px; padding: 12px 16px; border-radius: 12px;
+    background: #fff6e9; font-size: 14px; color: var(--text);
+  }
+  .warn.bad { background: #ffeceb; }
+
+  /* chart */
+  .legend { display: flex; gap: 18px; justify-content: center; font-size: 13px; color: var(--sub); margin-top: 8px; }
+  .legend .sw { display: inline-block; width: 14px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+  .legend .sw.ideal { background: var(--green); }
+  .legend .sw.cur { background: var(--grey); }
+  svg.chart { width: 100%; height: auto; display: block; }
+
+  /* milestones */
+  .ms-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .ms { background: #fafafa; border-radius: 12px; padding: 14px; text-align: center; }
+  .ms .when { font-size: 13px; color: var(--sub); }
+  .ms .asset { font-size: 22px; font-weight: 700; margin: 2px 0; }
+  .ms .asset.neg { color: var(--red); }
+  .ms .diff { font-size: 12px; color: var(--green); }
+
+  /* 追加ボタン（共通） */
+  .btn-add {
+    margin-top: 14px; width: 100%; padding: 12px;
+    border: 1px dashed var(--line); border-radius: 12px; background: #fafafa;
+    color: var(--blue); font-size: 15px; font-family: inherit; cursor: pointer;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  .btn-add:hover { background: #f0f7ff; border-color: var(--blue); }
+  .empty { color: var(--sub); font-size: 14px; padding: 6px 0 2px; }
+
+  /* 将来の大きな支出（目標） */
+  .goal { padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .goal:last-of-type { border-bottom: none; }
+  .goal-main { display: flex; align-items: center; gap: 10px; }
+  .goal input.g-name {
+    flex: 1 1 90px; min-width: 0; font-size: 16px; padding: 9px 11px;
+    border: 1px solid var(--line); border-radius: 10px; background: #fafafa; font-family: inherit; color: var(--text);
+  }
+  .goal .amount-wrap { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  .goal .amount-wrap .yen { color: var(--sub); font-size: 16px; }
+  .goal input.g-amount {
+    width: 130px; text-align: right; font-size: 17px; padding: 9px 11px;
+    border: 1px solid var(--line); border-radius: 10px; background: #fafafa; font-family: inherit; color: var(--text);
+  }
+  .goal input:focus { outline: none; border-color: var(--blue); background: #fff; }
+  .goal .del {
+    width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%;
+    border: 1px solid var(--line); background: #fff; color: var(--sub);
+    font-size: 18px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  .goal .del:hover { background: #fff0f0; border-color: var(--red); color: var(--red); }
+  .g-meta { display: flex; align-items: center; gap: 12px; margin: 8px 0 2px; flex-wrap: wrap; font-size: 13px; color: var(--sub); }
+  .g-meta .g-date-wrap { display: inline-flex; align-items: center; gap: 6px; }
+  .g-meta input.g-date {
+    font-size: 14px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px;
+    background: #fafafa; font-family: inherit; color: var(--text);
+  }
+  .g-meta input.g-date:focus { outline: none; border-color: var(--blue); background: #fff; }
+  .g-status { font-size: 13px; }
+  .g-status.ok { color: var(--green); font-weight: 600; }
+  .g-status.short { color: var(--orange); font-weight: 600; }
+  .goal-advice {
+    margin-top: 16px; padding: 14px 16px; border-radius: 12px; background: #f0f7ff; font-size: 14px; line-height: 1.6;
+  }
+  .goal-advice.bad { background: #fff6e9; }
+  .goal-advice .big { font-size: 22px; font-weight: 700; color: var(--blue); }
+
+  /* バックアップ */
+  .backup-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+  .btn-sec {
+    flex: 1 1 30%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 12px;
+    background: #fff; color: var(--blue); font-size: 14px; font-family: inherit; cursor: pointer;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  .btn-sec:hover { background: #f0f7ff; border-color: var(--blue); }
+  .btn-sec.primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .btn-sec.primary:hover { background: #0063c6; }
+  .bk-text {
+    width: 100%; height: 84px; font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: #fafafa; color: var(--text);
+    resize: vertical;
+  }
+  .bk-text:focus { outline: none; border-color: var(--blue); background: #fff; }
+  .bk-msg { font-size: 13px; color: var(--green); margin-top: 8px; min-height: 18px; }
+  .bk-msg.err { color: var(--red); }
+
+  @media (max-width: 460px) {
+    .frow input.amount { width: 120px; }
+    .res-big { font-size: 40px; }
+    .save-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>資産予測グラフ</h1>
+  <p class="tagline">理想のクレカ支出で、資産がどれくらい増えるかをシミュレーション</p>
+  <div class="topnav"><a class="nav-link" href="money.html">← 残高計算に戻る</a></div>
+
+  <!-- 入力 -->
+  <div class="card">
+    <h2>入力</h2>
+    <p class="h2-note">「起点の資産」と「今のクレカ支出」は残高計算ページから自動で取り込みます（編集可）</p>
+
+    <div class="frow">
+      <span class="lbl">起点の資産<span class="hint">＝引き落とし後に残るお金</span></span>
+      <span class="amount-wrap"><span class="yen">¥</span><input class="amount" id="startAsset" type="text" inputmode="numeric" placeholder="0"></span>
+    </div>
+    <div class="frow">
+      <span class="lbl">毎月の給与<span class="hint">手取りで入力</span></span>
+      <span class="amount-wrap"><span class="yen">¥</span><input class="amount" id="salary" type="text" inputmode="numeric" placeholder="0"></span>
+    </div>
+    <div class="frow">
+      <span class="lbl">理想のクレカ月支出<span class="hint">この支出で続けたら？</span></span>
+      <span class="amount-wrap"><span class="yen">¥</span><input class="amount" id="idealSpend" type="text" inputmode="numeric" placeholder="0"></span>
+    </div>
+    <div class="frow">
+      <span class="lbl">今のクレカ支出<span class="hint">現状ペース（立て替え除く）</span></span>
+      <span class="amount-wrap"><span class="yen">¥</span><input class="amount" id="currentSpend" type="text" inputmode="numeric" placeholder="0"></span>
+    </div>
+    <div class="frow">
+      <span class="lbl">その他の固定費<span class="hint">家賃・光熱費など（任意）</span></span>
+      <span class="amount-wrap"><span class="yen">¥</span><input class="amount" id="fixed" type="text" inputmode="numeric" placeholder="0"></span>
+    </div>
+
+    <button class="pull" id="pullBtn">🔄 残高計算ページの「残り」と「クレカ支出」を取り込む</button>
+  </div>
+
+  <!-- 期間 -->
+  <div class="card period">
+    <div class="prow">
+      <span class="lbl" style="font-size:15px;">予測する期間</span>
+      <span class="pval"><span id="monthsVal">12</span> ヶ月</span>
+    </div>
+    <input type="range" id="months" min="1" max="60" step="1" value="12">
+    <div class="pticks"><span>1ヶ月</span><span>5年</span></div>
+  </div>
+
+  <!-- 将来の大きな支出（目標） -->
+  <div class="card">
+    <h2>🎯 将来の大きな支出（貯金目標）</h2>
+    <p class="h2-note">名前・日付・金額を入れると、間に合わせる貯金ペースを計算し、グラフにも反映します</p>
+    <div id="goals"></div>
+    <button class="btn-add" id="addGoal">＋ 支出を追加</button>
+    <div class="goal-advice" id="goalAdvice" style="display:none"></div>
+  </div>
+
+  <!-- 結果 -->
+  <div class="card result">
+    <div class="save-row">
+      <div class="save-box ideal">
+        <div class="t">理想ペースの毎月の貯金</div>
+        <div class="v pos" id="saveIdeal">¥0</div>
+      </div>
+      <div class="save-box">
+        <div class="t">今のペースの毎月の貯金</div>
+        <div class="v" id="saveCurrent">¥0</div>
+      </div>
+    </div>
+
+    <div class="res-label"><span id="resLabel">12ヶ月後</span>の資産（理想ペース）</div>
+    <div class="res-big" id="resBig">¥0</div>
+
+    <div class="diff-msg" id="diffMsg">給与と支出を入力するとシミュレーションされます</div>
+    <div class="warn" id="warn" style="display:none"></div>
+  </div>
+
+  <!-- グラフ -->
+  <div class="card">
+    <h2>資産の増え方</h2>
+    <div id="chart"></div>
+    <div class="legend">
+      <span><span class="sw ideal"></span>理想ペース</span>
+      <span><span class="sw cur"></span>今のペース</span>
+    </div>
+  </div>
+
+  <!-- マイルストーン -->
+  <div class="card">
+    <h2>目標までの目安（理想ペース）</h2>
+    <div class="ms-grid" id="milestones"></div>
+  </div>
+
+  <!-- 欲しいものリスト -->
+  <div class="card">
+    <h2>🛍️ 欲しいものリスト</h2>
+    <p class="h2-note">名前と金額を入れると「いつ買えるか」を理想ペース・今のペースの両方で計算します（大きな支出も考慮）</p>
+    <div id="wishlist"></div>
+    <button class="btn-add" id="addWish">＋ 欲しいものを追加</button>
+  </div>
+
+  <!-- データの引き継ぎ・バックアップ -->
+  <div class="card">
+    <h2>⚙️ データの引き継ぎ・バックアップ</h2>
+    <p class="h2-note">入力した数字を書き出して保存できます。iPhoneなど別の端末へ引き継ぐときもこれを使います（残高計算ページのデータも一緒に保存されます）。</p>
+    <div class="backup-actions">
+      <button class="btn-sec" id="bkCopy">📋 コピー</button>
+      <button class="btn-sec" id="bkDownload">💾 ファイルに保存</button>
+      <button class="btn-sec" id="bkFileBtn">📂 ファイルから読み込み</button>
+      <input type="file" id="bkFileInput" accept="application/json,.json,.txt" hidden>
+    </div>
+    <textarea class="bk-text" id="bkText" spellcheck="false" placeholder="ここにバックアップの内容を貼り付けて「この内容で復元する」を押します"></textarea>
+    <button class="btn-sec primary" id="bkRestore" style="margin-top:10px;width:100%;flex:none;">この内容で復元する</button>
+    <div class="bk-msg" id="bkMsg"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var KEY = "money-forecast-v1";
+  var MONEY_KEY = "money-balance-v1";
+
+  var settings = { startAsset: 0, salary: 0, idealSpend: 0, currentSpend: 0, fixed: 0, months: 12, goals: [], wishlist: [] };
+  var seq = 1;
+  function gid() { return "g" + (seq++) + "_" + Date.now().toString(36); }
+
+  var el = {
+    startAsset: document.getElementById("startAsset"),
+    salary: document.getElementById("salary"),
+    idealSpend: document.getElementById("idealSpend"),
+    currentSpend: document.getElementById("currentSpend"),
+    fixed: document.getElementById("fixed"),
+    months: document.getElementById("months"),
+    monthsVal: document.getElementById("monthsVal"),
+    pullBtn: document.getElementById("pullBtn"),
+    saveIdeal: document.getElementById("saveIdeal"),
+    saveCurrent: document.getElementById("saveCurrent"),
+    resLabel: document.getElementById("resLabel"),
+    resBig: document.getElementById("resBig"),
+    diffMsg: document.getElementById("diffMsg"),
+    warn: document.getElementById("warn"),
+    chart: document.getElementById("chart"),
+    milestones: document.getElementById("milestones"),
+    goals: document.getElementById("goals"),
+    addGoal: document.getElementById("addGoal"),
+    goalAdvice: document.getElementById("goalAdvice"),
+    wishlist: document.getElementById("wishlist"),
+    addWish: document.getElementById("addWish")
+  };
+
+  function toNum(v) {
+    var n = parseInt(String(v).replace(/[^0-9]/g, ""), 10);
+    return isNaN(n) || n < 0 ? 0 : n;
+  }
+  function comma(n) { return Number(n).toLocaleString("ja-JP"); }
+  function yen(n) { return "¥" + Math.round(n).toLocaleString("ja-JP"); }
+  function signed(n) { return (n < 0 ? "−" : "+") + yen(Math.abs(n)); }
+  function manLabel(v) {
+    var a = Math.abs(v);
+    if (a >= 10000) { var m = v / 10000; return (Math.round(m * 10) / 10) + "万"; }
+    return Math.round(v) + "";
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function monthsExact(dateStr) {
+    if (!dateStr) return null;
+    var d = new Date(dateStr + "T00:00:00");
+    if (isNaN(d.getTime())) return null;
+    var now = new Date(); now.setHours(0, 0, 0, 0);
+    return (d - now) / (1000 * 60 * 60 * 24 * 30.4375);
+  }
+  function normGoal(o) {
+    return { id: o && o.id ? String(o.id) : gid(),
+             name: o && typeof o.name === "string" ? o.name : "",
+             date: o && typeof o.date === "string" ? o.date : "",
+             amount: o ? toNum(o.amount) : 0 };
+  }
+  function makeGoal() { return { id: gid(), name: "", date: "", amount: 0 }; }
+
+  // 有効な目標（金額>0 かつ 日付あり）を日付順で返す。m=残り月数(実数), mr=グラフ用整数月
+  function validGoals() {
+    return settings.goals
+      .filter(function (g) { return toNum(g.amount) > 0 && g.date; })
+      .map(function (g) {
+        var m = monthsExact(g.date);
+        if (m === null) return null;
+        if (m < 0) m = 0;
+        return { id: g.id, name: g.name, amount: toNum(g.amount), m: m, mr: Math.max(0, Math.round(m)) };
+      })
+      .filter(function (g) { return g !== null; })
+      .sort(function (a, b) { return a.m - b.m; });
+  }
+
+  function readMoney() {
+    try {
+      var s = JSON.parse(localStorage.getItem(MONEY_KEY));
+      if (!s) return null;
+      var sum = function (arr, f) { return (arr || []).reduce(function (a, x) { return a + f(x); }, 0); };
+      var banks = sum(s.banks, function (x) { return toNum(x.amount); });
+      var pending = sum(s.cards, function (x) { return x.paid ? 0 : toNum(x.amount); });
+      var cardsTotal = sum(s.cards, function (x) { return toNum(x.amount); });
+      var advTotal = sum(s.advances, function (x) { return toNum(x.amount); });
+      return { remain: banks - pending, currentSpend: Math.max(0, cardsTotal - advTotal) };
+    } catch (e) { return null; }
+  }
+
+  function load() {
+    var saved = null;
+    try { saved = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+    var money = readMoney();
+    if (saved) {
+      settings.startAsset = toNum(saved.startAsset);
+      settings.salary = toNum(saved.salary);
+      settings.idealSpend = toNum(saved.idealSpend);
+      settings.currentSpend = toNum(saved.currentSpend);
+      settings.fixed = toNum(saved.fixed);
+      settings.months = Math.min(60, Math.max(1, parseInt(saved.months, 10) || 12));
+      if (Array.isArray(saved.goals)) settings.goals = saved.goals.map(normGoal);
+      if (Array.isArray(saved.wishlist)) settings.wishlist = saved.wishlist.map(normWish);
+    } else if (money) {
+      settings.startAsset = money.remain;
+      settings.currentSpend = money.currentSpend;
+    }
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch (e) {}
+  }
+
+  function syncInputs() {
+    el.startAsset.value = settings.startAsset ? comma(settings.startAsset) : "";
+    el.salary.value = settings.salary ? comma(settings.salary) : "";
+    el.idealSpend.value = settings.idealSpend ? comma(settings.idealSpend) : "";
+    el.currentSpend.value = settings.currentSpend ? comma(settings.currentSpend) : "";
+    el.fixed.value = settings.fixed ? comma(settings.fixed) : "";
+    el.months.value = settings.months;
+    el.monthsVal.textContent = settings.months;
+  }
+
+  function assetAt(start, perMonth, t) { return start + perMonth * t; }
+  function cumExpenses(goals, t) {
+    var s = 0;
+    for (var i = 0; i < goals.length; i++) if (goals[i].mr <= t) s += goals[i].amount;
+    return s;
+  }
+  function projectedAsset(start, perMonth, t, goals) {
+    return start + perMonth * t - cumExpenses(goals, t);
+  }
+  // 資産が price に初めて到達する月数（0=今すぐ, null=届かない）。大きな支出の下落も考慮
+  function monthsToReach(start, perMonth, price, goals) {
+    if (start >= price) return 0;
+    for (var t = 1; t <= 600; t++) {
+      if (start + perMonth * t - cumExpenses(goals, t) >= price) return t;
+    }
+    return null;
+  }
+  function reachLabel(t) {
+    if (t === null) return "届きません";
+    if (t === 0) return "今すぐ";
+    var now = new Date();
+    var d = new Date(now.getFullYear(), now.getMonth() + t, 1);
+    return "あと" + t + "ヶ月（" + d.getFullYear() + "年" + (d.getMonth() + 1) + "月ごろ）";
+  }
+  function normWish(o) {
+    return { id: o && o.id ? String(o.id) : gid(),
+             name: o && typeof o.name === "string" ? o.name : "",
+             price: o ? toNum(o.price) : 0 };
+  }
+  function makeWish() { return { id: gid(), name: "", price: 0 }; }
+  function findWish(id) {
+    for (var i = 0; i < settings.wishlist.length; i++) if (settings.wishlist[i].id === id) return settings.wishlist[i];
+    return null;
+  }
+  function wishRowMarkup() {
+    return '<div class="goal-main">' +
+      '<input class="g-name" type="text" placeholder="例：iPad / ヘッドホン" value="">' +
+      '<div class="amount-wrap"><span class="yen">¥</span>' +
+      '<input class="g-amount" type="text" inputmode="numeric" placeholder="0" value=""></div>' +
+      '<button class="del" aria-label="削除">×</button>' +
+    '</div>' +
+    '<div class="g-meta"><span class="g-status"></span></div>';
+  }
+  function buildWishlist() {
+    el.wishlist.innerHTML = "";
+    if (settings.wishlist.length === 0) {
+      var em = document.createElement("div");
+      em.className = "empty";
+      em.textContent = "欲しいものを「＋」から追加すると、いつ買えるかを計算します";
+      el.wishlist.appendChild(em);
+      return;
+    }
+    settings.wishlist.forEach(function (w) {
+      var row = document.createElement("div");
+      row.className = "goal";
+      row.setAttribute("data-id", w.id);
+      row.innerHTML = wishRowMarkup();
+      row.querySelector(".g-name").value = w.name;
+      row.querySelector(".g-amount").value = w.price ? comma(w.price) : "";
+      el.wishlist.appendChild(row);
+    });
+  }
+  function wireWishlist() {
+    el.wishlist.addEventListener("input", function (e) {
+      var row = e.target.closest(".goal"); if (!row) return;
+      var w = findWish(row.getAttribute("data-id")); if (!w) return;
+      var t = e.target;
+      if (t.classList.contains("g-name")) { w.name = t.value; render(); save(); }
+      else if (t.classList.contains("g-amount")) {
+        var n = toNum(t.value); w.price = n; t.value = n ? comma(n) : "";
+        try { t.setSelectionRange(t.value.length, t.value.length); } catch (x) {}
+        render(); save();
+      }
+    });
+    el.wishlist.addEventListener("click", function (e) {
+      var btn = e.target.closest(".del"); if (!btn) return;
+      var row = e.target.closest(".goal"); if (!row) return;
+      var id = row.getAttribute("data-id");
+      var w = findWish(id);
+      if (w && (w.name || w.price)) { if (!confirm("「" + (w.name || "無名") + "」を削除しますか？")) return; }
+      settings.wishlist = settings.wishlist.filter(function (x) { return x.id !== id; });
+      buildWishlist(); render(); save();
+    });
+  }
+  function addWish() {
+    settings.wishlist.push(makeWish());
+    buildWishlist(); render(); save();
+    var rows = el.wishlist.querySelectorAll(".goal");
+    if (rows.length) { var inp = rows[rows.length - 1].querySelector(".g-name"); if (inp) inp.focus(); }
+  }
+  function updateWishStatuses(start, saveIdeal, saveCurrent, goals) {
+    var rows = el.wishlist.querySelectorAll(".goal");
+    for (var r = 0; r < rows.length; r++) {
+      var st = rows[r].querySelector(".g-status"); if (!st) continue;
+      var w = findWish(rows[r].getAttribute("data-id"));
+      if (!w || toNum(w.price) <= 0) { st.className = "g-status"; st.textContent = "金額を入力してください"; continue; }
+      var price = toNum(w.price);
+      if (start >= price) { st.className = "g-status ok"; st.textContent = "✓ 今すぐ買える！"; continue; }
+      var ti = monthsToReach(start, saveIdeal, price, goals);
+      var tc = monthsToReach(start, saveCurrent, price, goals);
+      st.className = "g-status";
+      st.innerHTML = '<b style="color:var(--green)">理想: ' + reachLabel(ti) + '</b>　<span style="color:var(--grey)">今: ' + reachLabel(tc) + '</span>';
+    }
+  }
+
+  function goalRowMarkup() {
+    return '<div class="goal-main">' +
+      '<input class="g-name" type="text" placeholder="例：車検 / 旅行 / 引っ越し" value="">' +
+      '<div class="amount-wrap"><span class="yen">¥</span>' +
+      '<input class="g-amount" type="text" inputmode="numeric" placeholder="0" value=""></div>' +
+      '<button class="del" aria-label="削除">×</button>' +
+    '</div>' +
+    '<div class="g-meta">' +
+      '<span class="g-date-wrap">📅 <input class="g-date" type="date"></span>' +
+      '<span class="g-status"></span>' +
+    '</div>';
+  }
+  function buildGoals() {
+    el.goals.innerHTML = "";
+    if (settings.goals.length === 0) {
+      var em = document.createElement("div");
+      em.className = "empty";
+      em.textContent = "車検・旅行・引っ越しなど、予定している大きな支出を「＋」から追加してください";
+      el.goals.appendChild(em);
+      return;
+    }
+    settings.goals.forEach(function (g) {
+      var row = document.createElement("div");
+      row.className = "goal";
+      row.setAttribute("data-id", g.id);
+      row.innerHTML = goalRowMarkup();
+      row.querySelector(".g-name").value = g.name;
+      row.querySelector(".g-amount").value = g.amount ? comma(g.amount) : "";
+      row.querySelector(".g-date").value = g.date || "";
+      el.goals.appendChild(row);
+    });
+  }
+  function findGoal(id) {
+    for (var i = 0; i < settings.goals.length; i++) if (settings.goals[i].id === id) return settings.goals[i];
+    return null;
+  }
+  function wireGoals() {
+    el.goals.addEventListener("input", function (e) {
+      var row = e.target.closest(".goal"); if (!row) return;
+      var g = findGoal(row.getAttribute("data-id")); if (!g) return;
+      var t = e.target;
+      if (t.classList.contains("g-name")) { g.name = t.value; render(); save(); }
+      else if (t.classList.contains("g-amount")) {
+        var n = toNum(t.value); g.amount = n; t.value = n ? comma(n) : "";
+        try { t.setSelectionRange(t.value.length, t.value.length); } catch (x) {}
+        render(); save();
+      }
+    });
+    el.goals.addEventListener("change", function (e) {
+      var row = e.target.closest(".goal"); if (!row) return;
+      var g = findGoal(row.getAttribute("data-id")); if (!g) return;
+      if (e.target.classList.contains("g-date")) { g.date = e.target.value; render(); save(); }
+    });
+    el.goals.addEventListener("click", function (e) {
+      var btn = e.target.closest(".del"); if (!btn) return;
+      var row = e.target.closest(".goal"); if (!row) return;
+      var id = row.getAttribute("data-id");
+      var g = findGoal(id);
+      if (g && (g.name || g.amount || g.date)) {
+        if (!confirm("「" + (g.name || "無名の支出") + "」を削除しますか？")) return;
+      }
+      settings.goals = settings.goals.filter(function (x) { return x.id !== id; });
+      buildGoals(); render(); save();
+    });
+  }
+  function addGoal() {
+    settings.goals.push(makeGoal());
+    buildGoals(); render(); save();
+    var rows = el.goals.querySelectorAll(".goal");
+    if (rows.length) { var inp = rows[rows.length - 1].querySelector(".g-name"); if (inp) inp.focus(); }
+  }
+
+  function drawChart(start, saveIdeal, saveCurrent, N, goals) {
+    var W = 640, H = 320, P = { l: 56, r: 16, t: 28, b: 34 };
+    var plotW = W - P.l - P.r, plotH = H - P.t - P.b;
+
+    // 支出の引き落としを反映したサンプル点（同じ月で前後の値を打って段差を出す）
+    function expAt(t) { var s = 0; for (var k = 0; k < goals.length; k++) if (goals[k].mr === t) s += goals[k].amount; return s; }
+    function cumBefore(t) { var s = 0; for (var k = 0; k < goals.length; k++) if (goals[k].mr < t) s += goals[k].amount; return s; }
+
+    var sIdeal = [], sCur = [], yvals = [start, 0], t, cb, e;
+    for (t = 0; t <= N; t++) {
+      cb = cumBefore(t);
+      var preI = start + saveIdeal * t - cb, preC = start + saveCurrent * t - cb;
+      sIdeal.push([t, preI]); sCur.push([t, preC]); yvals.push(preI, preC);
+      e = expAt(t);
+      if (e > 0) {
+        var postI = preI - e, postC = preC - e;
+        sIdeal.push([t, postI]); sCur.push([t, postC]); yvals.push(postI, postC);
+      }
+    }
+
+    var yMax = Math.max.apply(null, yvals);
+    var yMin = Math.min.apply(null, yvals);
+    if (yMin > 0) yMin = 0;
+    if (yMax <= yMin) yMax = yMin + 1;
+    var pad = (yMax - yMin) * 0.08;
+    yMax += pad;
+    if (yMin < 0) yMin -= pad;
+
+    function xOf(x) { return P.l + (x / N) * plotW; }
+    function yOf(v) { return P.t + plotH - ((v - yMin) / (yMax - yMin)) * plotH; }
+
+    var i, parts = [];
+
+    // 横グリッド＋Y軸ラベル
+    for (i = 0; i <= 4; i++) {
+      var gv = yMin + (yMax - yMin) * (i / 4);
+      var gy = yOf(gv);
+      parts.push('<line x1="' + P.l + '" y1="' + gy.toFixed(1) + '" x2="' + (W - P.r) + '" y2="' + gy.toFixed(1) + '" stroke="#eee" stroke-width="1"/>');
+      parts.push('<text x="' + (P.l - 8) + '" y="' + (gy + 4).toFixed(1) + '" text-anchor="end" font-size="11" fill="#9a9aa0">' + manLabel(gv) + '</text>');
+    }
+    // ゼロライン（残高がマイナスになり得る場合に強調）
+    if (yMin < 0 && yMax > 0) {
+      var zy = yOf(0);
+      parts.push('<line x1="' + P.l + '" y1="' + zy.toFixed(1) + '" x2="' + (W - P.r) + '" y2="' + zy.toFixed(1) + '" stroke="#ff3b30" stroke-width="1" stroke-dasharray="2 3"/>');
+    }
+
+    // X軸ラベル（月）
+    var step = Math.max(1, Math.ceil(N / 6));
+    for (i = 0; i <= N; i += step) {
+      parts.push('<text x="' + xOf(i).toFixed(1) + '" y="' + (H - 12) + '" text-anchor="middle" font-size="11" fill="#9a9aa0">' + i + '</text>');
+    }
+    parts.push('<text x="' + (W - P.r) + '" y="' + (H - 12) + '" text-anchor="end" font-size="10" fill="#c0c0c6">（月）</text>');
+
+    function pl(samples) {
+      return samples.map(function (p) { return xOf(p[0]).toFixed(1) + "," + yOf(p[1]).toFixed(1); }).join(" ");
+    }
+
+    // 理想ペースの面塗り
+    var bottom = (P.t + plotH).toFixed(1);
+    var areaPts = pl(sIdeal) + " " + xOf(N).toFixed(1) + "," + bottom + " " + xOf(0).toFixed(1) + "," + bottom;
+    parts.push('<polygon points="' + areaPts + '" fill="rgba(52,199,89,0.10)"/>');
+
+    // 目標（支出）の縦マーカー
+    goals.forEach(function (g) {
+      if (g.mr > N) return;
+      var gx = xOf(g.mr);
+      parts.push('<line x1="' + gx.toFixed(1) + '" y1="' + P.t + '" x2="' + gx.toFixed(1) + '" y2="' + (P.t + plotH) + '" stroke="#ffb340" stroke-width="1" stroke-dasharray="3 3"/>');
+      parts.push('<text x="' + gx.toFixed(1) + '" y="' + (P.t - 10) + '" text-anchor="middle" font-size="10" fill="#ff9f0a">🎯' + esc(g.name || "支出") + '</text>');
+    });
+
+    // 今のペース（グレー破線）→ 理想ペース（緑実線）
+    parts.push('<polyline points="' + pl(sCur) + '" fill="none" stroke="#9a9aa0" stroke-width="2" stroke-dasharray="5 4" stroke-linejoin="round"/>');
+    parts.push('<polyline points="' + pl(sIdeal) + '" fill="none" stroke="#34c759" stroke-width="3" stroke-linejoin="round"/>');
+
+    // 終点マーカー
+    var endI = sIdeal[sIdeal.length - 1], endC = sCur[sCur.length - 1];
+    parts.push('<circle cx="' + xOf(endI[0]).toFixed(1) + '" cy="' + yOf(endI[1]).toFixed(1) + '" r="4.5" fill="#34c759"/>');
+    parts.push('<circle cx="' + xOf(endC[0]).toFixed(1) + '" cy="' + yOf(endC[1]).toFixed(1) + '" r="3.5" fill="#9a9aa0"/>');
+
+    el.chart.innerHTML = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="資産推移グラフ">' + parts.join("") + '</svg>';
+  }
+
+  function buildMilestones(start, saveIdeal, saveCurrent, goals) {
+    var months = [3, 6, 12, 24];
+    var html = "";
+    months.forEach(function (m) {
+      var asset = projectedAsset(start, saveIdeal, m, goals);
+      var diff = (saveIdeal - saveCurrent) * m;
+      var when = m < 12 ? (m + "ヶ月後") : ((m / 12) + "年後");
+      html += '<div class="ms"><div class="when">' + when + '</div>' +
+        '<div class="asset' + (asset < 0 ? " neg" : "") + '">' + (asset < 0 ? "−" : "") + yen(Math.abs(asset)) + '</div>' +
+        (diff > 0 ? '<div class="diff">今より +' + yen(diff) + '</div>' : '<div class="diff" style="color:var(--sub)">&nbsp;</div>') +
+        '</div>';
+    });
+    el.milestones.innerHTML = html;
+  }
+
+  function updateGoalStatuses(goals, start, saveIdeal) {
+    var rows = el.goals.querySelectorAll(".goal");
+    for (var r = 0; r < rows.length; r++) {
+      var st = rows[r].querySelector(".g-status"); if (!st) return;
+      var id = rows[r].getAttribute("data-id");
+      var g = null;
+      for (var k = 0; k < goals.length; k++) if (goals[k].id === id) g = goals[k];
+      if (!g) { st.className = "g-status"; st.textContent = "日付と金額を入力してください"; continue; }
+      var left = Math.round(g.m);
+      var when = left <= 0 ? "今月" : ("あと" + left + "ヶ月");
+      var assetBefore = start + saveIdeal * g.m - g._cumB;
+      if (assetBefore >= g.amount) {
+        st.className = "g-status ok";
+        st.textContent = "✓ " + when + "・間に合う（支払い後 " + yen(assetBefore - g.amount) + " 残）";
+      } else {
+        var extra = g.m > 0 ? Math.max(0, Math.ceil((g._reqM - saveIdeal))) : (g.amount - assetBefore);
+        st.className = "g-status short";
+        st.textContent = g.m > 0
+          ? "△ " + when + "・あと毎月 +" + yen(extra) + " で間に合う"
+          : "△ " + when + "・今 " + yen(g.amount - assetBefore) + " 不足";
+      }
+    }
+  }
+
+  function render() {
+    var start = settings.startAsset;
+    var saveIdeal = settings.salary - settings.idealSpend - settings.fixed;
+    var saveCurrent = settings.salary - settings.currentSpend - settings.fixed;
+    var N = settings.months;
+
+    el.saveIdeal.textContent = signed(saveIdeal) + " /月";
+    el.saveIdeal.className = "v " + (saveIdeal >= 0 ? "pos" : "neg");
+    el.saveCurrent.textContent = signed(saveCurrent) + " /月";
+    el.saveCurrent.className = "v " + (saveCurrent >= 0 ? "pos" : "neg");
+
+    // 目標（大きな支出）
+    var goals = validGoals();
+    var recommended = 0, cum = 0;
+    for (var i = 0; i < goals.length; i++) {
+      goals[i]._cumB = cum;                                   // この支出より前に来る支出の合計
+      var reqM = goals[i].m > 0 ? Math.max(0, (cum + goals[i].amount - start) / goals[i].m) : 0;
+      goals[i]._reqM = reqM;
+      if (goals[i].m > 0) recommended = Math.max(recommended, reqM);
+      cum += goals[i].amount;
+    }
+
+    var assetIdeal = projectedAsset(start, saveIdeal, N, goals);
+    var diff = (saveIdeal - saveCurrent) * N;
+
+    el.resLabel.textContent = (N < 12 ? N + "ヶ月後" : (Math.round(N / 12 * 10) / 10) + "年後") + "（" + N + "ヶ月）";
+    el.resBig.textContent = (assetIdeal < 0 ? "−" : "") + yen(Math.abs(assetIdeal));
+    el.resBig.className = "res-big" + (assetIdeal < 0 ? " neg" : "");
+
+    if (settings.salary === 0 && settings.idealSpend === 0) {
+      el.diffMsg.style.background = "#f0f0f2";
+      el.diffMsg.innerHTML = "給与と支出を入力するとシミュレーションされます";
+    } else if (diff > 0) {
+      el.diffMsg.style.background = "#effaf1";
+      el.diffMsg.innerHTML = "今のペースより<span class=\"big\">+" + yen(diff) + "</span>多く貯まります 🎉";
+    } else if (diff < 0) {
+      el.diffMsg.style.background = "#fff6e9";
+      el.diffMsg.innerHTML = "今のペースより " + yen(Math.abs(diff)) + " 少なくなります（理想支出 > 今の支出）";
+    } else {
+      el.diffMsg.style.background = "#f0f0f2";
+      el.diffMsg.innerHTML = "今のペースと同じです";
+    }
+
+    if (saveIdeal <= 0) {
+      el.warn.style.display = "block";
+      el.warn.className = "warn bad";
+      el.warn.textContent = settings.salary === 0
+        ? "毎月の給与を入力してください。"
+        : "理想ペースでも毎月の支出が給与以上です。理想のクレカ支出か固定費を見直してみましょう。";
+    } else {
+      el.warn.style.display = "none";
+    }
+
+    // 目標アドバイス
+    if (goals.length === 0) {
+      el.goalAdvice.style.display = "none";
+    } else {
+      el.goalAdvice.style.display = "block";
+      var totalGoals = goals.reduce(function (a, g) { return a + g.amount; }, 0);
+      var saveCmp = saveIdeal;
+      if (saveCmp >= recommended) {
+        el.goalAdvice.className = "goal-advice";
+        el.goalAdvice.innerHTML = recommended > 0
+          ? "すべての支出（合計 " + yen(totalGoals) + "）に備えるには、毎月 <span class=\"big\">" + yen(recommended) + "</span> の貯金が目安。<br>今の理想ペース（" + yen(Math.max(0, saveIdeal)) + "/月）で <b style=\"color:var(--green)\">間に合います 🎉</b>"
+          : "今ある資産だけで、予定している支出（合計 " + yen(totalGoals) + "）はすべてまかなえます 🎉";
+      } else {
+        var lack = recommended - saveCmp;
+        el.goalAdvice.className = "goal-advice bad";
+        el.goalAdvice.innerHTML = "すべての支出（合計 " + yen(totalGoals) + "）に備えるには、毎月 <span class=\"big\">" + yen(recommended) + "</span> の貯金が目安。<br>今の理想ペースだと毎月 <b style=\"color:var(--red)\">" + yen(lack) + " 足りません</b>。理想のクレカ支出を下げるか、期日や金額を見直しましょう。";
+      }
+    }
+    updateGoalStatuses(goals, start, saveIdeal);
+
+    // グラフは目標の最遠月まで広げて表示
+    var graphN = N;
+    for (var j = 0; j < goals.length; j++) if (goals[j].mr > graphN) graphN = goals[j].mr;
+    graphN = Math.min(120, Math.max(1, graphN));
+
+    drawChart(start, saveIdeal, saveCurrent, graphN, goals);
+    buildMilestones(start, saveIdeal, saveCurrent, goals);
+    updateWishStatuses(start, saveIdeal, saveCurrent, goals);
+  }
+
+  function wireAmount(input, key) {
+    input.addEventListener("input", function () {
+      var n = toNum(input.value);
+      settings[key] = n;
+      input.value = n ? comma(n) : "";
+      try { input.setSelectionRange(input.value.length, input.value.length); } catch (x) {}
+      render(); save();
+    });
+  }
+
+  // init
+  load();
+  syncInputs();
+  buildGoals();
+  buildWishlist();
+  render();
+
+  wireAmount(el.startAsset, "startAsset");
+  wireAmount(el.salary, "salary");
+  wireAmount(el.idealSpend, "idealSpend");
+  wireAmount(el.currentSpend, "currentSpend");
+  wireAmount(el.fixed, "fixed");
+  wireGoals();
+  el.addGoal.addEventListener("click", addGoal);
+  wireWishlist();
+  el.addWish.addEventListener("click", addWish);
+
+  el.months.addEventListener("input", function () {
+    settings.months = Math.min(60, Math.max(1, parseInt(el.months.value, 10) || 1));
+    el.monthsVal.textContent = settings.months;
+    render(); save();
+  });
+
+  el.pullBtn.addEventListener("click", function () {
+    var money = readMoney();
+    if (!money) { alert("残高計算ページのデータが見つかりませんでした。先に money.html で銀行・クレカを入力してください。"); return; }
+    settings.startAsset = money.remain;
+    settings.currentSpend = money.currentSpend;
+    syncInputs(); render(); save();
+  });
+})();
+</script>
+
+<script>
+/* データの引き継ぎ・バックアップ（共通） */
+(function () {
+  "use strict";
+  var KEYS = ["money-balance-v1", "money-forecast-v1"];
+  var bk = {
+    text: document.getElementById("bkText"),
+    copy: document.getElementById("bkCopy"),
+    download: document.getElementById("bkDownload"),
+    fileBtn: document.getElementById("bkFileBtn"),
+    fileInput: document.getElementById("bkFileInput"),
+    restore: document.getElementById("bkRestore"),
+    msg: document.getElementById("bkMsg")
+  };
+  if (!bk.text) return;
+
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function buildBackup() {
+    var obj = { app: "money-tools", version: 1, exportedAt: new Date().toISOString() };
+    KEYS.forEach(function (k) {
+      var raw = localStorage.getItem(k);
+      if (raw) { try { obj[k] = JSON.parse(raw); } catch (e) { obj[k] = raw; } }
+    });
+    return JSON.stringify(obj, null, 2);
+  }
+  function refresh() { bk.text.value = buildBackup(); }
+  function setMsg(t, err) { bk.msg.textContent = t; bk.msg.className = "bk-msg" + (err ? " err" : ""); }
+
+  refresh();
+
+  bk.copy.addEventListener("click", function () {
+    refresh();
+    var txt = bk.text.value;
+    function ok() { setMsg("コピーしました。メモやLINE等に貼り付けて保存できます。"); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).then(ok).catch(function () { fallbackCopy(); ok(); });
+    } else { fallbackCopy(); ok(); }
+  });
+  function fallbackCopy() { bk.text.focus(); bk.text.select(); try { document.execCommand("copy"); } catch (e) {} }
+
+  bk.download.addEventListener("click", function () {
+    refresh();
+    var blob = new Blob([bk.text.value], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    var d = new Date();
+    a.href = url;
+    a.download = "money-backup-" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + ".json";
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+    setMsg("バックアップファイルを書き出しました。");
+  });
+
+  bk.fileBtn.addEventListener("click", function () { bk.fileInput.click(); });
+  bk.fileInput.addEventListener("change", function (e) {
+    var f = e.target.files && e.target.files[0]; if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function () { bk.text.value = rd.result; doRestore(); };
+    rd.readAsText(f);
+    bk.fileInput.value = "";
+  });
+
+  bk.restore.addEventListener("click", doRestore);
+  function doRestore() {
+    var data;
+    try { data = JSON.parse(bk.text.value); }
+    catch (e) { setMsg("読み込めませんでした。バックアップの内容（文字列）を確認してください。", true); return; }
+    var found = 0;
+    KEYS.forEach(function (k) {
+      if (data && Object.prototype.hasOwnProperty.call(data, k) && data[k] != null) {
+        try { localStorage.setItem(k, typeof data[k] === "string" ? data[k] : JSON.stringify(data[k])); found++; } catch (e) {}
+      }
+    });
+    if (found === 0) { setMsg("このバックアップに引き継げるデータが見つかりませんでした。", true); return; }
+    setMsg("復元しました。画面を更新します…");
+    setTimeout(function () { location.reload(); }, 700);
+  }
+})();
+</script>
+</body>
+</html>

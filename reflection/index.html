@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>STARS 振り返り</title>
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --card: #ffffff;
+    --ink: #1d1d1f;
+    --ink-2: #6e6e73;
+    --line: #e5e5ea;
+    --accent: #0071e3;
+    --gold: #ffb400;
+    --shadow: 0 1px 3px rgba(0,0,0,.06), 0 8px 24px rgba(0,0,0,.05);
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.6;
+    padding-bottom: env(safe-area-inset-bottom);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 0 16px; }
+
+  /* ---------- Top bar ---------- */
+  header.topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(245,245,247,.82);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid var(--line);
+    padding-top: env(safe-area-inset-top);
+  }
+  .topbar-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 52px; max-width: 640px; margin: 0 auto; padding: 0 16px;
+  }
+  .topbar-title { font-size: 17px; font-weight: 600; }
+  .back-btn {
+    background: none; border: none; color: var(--accent);
+    font-size: 16px; cursor: pointer; padding: 6px 0; display: flex; align-items: center; gap: 2px;
+  }
+  .icon-btn {
+    background: none; border: none; color: var(--accent);
+    font-size: 16px; font-weight: 500; cursor: pointer; padding: 6px;
+  }
+
+  /* ---------- Views ---------- */
+  .view { display: none; padding: 18px 0 96px; }
+  .view.active { display: block; animation: fade .28s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  h1.page { font-size: 28px; font-weight: 700; margin: 8px 0 4px; letter-spacing: -.02em; }
+  .sub { color: var(--ink-2); font-size: 14px; margin: 0 0 18px; }
+
+  /* ---------- Filter chips ---------- */
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 14px; -webkit-overflow-scrolling: touch; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: 0 0 auto; border: 1px solid var(--line); background: var(--card);
+    border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 500;
+    color: var(--ink); cursor: pointer; white-space: nowrap; transition: .15s;
+  }
+  .chip.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .chip.star.on { background: var(--gold); border-color: var(--gold); color: #1d1d1f; }
+  .chip.pos { color: var(--accent); border-color: #bcd9fb; }
+  .chip.pos.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .home-actions { display: flex; gap: 8px; margin: 0 0 10px; }
+  .export-btn {
+    flex: 0 0 auto; background: var(--card); border: 1px solid var(--line); border-radius: 999px;
+    padding: 8px 14px; font-size: 13px; font-weight: 600; color: var(--accent); cursor: pointer; white-space: nowrap; transition: opacity .15s;
+  }
+  .export-btn:active { opacity: .6; }
+  .export-btn:disabled { color: var(--ink-2); opacity: .5; cursor: default; }
+
+  .manager-line {
+    display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2);
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 9px 13px; margin: 0 0 12px; cursor: pointer;
+  }
+  .manager-line b { color: var(--ink); font-weight: 600; }
+  .manager-line .edit { margin-left: auto; color: var(--accent); font-weight: 600; }
+
+  .start-date { font-size: 13px; color: var(--ink-2); margin: -4px 0 14px; }
+
+  /* ---------- Modal ---------- */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 200; display: none; align-items: flex-end; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal-sheet {
+    background: var(--card); width: 100%; max-width: 640px; max-height: 88vh;
+    border-radius: 20px 20px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+    display: flex; flex-direction: column; animation: slideUp .25s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(30px); opacity: .5; } to { transform: none; opacity: 1; } }
+  .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+  .modal-desc { font-size: 13px; color: var(--ink-2); margin-bottom: 12px; }
+  .modal-body { overflow-y: auto; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 14px; }
+  .modal-actions button { flex: 1; border: none; border-radius: 12px; padding: 13px; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .m-primary { background: var(--accent); color: #fff; }
+  .m-ghost { background: #f0f0f3; color: var(--ink); }
+  .recap-text {
+    width: 100%; min-height: 42vh; max-height: 58vh; border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px; font-size: 12.5px; font-family: ui-monospace, SFMono-Regular, monospace; line-height: 1.55;
+    white-space: pre-wrap; background: #fafafa; color: var(--ink); resize: none;
+  }
+  .modal-input { width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-size: 16px; font-family: inherit; }
+  .modal-input:focus { outline: none; border-color: var(--accent); }
+
+  /* ---------- Story list ---------- */
+  .story {
+    background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 16px; margin-bottom: 12px; cursor: pointer; transition: transform .12s;
+    border-left: 4px solid var(--cmp, var(--accent));
+  }
+  .story:active { transform: scale(.99); }
+  .story-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+  .badge {
+    font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px;
+    background: var(--cmp-bg, #eef); color: var(--cmp, var(--accent));
+  }
+  .pill {
+    font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 6px;
+    border: 1px solid var(--line); color: var(--ink-2);
+  }
+  .pill.live { color: #0a7d28; border-color: #b7e3c0; background: #f0faf2; }
+  .pill.done { color: #6e6e73; }
+  .story-title { font-size: 16px; font-weight: 600; margin: 4px 0; }
+  .story-snip { color: var(--ink-2); font-size: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .story-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+  .stars-sm { color: var(--gold); font-size: 13px; letter-spacing: 1px; }
+  .date-sm { color: var(--ink-2); font-size: 12px; }
+
+  .empty { text-align: center; color: var(--ink-2); padding: 60px 20px; }
+  .empty .big { font-size: 44px; margin-bottom: 10px; }
+
+  /* ---------- Competency cards ---------- */
+  .pos-head { font-size: 13px; font-weight: 700; color: var(--ink-2); text-transform: uppercase; letter-spacing: .06em; margin: 22px 0 10px; }
+  .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 420px) { .card-grid { grid-template-columns: 1fr; } }
+  .cmp-card {
+    background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 16px; cursor: pointer; transition: transform .14s, box-shadow .14s;
+    border-top: 4px solid var(--cmp); position: relative; overflow: hidden;
+  }
+  .cmp-card:active { transform: scale(.98); }
+  .cmp-emoji { font-size: 26px; }
+  .cmp-jp { font-size: 16px; font-weight: 700; margin-top: 8px; }
+  .cmp-en { font-size: 12px; color: var(--ink-2); font-weight: 600; letter-spacing: .02em; }
+  .cmp-desc { font-size: 13px; color: var(--ink-2); margin-top: 8px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .info-link { font-size: 12px; color: var(--accent); margin-top: 10px; display: inline-block; font-weight: 600; }
+
+  /* ---------- Pinned competency (edit view) ---------- */
+  .pinned {
+    background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 14px 16px; margin-bottom: 18px; border-left: 4px solid var(--cmp);
+  }
+  .pinned-head { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .pinned-jp { font-size: 16px; font-weight: 700; }
+  .pinned-en { font-size: 11px; color: var(--ink-2); font-weight: 600; }
+  .pinned-toggle { margin-left: auto; color: var(--accent); font-size: 13px; font-weight: 600; }
+  .pinned-body { margin-top: 10px; font-size: 14px; color: var(--ink-2); display: none; }
+  .pinned-body.open { display: block; }
+  .pinned-body ul { margin: 8px 0 0; padding-left: 18px; }
+  .pinned-body li { margin-bottom: 5px; }
+  .pinned-body .lbl { font-weight: 700; color: var(--ink); font-size: 12px; }
+
+  /* ---------- STARS form ---------- */
+  .field { margin-bottom: 16px; }
+  .field-label { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+  .field-letter {
+    width: 24px; height: 24px; flex: 0 0 24px; border-radius: 7px; background: var(--cmp, var(--accent));
+    color: #fff; font-weight: 800; font-size: 13px; display: flex; align-items: center; justify-content: center;
+  }
+  .field-name { font-size: 15px; font-weight: 700; }
+  .field-hint { font-size: 12px; color: var(--ink-2); }
+  textarea {
+    width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+    font-size: 16px; font-family: inherit; resize: vertical; min-height: 60px; background: var(--card);
+    color: var(--ink); line-height: 1.5; transition: border-color .15s;
+  }
+  textarea:focus { outline: none; border-color: var(--accent); }
+  textarea.result-field { border-color: #ffe0a3; background: #fffdf6; }
+
+  .section-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; margin-bottom: 16px; }
+  .section-title { font-size: 15px; font-weight: 700; margin: 0 0 4px; }
+  .section-sub { font-size: 13px; color: var(--ink-2); margin: 0 0 12px; }
+
+  /* ---------- Star picker ---------- */
+  .star-pick { font-size: 32px; letter-spacing: 6px; cursor: pointer; user-select: none; }
+  .star-pick span { color: #d2d2d7; transition: color .1s; }
+  .star-pick span.on { color: var(--gold); }
+  .star-caption { font-size: 13px; color: var(--ink-2); margin-top: 6px; min-height: 18px; }
+
+  /* ---------- Lifecycle toggle ---------- */
+  .seg { display: flex; gap: 8px; }
+  .seg-btn {
+    flex: 1; border: 1px solid var(--line); background: var(--card); border-radius: 12px;
+    padding: 12px; cursor: pointer; text-align: center; transition: .15s;
+  }
+  .seg-btn .t { font-size: 15px; font-weight: 700; }
+  .seg-btn .d { font-size: 12px; color: var(--ink-2); margin-top: 2px; }
+  .seg-btn.on { border-color: var(--accent); background: #f0f7ff; box-shadow: 0 0 0 2px rgba(0,113,227,.15) inset; }
+
+  /* ---------- Buttons ---------- */
+  .primary {
+    width: 100%; background: var(--accent); color: #fff; border: none; border-radius: 14px;
+    padding: 15px; font-size: 17px; font-weight: 600; cursor: pointer; transition: opacity .15s;
+  }
+  .primary:active { opacity: .85; }
+  .primary:disabled { opacity: .4; cursor: default; }
+  .ghost {
+    width: 100%; background: none; color: #ff3b30; border: none; padding: 14px; font-size: 15px; cursor: pointer; margin-top: 4px;
+  }
+  .fab {
+    position: fixed; right: 18px; bottom: calc(20px + env(safe-area-inset-bottom)); z-index: 40;
+    width: 58px; height: 58px; border-radius: 50%; background: var(--accent); color: #fff;
+    border: none; font-size: 30px; box-shadow: 0 6px 18px rgba(0,113,227,.4); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; line-height: 1;
+  }
+  .fab:active { transform: scale(.94); }
+
+  /* ---------- Detail / timeline ---------- */
+  .stars-row { color: var(--gold); font-size: 20px; letter-spacing: 2px; }
+  .detail-block { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; margin-bottom: 12px; }
+  .detail-block .dl { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .detail-block .dtext { white-space: pre-wrap; font-size: 15px; }
+  .detail-block.refl { background: #fffdf6; border: 1px solid #ffe7b0; }
+  .timeline { margin-top: 4px; }
+  .tl-item { border-left: 2px solid var(--line); padding: 0 0 14px 14px; position: relative; }
+  .tl-item::before { content: ""; position: absolute; left: -5px; top: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--cmp, var(--accent)); }
+  .tl-date { font-size: 12px; color: var(--ink-2); font-weight: 600; }
+  .tl-text { font-size: 14px; white-space: pre-wrap; margin-top: 2px; }
+  .add-update { display: flex; gap: 8px; margin-top: 10px; }
+  .add-update textarea { min-height: 44px; }
+  .add-update button { flex: 0 0 auto; border: none; background: var(--accent); color: #fff; border-radius: 12px; padding: 0 16px; font-weight: 600; cursor: pointer; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%) translateY(20px);
+    background: rgba(29,29,31,.92); color: #fff; padding: 11px 20px; border-radius: 999px;
+    font-size: 14px; opacity: 0; pointer-events: none; transition: .25s; z-index: 100; backdrop-filter: blur(10px);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ---------- Image export sheet ---------- */
+  .imgwrap { max-height: 56vh; overflow: auto; border-radius: 14px; border: 1px solid var(--line); background: #f5f5f7; -webkit-overflow-scrolling: touch; }
+  .imgwrap img { width: 100%; display: block; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <button class="back-btn" id="backBtn" style="visibility:hidden">‹ 戻る</button>
+    <div class="topbar-title" id="topTitle">STARS 振り返り</div>
+    <button class="icon-btn" id="topAction" style="visibility:hidden">保存</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ===== HOME ===== -->
+  <section class="view active" id="view-home">
+    <h1 class="page">Reflection</h1>
+    <p class="sub">コンピテンシーを選んで、出来事をSTARSで残そう。</p>
+
+    <div class="manager-line" id="managerLine"></div>
+    <div class="home-actions">
+      <button class="export-btn" id="recapBtn">📋 リキャップ</button>
+      <button class="export-btn" id="exportBtn">⤓ Excel出力</button>
+    </div>
+
+    <div class="chips" id="filterChips"></div>
+    <div id="storyList"></div>
+  </section>
+
+  <!-- ===== SELECT COMPETENCY ===== -->
+  <section class="view" id="view-select">
+    <h1 class="page">何を発揮した？</h1>
+    <p class="sub">今日の出来事に一番近いコンピテンシーを選んでください。</p>
+    <div id="cmpCards"></div>
+  </section>
+
+  <!-- ===== EDIT (STARS) ===== -->
+  <section class="view" id="view-edit">
+    <div id="pinnedHost"></div>
+    <div class="start-date" id="startDateLine"></div>
+
+    <div id="starsFields"></div>
+
+    <div class="section-card">
+      <p class="section-title">⭐︎ Interviewで使えそう？</p>
+      <p class="section-sub">話のネタとしての強さを直感で。あとで絞り込みに使えます。</p>
+      <div class="star-pick" id="starPick">
+        <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
+      </div>
+      <div class="star-caption" id="starCaption"></div>
+    </div>
+
+    <div class="section-card">
+      <p class="section-title">このストーリーは？</p>
+      <p class="section-sub">寿命で仕分けします。あとから変更もできます。</p>
+      <div class="seg" id="lifeSeg">
+        <button class="seg-btn" data-life="oneday"><div class="t">当日完結</div><div class="d">今日で終わり。振り返って締める</div></button>
+        <button class="seg-btn" data-life="longterm"><div class="t">長期継続</div><div class="d">これから育つ。あとで追記</div></button>
+      </div>
+    </div>
+
+    <button class="primary" id="saveBtn">保存する</button>
+    <button class="ghost" id="deleteBtn" style="display:none">このストーリーを削除</button>
+  </section>
+
+  <!-- ===== DETAIL ===== -->
+  <section class="view" id="view-detail">
+    <div id="detailHost"></div>
+  </section>
+
+</div>
+
+<button class="fab" id="fab">＋</button>
+<div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal-sheet">
+    <div class="modal-title" id="modalTitle"></div>
+    <div class="modal-desc" id="modalDesc"></div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-actions" id="modalActions"></div>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   コンピテンシー定義  ★ここを編集すれば追加・更新できます★
+   - COMPETENCIES: コンピテンシーの実体（1つのコンピテンシー＝1エントリ）。
+     { en, jp, emoji, color, desc, bullets:[...] }
+   - POSITIONS: ポジションごとに、含むコンピテンシーIDを並べるだけ。
+     同じコンピテンシー(例: drives_results)を複数ポジションで共有できる。
+   - 新ポジション追加 → POSITIONS に { id, name, competencyIds:[...] } を足す。
+     新コンピテンシー追加 → COMPETENCIES に1エントリ足して、各POSITIONで参照。
+   ========================================================================= */
+const COMPETENCIES = {
+  drives_results: {
+    en: "Drives results", jp: "成果の創出", emoji: "🎯", color: "#ff5a3c",
+    desc: "厳しい状況にあっても着実に成果に結びつけます。",
+    bullets: [
+      "意欲的な目標と高い水準を掲げる。",
+      "常に高業績者の一人である。",
+      "熱意、行動力、そして達成意欲をもって何事も追求する。",
+      "困難や挫折に直面してもあきらめない。",
+      "常にゴールを視野に入れている。期限に間に合うよう、より一層の努力をする。"
+    ]
+  },
+  nimble_learning: {
+    en: "Nimble Learning", jp: "学習のスピード", emoji: "🌱", color: "#0a9d4e",
+    desc: "新たな問題に取り組む際は、成功と失敗を学習材料として積極的に経験から学びます。",
+    bullets: [
+      "正しい解決策を見つけるために何度でもいろいろな方法を用いて試す。",
+      "失敗は学習の機会と捉える。",
+      "よく知らない仕事にチャレンジすることを楽しむ。",
+      "問題解決のための新しいアプローチを探す。"
+    ]
+  },
+  self_development: {
+    en: "Self-Development", jp: "自己啓発", emoji: "🚀", color: "#7b5cff",
+    desc: "公式・非公式の学習機会を活用しながら、自分の成長のためにチャレンジできる新しい方法を積極的に探します。",
+    bullets: [
+      "新しいスキルを伸ばすため常に努力している。",
+      "自分の強みを新しい問題に活用する方法を見つける。",
+      "異なる状況やマネジメント・レベルにおいて、成功するために必要なスキルが分かっている。",
+      "自分の慣れている領域の外へ、踏み出すことが要求される仕事を求める。"
+    ]
+  },
+  values_differences: {
+    en: "Values Differences", jp: "多様性の尊重", emoji: "🤝", color: "#0a93b8",
+    desc: "異なる視野や文化が組織にもたらす価値を理解します。",
+    bullets: [
+      "多様な文化や視点に関する情報を積極的に求める。",
+      "違いが尊重され、奨励され、支持されるようなチーム環境を促進する。",
+      "異なる経験、スタイル、背景、見解の適切な活用が確実にされるようにする。",
+      "個々の違いがニーズや価値観、モチベーター（動機の源となるもの）の違いにどのように現れるかを理解する。"
+    ]
+  },
+  communicates_effectively: {
+    en: "Communicates Effectively", jp: "効果的なコミュニケーション", emoji: "💬", color: "#e8590c",
+    desc: "多種多様なコミュニケーションを展開して、様々な相手のニーズを明確に理解します。",
+    bullets: [
+      "明確で説得力のある簡潔なメッセージを伝える。",
+      "積極的に耳を傾け、自分が理解できているかを確認する。",
+      "誰でも理解できるようにメッセージを伝える。",
+      "さまざまな関係者のニーズに見合うように、コミュニケーションの内容とスタイルを調整する。",
+      "さまざまなアイデアや意見を表明する手本となり、そうするよう奨励する。"
+    ]
+  },
+  customer_focus: {
+    en: "Customer Focus", jp: "顧客志向", emoji: "🫶", color: "#d6336c",
+    desc: "顧客と強固な関係を構築し、顧客の立場に立った解決策を提供します。",
+    bullets: [
+      "顧客のニーズを予測し、顧客の期待を上回るサービスを提供する。",
+      "顧客の意見を取り入れ、新しい商品やサービスの開発を推進し、またそうしていくよう導く。",
+      "顧客の戦略的パートナーとして、主要顧客と収益力の高い長期的な関係を構築し、発展させ、維持する。"
+    ]
+  },
+  tech_savvy: {
+    en: "Tech Savvy", jp: "技術情報の活用", emoji: "🤖", color: "#4263eb",
+    desc: "ビジネス拡大に役立つさまざまな新しい技術を把握し、それらを取り入れます。",
+    bullets: [
+      "技術の進歩がないか、常に周りを調査している。",
+      "広範囲にわたる既存の技術を試みながら、組織としての成果を拡大できる斬新なオプションも適用する。",
+      "他の人に新しい技術の学習と採用を勧める。"
+    ]
+  }
+};
+
+const POSITIONS = [
+  { id: "specialist", name: "Specialist",
+    competencyIds: ["drives_results", "nimble_learning", "self_development", "values_differences"] },
+  { id: "expert", name: "Expert",
+    competencyIds: ["communicates_effectively", "drives_results", "values_differences", "customer_focus", "tech_savvy"] }
+];
+
+/* チップ用のユニークなコンピテンシー一覧（POSITIONSで使われている順） */
+const ALL_CMP_IDS = (() => { const seen = new Set(), out = [];
+  POSITIONS.forEach(p => p.competencyIds.forEach(id => { if (!seen.has(id)) { seen.add(id); out.push(id); } }));
+  return out; })();
+function positionsFor(cmpId){ return POSITIONS.filter(p => p.competencyIds.includes(cmpId)).map(p => p.name); }
+
+/* STARS の5項目定義 */
+const STARS = [
+  { key: "situation", letter: "S", name: "Situation（状況）", hint: "どんな場面・背景だった？" },
+  { key: "task",      letter: "T", name: "Task（課題・役割）", hint: "何を求められていた？自分の役割は？" },
+  { key: "action",    letter: "A", name: "Action（行動）", hint: "具体的にどう動いた？" },
+  { key: "result",    letter: "R", name: "Result（結果）", hint: "結果は？できれば数字で（例：66→69 / +5pt）", result: true },
+  { key: "selfref",   letter: "S", name: "Self-reflection（学び・気づき）", hint: "そこから何を学んだ？次にどう活かす？" }
+];
+
+const STAR_CAPTIONS = ["", "メモ程度", "使えるかも", "悪くない", "Interviewで使える", "鉄板ネタ"];
+
+/* ========================= データ層 ========================= */
+const LS_KEY = "stars_reflection_v1";
+function loadStories(){ try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; } catch(e){ return []; } }
+function saveStories(arr){ localStorage.setItem(LS_KEY, JSON.stringify(arr)); }
+let stories = loadStories();
+
+const LS_SETTINGS = "stars_reflection_settings_v1";
+function loadSettings(){ try { return JSON.parse(localStorage.getItem(LS_SETTINGS)) || {}; } catch(e){ return {}; } }
+function saveSettings(o){ localStorage.setItem(LS_SETTINGS, JSON.stringify(o)); }
+let settings = loadSettings();
+
+function findCmp(id){ const c = COMPETENCIES[id]; return c ? { cmp: c } : null; }
+
+/* ========================= 画面状態 ========================= */
+let draft = null;       // 編集中ストーリー
+let activeFilter = "all";
+
+const views = { home:"view-home", select:"view-select", edit:"view-edit", detail:"view-detail" };
+function show(view){
+  Object.values(views).forEach(id=>document.getElementById(id).classList.remove("active"));
+  document.getElementById(views[view]).classList.add("active");
+  window.scrollTo(0,0);
+  const back = document.getElementById("backBtn");
+  const act = document.getElementById("topAction");
+  const title = document.getElementById("topTitle");
+  back.style.visibility = (view==="home") ? "hidden" : "visible";
+  act.style.visibility = "hidden";
+  document.getElementById("fab").style.display = (view==="home") ? "flex" : "none";
+  title.textContent = ({home:"STARS 振り返り", select:"コンピテンシー選択", edit:"STARSメモ", detail:"ストーリー"})[view];
+}
+
+function fmtDate(ts){
+  const d = new Date(ts);
+  return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+}
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove("show"), 1800);
+}
+
+/* ========================= モーダル ========================= */
+const modalEl = document.getElementById("modal");
+function openModal({ title, desc, bodyHTML, actions }){
+  document.getElementById("modalTitle").textContent = title || "";
+  const descEl = document.getElementById("modalDesc");
+  descEl.textContent = desc || ""; descEl.style.display = desc ? "block" : "none";
+  document.getElementById("modalBody").innerHTML = bodyHTML || "";
+  const act = document.getElementById("modalActions"); act.innerHTML = "";
+  (actions||[]).forEach(a=>{ const b = document.createElement("button");
+    b.className = a.primary ? "m-primary" : "m-ghost"; b.textContent = a.label; b.onclick = a.onClick; act.appendChild(b); });
+  modalEl.classList.add("show");
+}
+function closeModal(){ modalEl.classList.remove("show"); }
+modalEl.addEventListener("click", e=>{ if (e.target === modalEl) closeModal(); });
+
+/* ========================= 担当マネージャー（設定） ========================= */
+function renderManagerLine(){
+  const el = document.getElementById("managerLine");
+  const name = (settings.managerName||"").trim();
+  el.innerHTML = `👤 Connection Manager：${ name ? `<b>${escapeHtml(name)}</b>` : `<span style="color:#a1a1a6">未設定</span>` }<span class="edit">✎ ${name?"変更":"設定"}</span>`;
+  el.onclick = openSettings;
+}
+function openSettings(){
+  openModal({
+    title: "設定",
+    desc: "Connection Manager（担当マネージャー）の名前。CSV出力とリキャップに反映されます。",
+    bodyHTML: `<input class="modal-input" id="mgrInput" type="text" placeholder="例：山田 太郎" value="${escapeHtml(settings.managerName||"")}">`,
+    actions: [
+      { label: "キャンセル", primary: false, onClick: closeModal },
+      { label: "保存", primary: true, onClick: ()=>{
+          settings.managerName = document.getElementById("mgrInput").value.trim();
+          saveSettings(settings); renderManagerLine(); closeModal(); toast("保存しました ✓");
+      } }
+    ]
+  });
+  setTimeout(()=>{ const i = document.getElementById("mgrInput"); if (i) i.focus(); }, 60);
+}
+
+/* ========================= リキャップ ========================= */
+function buildRecapText(){
+  const list = getFilteredStories();
+  const mgr = (settings.managerName||"").trim() || "未設定";
+  const lines = [];
+  lines.push("# Reflection リキャップ");
+  lines.push(`対象: ${filterLabel()}　/　件数: ${list.length}`);
+  lines.push(`Connection Manager: ${mgr}　/　作成日: ${fmtDate(Date.now())}`);
+  lines.push("");
+  ALL_CMP_IDS.forEach(cid=>{
+    const group = list.filter(s=> s.cmpId === cid);
+    if (!group.length) return;
+    const c = COMPETENCIES[cid];
+    lines.push(`## ${c.emoji} ${c.jp}（${c.en}）　［${positionsFor(cid).join(" / ")}］`);
+    group.forEach(s=>{
+      const stars = "★".repeat(s.rating||0) + "☆".repeat(5-(s.rating||0));
+      const life = s.lifecycle==="longterm" ? "進行中(長期)" : "当日完結";
+      lines.push("");
+      lines.push(`### ${s.title || "(無題)"}`);
+      lines.push(`${stars}（${STAR_CAPTIONS[s.rating]||"未評価"}）・ ${life} ・ 記入開始 ${fmtDate(s.createdAt)}`);
+      if (s.situation) lines.push(`- S 状況: ${s.situation}`);
+      if (s.task)      lines.push(`- T 課題・役割: ${s.task}`);
+      if (s.action)    lines.push(`- A 行動: ${s.action}`);
+      if (s.result)    lines.push(`- R 結果: ${s.result}`);
+      if (s.selfref)   lines.push(`- S 学び: ${s.selfref}`);
+      (s.updates||[]).forEach(u=> lines.push(`  ・更新[${fmtDate(u.ts)}]: ${u.text}`));
+    });
+    lines.push("");
+  });
+  return lines.join("\n");
+}
+function openRecap(){
+  const list = getFilteredStories();
+  if (!list.length){ toast("リキャップ対象がありません"); return; }
+  openModal({
+    title: "📋 リキャップ",
+    desc: `対象: ${filterLabel()}（${list.length}件）— コピーしてInterview準備に。`,
+    bodyHTML: `<textarea class="recap-text" id="recapText" readonly>${escapeHtml(buildRecapText())}</textarea>`,
+    actions: [
+      { label: "閉じる", primary: false, onClick: closeModal },
+      { label: "コピー", primary: true, onClick: copyRecap }
+    ]
+  });
+}
+function copyRecap(){
+  const ta = document.getElementById("recapText"); const text = ta.value;
+  const done = ()=> toast("コピーしました ✓");
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(()=>{ ta.focus(); ta.select(); document.execCommand("copy"); done(); });
+  } else { ta.focus(); ta.select(); document.execCommand("copy"); done(); }
+}
+
+/* ========================= HOME ========================= */
+function renderHome(){
+  renderManagerLine();
+  // フィルタチップ
+  const chips = document.getElementById("filterChips");
+  let html = `<button class="chip ${activeFilter==='all'?'on':''}" data-f="all">すべて</button>`;
+  html += `<button class="chip star ${activeFilter==='deck'?'on':''}" data-f="deck">★ Interview記録帳</button>`;
+  POSITIONS.forEach(p=>{
+    html += `<button class="chip pos ${activeFilter==='pos:'+p.id?'on':''}" data-f="pos:${p.id}">◆ ${p.name}</button>`;
+  });
+  ALL_CMP_IDS.forEach(id=>{ const c = COMPETENCIES[id];
+    html += `<button class="chip ${activeFilter===id?'on':''}" data-f="${id}">${c.emoji} ${c.jp}</button>`;
+  });
+  chips.innerHTML = html;
+  chips.querySelectorAll(".chip").forEach(ch=>ch.onclick=()=>{ activeFilter = ch.dataset.f; renderHome(); });
+
+  // リスト
+  const list = getFilteredStories();
+
+  // 出力ボタン（表示中の件数を反映）
+  const expBtn = document.getElementById("exportBtn");
+  expBtn.textContent = list.length ? `⤓ Excel出力（${list.length}件）` : "⤓ Excel出力";
+  expBtn.disabled = !list.length;
+
+  const host = document.getElementById("storyList");
+  if (!list.length){
+    host.innerHTML = `<div class="empty"><div class="big">📝</div>${
+      stories.length ? "この条件のストーリーはまだありません。" : "まだ振り返りがありません。<br>右下の ＋ から始めましょう。"
+    }</div>`;
+    return;
+  }
+  host.innerHTML = list.map(s=>{
+    const f = findCmp(s.cmpId); const c = f ? f.cmp : null;
+    const snip = [s.situation, s.action, s.result].filter(Boolean).join(" / ") || "（本文なし）";
+    const stars = "★".repeat(s.rating||0);
+    const lifePill = s.lifecycle==="longterm"
+      ? `<span class="pill live">● 進行中</span>`
+      : `<span class="pill done">当日完結</span>`;
+    return `<div class="story" data-id="${s.id}" style="--cmp:${c?c.color:'#999'};--cmp-bg:${c?c.color+'1a':'#eee'}">
+      <div class="story-top">
+        <span class="badge">${c?c.emoji+' '+c.jp:'?'}</span>
+        ${lifePill}
+      </div>
+      <div class="story-title">${escapeHtml(s.title || (c?c.jp:'') )}</div>
+      <div class="story-snip">${escapeHtml(snip)}</div>
+      <div class="story-meta">
+        <span class="stars-sm">${stars||'☆ 未評価'}</span>
+        <span class="date-sm">${fmtDate(s.createdAt)}${s.updates&&s.updates.length?` · 更新${s.updates.length}`:''}</span>
+      </div>
+    </div>`;
+  }).join("");
+  host.querySelectorAll(".story").forEach(el=> el.onclick = ()=> openDetail(el.dataset.id));
+}
+
+function escapeHtml(s){ return (s||"").replace(/[&<>"]/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;" }[m])); }
+
+function getFilteredStories(){
+  let list = [...stories].sort((a,b)=> (b.updatedAt||b.createdAt) - (a.updatedAt||a.createdAt));
+  if (activeFilter==="deck") list = list.filter(s=> (s.rating||0) >= 4);
+  else if (activeFilter.startsWith("pos:")){
+    const p = POSITIONS.find(x=>x.id===activeFilter.slice(4));
+    const ids = p ? p.competencyIds : [];
+    list = list.filter(s=> ids.includes(s.cmpId));
+  }
+  else if (activeFilter!=="all") list = list.filter(s=> s.cmpId===activeFilter);
+  return list;
+}
+function filterLabel(){
+  if (activeFilter==="all") return "すべて";
+  if (activeFilter==="deck") return "Interview記録帳";
+  if (activeFilter.startsWith("pos:")){ const p = POSITIONS.find(x=>x.id===activeFilter.slice(4)); return p ? p.name : activeFilter; }
+  const f = findCmp(activeFilter); return f ? f.cmp.jp : activeFilter;
+}
+
+/* ========================= CSV(Excel)出力 ========================= */
+function csvCell(v){
+  v = (v==null ? "" : String(v));
+  return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v;
+}
+function exportCSV(){
+  const list = getFilteredStories();
+  if (!list.length){ toast("出力するストーリーがありません"); return; }
+  const headers = ["記録日","ポジション","コンピテンシー(JP)","コンピテンシー(EN)","タイトル",
+    "Situation(状況)","Task(課題・役割)","Action(行動)","Result(結果)","Self-reflection(学び)",
+    "Interview★評価","寿命","更新件数","更新履歴","最終更新日","Connection Manager"];
+  const mgr = (settings.managerName||"").trim();
+  const rows = list.map(s=>{
+    const f = findCmp(s.cmpId); const c = f?f.cmp:{};
+    const updates = (s.updates||[]).map(u=>`[${fmtDate(u.ts)}] ${u.text}`).join("\n");
+    return [
+      fmtDate(s.createdAt), positionsFor(s.cmpId).join(" / "), c.jp||"", c.en||"", s.title||"",
+      s.situation||"", s.task||"", s.action||"", s.result||"", s.selfref||"",
+      s.rating||0, (s.lifecycle==="longterm"?"長期継続":"当日完結"),
+      (s.updates||[]).length, updates, fmtDate(s.updatedAt||s.createdAt), mgr
+    ];
+  });
+  const csv = [headers, ...rows].map(r=> r.map(csvCell).join(",")).join("\r\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" }); // BOMで日本語文字化け防止
+  const url = URL.createObjectURL(blob);
+  const d = new Date();
+  const ymd = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
+  const a = document.createElement("a");
+  a.href = url; a.download = `STARS振り返り_${filterLabel()}_${ymd}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  toast(`${list.length}件を出力しました ✓`);
+}
+
+/* ========================= SELECT ========================= */
+function renderSelect(){
+  const host = document.getElementById("cmpCards");
+  host.innerHTML = POSITIONS.map(p=>`
+    <div class="pos-head">${p.name}</div>
+    <div class="card-grid">
+      ${p.competencyIds.map(id=>{ const c = COMPETENCIES[id]; return `
+        <div class="cmp-card" data-id="${id}" data-pos="${p.id}" style="--cmp:${c.color}">
+          <div class="cmp-emoji">${c.emoji}</div>
+          <div class="cmp-jp">${c.jp}</div>
+          <div class="cmp-en">${c.en}</div>
+          <div class="cmp-desc">${c.desc}</div>
+        </div>`; }).join("")}
+    </div>`).join("");
+  host.querySelectorAll(".cmp-card").forEach(el=> el.onclick = ()=> startDraft(el.dataset.id, el.dataset.pos));
+}
+
+/* ========================= EDIT ========================= */
+function newId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+function startDraft(cmpId, posId){
+  draft = {
+    id: newId(), cmpId, posId: posId || null,
+    title:"", situation:"", task:"", action:"", result:"", selfref:"",
+    rating: 0, lifecycle: "oneday",
+    createdAt: Date.now(), updatedAt: Date.now(), updates: [],
+    isNew: true
+  };
+  renderEdit();
+  show("edit");
+}
+
+function editExisting(id){
+  const s = stories.find(x=>x.id===id);
+  if(!s) return;
+  draft = JSON.parse(JSON.stringify(s));
+  draft.isNew = false;
+  renderEdit();
+  show("edit");
+}
+
+function renderEdit(){
+  const f = findCmp(draft.cmpId); const c = f.cmp;
+  document.body.style.setProperty("--cmp", c.color);
+
+  // ピン留めコンピテンシー（解説はタップで展開）
+  document.getElementById("pinnedHost").innerHTML = `
+    <div class="pinned" style="--cmp:${c.color}">
+      <div class="pinned-head" id="pinnedHead">
+        <span style="font-size:20px">${c.emoji}</span>
+        <span><span class="pinned-jp">${c.jp}</span> <span class="pinned-en">${c.en}</span></span>
+        <span class="pinned-toggle" id="pinnedToggle">解説 ▾</span>
+      </div>
+      <div class="pinned-body" id="pinnedBody">
+        <div>${c.desc}</div>
+        <div class="lbl" style="margin-top:8px">優れたスキルレベル</div>
+        <ul>${c.bullets.map(b=>`<li>${b}</li>`).join("")}</ul>
+      </div>
+    </div>`;
+  const head = document.getElementById("pinnedHead");
+  const body = document.getElementById("pinnedBody");
+  const tog = document.getElementById("pinnedToggle");
+  head.onclick = ()=>{ const open = body.classList.toggle("open"); tog.textContent = open ? "解説 ▴" : "解説 ▾"; };
+
+  // 記入開始日（自動取得・表示のみ）
+  document.getElementById("startDateLine").textContent = `📅 記入開始日：${fmtDate(draft.createdAt)}（自動）`;
+
+  // STARS フィールド
+  document.getElementById("starsFields").innerHTML = STARS.map(fld=>`
+    <div class="field">
+      <div class="field-label">
+        <span class="field-letter" style="background:${c.color}">${fld.letter}</span>
+        <span><span class="field-name">${fld.name}</span></span>
+      </div>
+      <div class="field-hint">${fld.hint}</div>
+      <textarea data-key="${fld.key}" class="${fld.result?'result-field':''}" placeholder="${fld.hint}">${escapeHtml(draft[fld.key])}</textarea>
+    </div>`).join("");
+  document.querySelectorAll("#starsFields textarea").forEach(ta=>{
+    ta.oninput = ()=>{ draft[ta.dataset.key] = ta.value; };
+  });
+
+  // ★ピッカー
+  paintStars(draft.rating);
+  document.querySelectorAll("#starPick span").forEach(sp=>{
+    sp.onclick = ()=>{ const v = +sp.dataset.v; draft.rating = (draft.rating===v)?0:v; paintStars(draft.rating); };
+  });
+
+  // 寿命
+  document.querySelectorAll("#lifeSeg .seg-btn").forEach(b=>{
+    b.classList.toggle("on", b.dataset.life===draft.lifecycle);
+    b.onclick = ()=>{ draft.lifecycle = b.dataset.life; document.querySelectorAll("#lifeSeg .seg-btn").forEach(x=>x.classList.toggle("on", x.dataset.life===draft.lifecycle)); };
+  });
+
+  document.getElementById("deleteBtn").style.display = draft.isNew ? "none" : "block";
+}
+
+function paintStars(v){
+  document.querySelectorAll("#starPick span").forEach(sp=> sp.classList.toggle("on", +sp.dataset.v <= v));
+  document.getElementById("starCaption").textContent = STAR_CAPTIONS[v] || "タップで評価";
+}
+
+function deriveTitle(d){
+  const base = (d.situation || d.task || d.action || "").trim().split(/\n/)[0];
+  if (base) return base.length > 40 ? base.slice(0,40)+"…" : base;
+  const f = findCmp(d.cmpId); return f ? f.cmp.jp : "無題";
+}
+
+function saveDraft(){
+  const empty = !["situation","task","action","result","selfref"].some(k=> (draft[k]||"").trim());
+  if (empty){ toast("ひとことでも書いてから保存してね"); return; }
+  draft.title = deriveTitle(draft);
+  draft.updatedAt = Date.now();
+  const idx = stories.findIndex(s=>s.id===draft.id);
+  const clean = {...draft}; delete clean.isNew;
+  if (idx>=0) stories[idx] = clean; else stories.unshift(clean);
+  saveStories(stories);
+  toast("保存しました ✓");
+  renderHome();
+  openDetail(draft.id);
+}
+
+function deleteDraft(){
+  if(!confirm("このストーリーを削除しますか？")) return;
+  stories = stories.filter(s=>s.id!==draft.id);
+  saveStories(stories);
+  toast("削除しました");
+  renderHome();
+  show("home");
+}
+
+/* ========================= DETAIL ========================= */
+let detailId = null;
+function openDetail(id){
+  const s = stories.find(x=>x.id===id);
+  if(!s){ show("home"); return; }
+  detailId = id;
+  const f = findCmp(s.cmpId); const c = f ? f.cmp : {color:"#999",emoji:"?",jp:"?",en:""};
+  document.body.style.setProperty("--cmp", c.color);
+
+  const stars = "★".repeat(s.rating||0) + "☆".repeat(5-(s.rating||0));
+  const blocks = STARS.map(fld=>{
+    const val = s[fld.key];
+    if(!val || !val.trim()) return "";
+    const refl = fld.key==="selfref";
+    return `<div class="detail-block ${refl?'refl':''}">
+      <div class="dl"><span class="field-letter" style="background:${c.color}">${fld.letter}</span><span class="field-name">${fld.name}</span></div>
+      <div class="dtext">${escapeHtml(val)}</div>
+    </div>`;
+  }).join("");
+
+  const isLong = s.lifecycle==="longterm";
+  const lifeLine = isLong
+    ? `<span class="pill live">● 進行中（長期）</span>`
+    : `<span class="pill done">当日完結</span>`;
+
+  // 長期：タイムライン追記。 当日：振り返りを促す。
+  let extra = "";
+  if (isLong){
+    const items = (s.updates||[]).map(u=>`
+      <div class="tl-item"><div class="tl-date">${fmtDate(u.ts)}</div><div class="tl-text">${escapeHtml(u.text)}</div></div>`).join("")
+      || `<div class="tl-item"><div class="tl-text" style="color:#6e6e73">まだ更新はありません。進展をここに追記していこう。</div></div>`;
+    extra = `<div class="detail-block">
+      <div class="dl"><span class="field-name">📈 これまでの進展</span></div>
+      <div class="timeline" style="--cmp:${c.color}">${items}</div>
+      <div class="add-update">
+        <textarea id="updText" placeholder="進展・新しい動きを追記…"></textarea>
+        <button id="updBtn">追加</button>
+      </div>
+    </div>`;
+  } else {
+    extra = `<div class="detail-block refl">
+      <div class="dl"><span class="field-name">🔁 当日の振り返り</span></div>
+      <div class="dtext" style="color:#6e6e73">このストーリーは当日完結。学び（Self-reflection）を読み返して、明日に活かそう。<br>後から内容を直したくなったら「編集」へ。</div>
+    </div>`;
+  }
+
+  document.getElementById("detailHost").innerHTML = `
+    <div class="story-top" style="margin-bottom:10px">
+      <span class="badge" style="--cmp:${c.color};--cmp-bg:${c.color}1a">${c.emoji} ${c.jp}</span>
+      ${lifeLine}
+    </div>
+    <h1 class="page" style="font-size:22px">${escapeHtml(s.title||c.jp)}</h1>
+    <p class="sub">${c.en} · ${fmtDate(s.createdAt)} 記録</p>
+    <div class="stars-row" style="margin-bottom:14px">${stars} <span style="font-size:13px;color:#6e6e73">${STAR_CAPTIONS[s.rating]||'未評価'}</span></div>
+    ${blocks || '<div class="detail-block"><div class="dtext" style="color:#6e6e73">本文なし</div></div>'}
+    ${extra}
+    <button class="primary" id="detImg" style="background:#fff;color:var(--accent);border:1px solid var(--line)">🖼 画像で書き出す</button>
+    <button class="primary" id="detEdit" style="background:#1d1d1f">編集する</button>
+    <button class="ghost" id="detDel">削除</button>
+  `;
+
+  document.getElementById("detImg").onclick = ()=> exportStoryImage(s);
+  document.getElementById("detEdit").onclick = ()=> editExisting(id);
+  document.getElementById("detDel").onclick = ()=>{
+    if(!confirm("このストーリーを削除しますか？")) return;
+    stories = stories.filter(x=>x.id!==id); saveStories(stories); renderHome(); show("home"); toast("削除しました");
+  };
+  const updBtn = document.getElementById("updBtn");
+  if (updBtn) updBtn.onclick = ()=>{
+    const ta = document.getElementById("updText"); const txt = ta.value.trim();
+    if(!txt) return;
+    s.updates = s.updates || [];
+    s.updates.unshift({ ts: Date.now(), text: txt });
+    s.updatedAt = Date.now();
+    saveStories(stories); renderHome(); openDetail(id); toast("追記しました ✓");
+  };
+
+  show("detail");
+}
+
+/* ========================= 画像で書き出し ========================= */
+const IMG_FONT = (w,s)=>`${w} ${s}px -apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif`;
+function wrapPara(ctx, text, maxW){
+  const out = [];
+  (text||"").split("\n").forEach(p=>{
+    if(!p){ out.push(""); return; }
+    let line = "";
+    for(const ch of p){
+      if(ctx.measureText(line+ch).width > maxW && line){ out.push(line); line = ch; }
+      else line += ch;
+    }
+    out.push(line);
+  });
+  return out;
+}
+function exportStoryImage(s){
+  const f = findCmp(s.cmpId);
+  const c = f ? f.cmp : { color:"#0071e3", emoji:"⭐️", jp:"", en:"" };
+  const accent = c.color;
+  const W = 540, PAD = 22, CARDX = PAD, CARDW = W - PAD*2, IN = 18, GAP = 12, BAR = 4, maxTextW = CARDW - IN*2;
+  const mc = document.createElement("canvas").getContext("2d");
+
+  // セクション（STARSの各項目＋長期の進展）
+  const sections = [];
+  STARS.forEach(fld=>{
+    const val = (s[fld.key]||"").trim();
+    if(!val) return;
+    sections.push({
+      letter: fld.letter, label: fld.name, refl: fld.key==="selfref",
+      blocks: [{ text: val, font: IMG_FONT(fld.key==="selfref"?600:500, fld.key==="result"?19:18), color:"#1d1d1f", lineH:27 }]
+    });
+  });
+  if(s.lifecycle==="longterm" && (s.updates||[]).length){
+    sections.push({
+      letter: "📈", label: "これまでの進展", refl: false,
+      blocks: (s.updates||[]).map(u=>({ text:`・[${fmtDate(u.ts)}] ${u.text}`, font: IMG_FONT(500,16), color:"#1d1d1f", lineH:24 }))
+    });
+  }
+  if(!sections.length){
+    sections.push({ letter:null, label:"記録", refl:false, blocks:[{ text:"（本文なし）", font:IMG_FONT(500,16), color:"#9a9aa0", lineH:24 }] });
+  }
+
+  // ヘッダー寸法
+  mc.font = IMG_FONT(700,22);
+  const titleLines = wrapPara(mc, s.title || c.jp, CARDW);
+  const headBottom = 92 + titleLines.length*30;
+
+  // 各セクション高さ
+  sections.forEach(sec=>{
+    let h = IN + 24 + 8;
+    sec._wrapped = sec.blocks.map(b=>{ mc.font = b.font; const wl = wrapPara(mc, b.text, maxTextW); h += wl.length*b.lineH + (b.gap||0); return wl; });
+    h += IN; sec._h = h;
+  });
+  const footerH = 40;
+  const totalH = Math.ceil(headBottom + 8 + sections.reduce((a,x)=>a+x._h+GAP, 0) + footerH);
+
+  const scale = 2, cv = document.createElement("canvas");
+  cv.width = W*scale; cv.height = totalH*scale;
+  const ctx = cv.getContext("2d"); ctx.scale(scale,scale); ctx.textBaseline = "top";
+  ctx.fillStyle = "#f5f5f7"; ctx.fillRect(0,0,W,totalH);
+  function rr(x,yy,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,yy); ctx.arcTo(x+w,yy,x+w,yy+h,r); ctx.arcTo(x+w,yy+h,x,yy+h,r); ctx.arcTo(x,yy+h,x,yy,r); ctx.arcTo(x,yy,x+w,yy,r); ctx.closePath(); }
+
+  // ヘッダー
+  let y = 24;
+  ctx.fillStyle = accent; ctx.font = IMG_FONT(800,15);
+  ctx.fillText(`${c.emoji} ${c.jp}`, PAD, y+2);
+  const dtxt = fmtDate(s.createdAt);
+  ctx.font = IMG_FONT(700,13); const dw = ctx.measureText(dtxt).width;
+  ctx.fillStyle = accent + "1a"; rr(W-PAD-dw-20, y-2, dw+20, 24, 12); ctx.fill();
+  ctx.fillStyle = accent; ctx.fillText(dtxt, W-PAD-dw-10, y+3);
+  y += 34;
+  ctx.fillStyle = "#1d1d1f"; ctx.font = IMG_FONT(700,22);
+  titleLines.forEach(l=>{ ctx.fillText(l, PAD, y); y += 30; });
+  y += 4;
+  const rate = s.rating || 0;
+  ctx.font = IMG_FONT(700,18); ctx.fillStyle = "#ffb400";
+  const starStr = "★".repeat(rate) + "☆".repeat(5-rate);
+  ctx.fillText(starStr, PAD, y);
+  const sw = ctx.measureText(starStr).width;
+  ctx.fillStyle = "#6e6e73"; ctx.font = IMG_FONT(500,13);
+  ctx.fillText(STAR_CAPTIONS[rate] || "未評価", PAD+sw+10, y+3);
+  y += 30 + 8;
+
+  // セクション
+  sections.forEach(sec=>{
+    const cardY = y;
+    ctx.fillStyle = sec.refl ? "#fffdf6" : "#ffffff"; rr(CARDX, cardY, CARDW, sec._h, 14); ctx.fill();
+    ctx.strokeStyle = sec.refl ? "#ffe7b0" : "#ececf0"; ctx.lineWidth = 1; rr(CARDX+.5, cardY+.5, CARDW-1, sec._h-1, 14); ctx.stroke();
+    ctx.fillStyle = accent; rr(CARDX, cardY+12, BAR, sec._h-24, 2); ctx.fill();
+    const cx = CARDX + IN; let cy = cardY + IN;
+    if(sec.letter && sec.letter.length===1){
+      ctx.fillStyle = accent; rr(cx, cy-1, 20, 20, 6); ctx.fill();
+      ctx.fillStyle = "#fff"; ctx.font = IMG_FONT(800,12); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(sec.letter, cx+10, cy+10); ctx.textAlign = "left"; ctx.textBaseline = "top";
+      ctx.fillStyle = accent; ctx.font = IMG_FONT(700,14); ctx.fillText(sec.label, cx+28, cy+2);
+    } else {
+      ctx.fillStyle = accent; ctx.font = IMG_FONT(700,14); ctx.fillText((sec.letter?sec.letter+" ":"") + sec.label, cx, cy+2);
+    }
+    cy += 24 + 8;
+    sec.blocks.forEach((b,bi)=>{ ctx.font = b.font; ctx.fillStyle = b.color; sec._wrapped[bi].forEach(l=>{ ctx.fillText(l, cx, cy); cy += b.lineH; }); cy += (b.gap||0); });
+    y = cardY + sec._h + GAP;
+  });
+
+  // フッター
+  ctx.fillStyle = "#9a9aa0"; ctx.font = IMG_FONT(500,12);
+  ctx.fillText(`Reflection ・ ${c.en} ・ ${fmtDate(s.createdAt)}`, PAD, y+6);
+
+  const safe = (s.title || c.jp || "reflection").replace(/[\\/:*?"<>|\s]/g, "_").slice(0,30);
+  const d = new Date(s.createdAt);
+  const ymd = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
+  const fname = `STARS_${safe}_${ymd}.png`;
+  cv.toBlob(b=>{ if(!b){ toast("画像化に失敗しました"); return; } showImageSheet(URL.createObjectURL(b), b, fname); }, "image/png");
+}
+function showImageSheet(url, blob, fname){
+  openModal({
+    title: "🖼 画像で書き出し",
+    desc: "画像を長押しでも保存・共有できます。下のボタンからもどうぞ。",
+    bodyHTML: `<div class="imgwrap"><img src="${url}" alt="振り返りカード"></div>`,
+    actions: [
+      { label: "閉じる", primary: false, onClick: ()=>{ closeModal(); setTimeout(()=>URL.revokeObjectURL(url), 500); } },
+      { label: "保存・共有", primary: true, onClick: async ()=>{
+          try {
+            const file = new File([blob], fname, { type:"image/png" });
+            if(navigator.canShare && navigator.canShare({ files:[file] })){ await navigator.share({ files:[file], title:"STARS 振り返り" }); }
+            else { const a = document.createElement("a"); a.href = url; a.download = fname; document.body.appendChild(a); a.click(); a.remove(); toast("画像を保存しました"); }
+          } catch(e) {}
+      } }
+    ]
+  });
+}
+
+/* ========================= ナビ ========================= */
+document.getElementById("exportBtn").onclick = exportCSV;
+document.getElementById("recapBtn").onclick = openRecap;
+document.getElementById("fab").onclick = ()=>{ renderSelect(); show("select"); };
+document.getElementById("backBtn").onclick = ()=>{
+  const cur = Object.keys(views).find(k=>document.getElementById(views[k]).classList.contains("active"));
+  if (cur==="select") { show("home"); }
+  else if (cur==="edit") { draft && !draft.isNew ? openDetail(draft.id) : show("home"); }
+  else if (cur==="detail") { show("home"); }
+  else show("home");
+};
+document.getElementById("saveBtn").onclick = saveDraft;
+document.getElementById("deleteBtn").onclick = deleteDraft;
+
+/* 起動 */
+renderHome();
+</script>
+</body>
+</html>

@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Recognition">
+<meta name="theme-color" content="#f5f5f7">
+<title>Recognition</title>
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --card: #ffffff;
+    --text: #1d1d1f;
+    --sub: #6e6e73;
+    --line: #e3e3e6;
+    --blue: #0071e3;
+    --blue-soft: #eaf3fe;
+    --green: #34c759;
+    --red: #ff3b30;
+    --chip: #f0f0f2;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: calc(40px + env(safe-area-inset-bottom));
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 16px; }
+
+  /* ===== ヘッダー ===== */
+  header.app {
+    text-align: center;
+    padding: 26px 16px 12px;
+    position: relative;
+  }
+  header.app .logo { font-size: 30px; line-height: 1; }
+  header.app h1 { font-size: 22px; font-weight: 600; margin: 6px 0 2px; letter-spacing: .01em; }
+  header.app .tagline { color: var(--sub); font-size: 12.5px; }
+  .back-btn {
+    position: absolute; left: 16px; top: 26px;
+    background: none; border: none; color: var(--blue);
+    font-size: 16px; font-family: inherit; cursor: pointer; padding: 4px 0;
+    display: inline-flex; align-items: center; gap: 2px;
+  }
+  .back-btn:active { opacity: .5; }
+
+  /* ===== 共通カード / ボタン ===== */
+  .card {
+    background: var(--card); border-radius: 18px;
+    padding: 20px; margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    width: 100%; font-size: 16px; font-weight: 600; font-family: inherit;
+    padding: 14px 18px; border-radius: 13px; border: none; cursor: pointer;
+    background: var(--blue); color: #fff; transition: opacity .15s;
+  }
+  .btn:active { opacity: .7; }
+  .btn.secondary { background: var(--chip); color: var(--text); }
+  .btn.ghost { background: none; color: var(--blue); }
+  .btn.danger { background: none; color: var(--red); font-weight: 500; }
+  .btn.sm { width: auto; padding: 9px 14px; font-size: 14px; border-radius: 11px; }
+
+  label.field { display: block; margin-bottom: 16px; }
+  label.field .lab { font-size: 13px; font-weight: 600; color: var(--sub); margin-bottom: 6px; display: block; }
+  input[type=text], textarea {
+    width: 100%; font-size: 16px; font-family: inherit; color: var(--text);
+    padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px;
+    background: #fff; resize: vertical;
+  }
+  input[type=text]:focus, textarea:focus { outline: none; border-color: var(--blue); }
+  textarea { min-height: 70px; line-height: 1.6; }
+
+  /* ===== メンバー一覧 ===== */
+  .member-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .member-tile {
+    background: var(--card); border-radius: 18px; padding: 18px 14px;
+    text-align: center; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,.04);
+    transition: transform .12s; position: relative;
+  }
+  .member-tile:active { transform: scale(.97); }
+  .avatar {
+    width: 72px; height: 72px; border-radius: 50%; object-fit: cover;
+    margin: 0 auto 10px; display: block; background: var(--chip);
+  }
+  .avatar.ph {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; font-weight: 600; color: var(--blue); background: var(--blue-soft);
+  }
+  .member-tile .mname { font-size: 15px; font-weight: 600; }
+  .member-tile .mcount { font-size: 12px; color: var(--sub); margin-top: 2px; }
+  .add-tile {
+    border: 2px dashed var(--line); background: transparent; box-shadow: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: var(--blue); font-weight: 600; min-height: 152px;
+  }
+  .add-tile .plus { font-size: 32px; line-height: 1; margin-bottom: 4px; }
+
+  .empty { text-align: center; color: var(--sub); padding: 50px 20px; font-size: 14px; }
+  .empty .big { font-size: 40px; margin-bottom: 12px; }
+
+  /* ===== メンバー詳細 ===== */
+  .member-head { text-align: center; padding: 6px 0 16px; }
+  .member-head .avatar { width: 96px; height: 96px; font-size: 36px; }
+  .member-head h2 { font-size: 22px; font-weight: 600; margin: 4px 0 2px; }
+  .member-head .sub { font-size: 13px; color: var(--sub); }
+  .photo-edit { margin-top: 8px; }
+
+  .reco-item {
+    background: var(--card); border-radius: 14px; padding: 14px 16px;
+    margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.04); cursor: pointer;
+  }
+  .reco-item:active { background: #fafafa; }
+  .reco-item .rdate { font-size: 11.5px; color: var(--sub); margin-bottom: 4px; }
+  .reco-item .rjp { font-size: 14.5px; line-height: 1.55; }
+  .reco-item .ren { font-size: 12.5px; color: var(--sub); margin-top: 4px; font-style: italic; }
+
+  /* ===== 作成画面 ===== */
+  .preview-wrap {
+    background: #e9e9ec; border-radius: 18px; padding: 16px;
+    display: flex; justify-content: center; margin-bottom: 16px;
+  }
+  #cardCanvas {
+    width: 100%; max-width: 480px; height: auto; border-radius: 10px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.14); background: #fff;
+  }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; }
+  .hint { font-size: 12px; color: var(--sub); margin: -8px 0 14px; }
+  .file-btn {
+    display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+    color: var(--blue); font-size: 14px; font-weight: 600;
+  }
+  input[type=file] { display: none; }
+  .toast {
+    position: fixed; left: 50%; bottom: 30px; transform: translateX(-50%) translateY(20px);
+    background: rgba(30,30,32,.95); color: #fff; padding: 12px 20px; border-radius: 12px;
+    font-size: 14px; opacity: 0; pointer-events: none; transition: all .25s; z-index: 50;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<header class="app">
+  <button class="back-btn" id="backBtn" style="display:none" onclick="goBack()">‹ 戻る</button>
+  <div class="logo" id="logo">✨</div>
+  <h1 id="title">Recognition</h1>
+  <div class="tagline" id="tagline">チームの「素敵だな」を称え、記録に残す</div>
+</header>
+
+<div class="wrap" id="app"></div>
+
+<div class="toast" id="toast"></div>
+
+<!-- 隠しファイル入力（写真用） -->
+<input type="file" id="photoInput" accept="image/*">
+
+<script>
+"use strict";
+
+/* ============ データ層 ============ */
+const STORE_KEY = "recognition_app_v1";
+function load() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || { members: [] }; }
+  catch (e) { return { members: [] }; }
+}
+function save() { localStorage.setItem(STORE_KEY, JSON.stringify(DB)); }
+let DB = load();
+
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + "." + String(d.getMonth()+1).padStart(2,"0") + "." + String(d.getDate()).padStart(2,"0");
+}
+const getMember = (id) => DB.members.find(m => m.id === id);
+
+/* ============ 画面状態 ============ */
+let view = { name: "list", memberId: null, recoId: null };
+const appEl = document.getElementById("app");
+
+function render() {
+  const back = document.getElementById("backBtn");
+  back.style.display = view.name === "list" ? "none" : "inline-flex";
+  if (view.name === "list") renderList();
+  else if (view.name === "member") renderMember();
+  else if (view.name === "compose") renderCompose();
+}
+function goBack() {
+  if (view.name === "compose") { view = { name: "member", memberId: view.memberId }; }
+  else if (view.name === "member") { view = { name: "list" }; }
+  render();
+}
+function setHeader(logo, title, tagline) {
+  document.getElementById("logo").textContent = logo;
+  document.getElementById("title").textContent = title;
+  document.getElementById("tagline").textContent = tagline;
+}
+
+/* ============ ① メンバー一覧 ============ */
+function renderList() {
+  setHeader("✨", "Recognition", "チームの「素敵だな」を称え、記録に残す");
+  const members = DB.members;
+  let html = "";
+  if (members.length === 0) {
+    html += `<div class="empty"><div class="big">🙌</div>
+      まだメンバーがいません。<br>下のボタンから最初の仲間を追加しましょう。</div>`;
+  }
+  html += `<div class="member-grid">`;
+  for (const m of members) {
+    html += `<div class="member-tile" onclick="openMember('${m.id}')">
+      ${avatarHTML(m, 72)}
+      <div class="mname">${esc(m.name)}</div>
+      <div class="mcount">Recognition ${m.recognitions.length}件</div>
+    </div>`;
+  }
+  html += `<div class="member-tile add-tile" onclick="addMember()">
+      <div class="plus">＋</div>メンバーを追加</div>`;
+  html += `</div>`;
+  appEl.innerHTML = html;
+}
+
+function avatarHTML(m, size) {
+  if (m.photo) return `<img class="avatar" style="width:${size}px;height:${size}px" src="${m.photo}" alt="">`;
+  const initial = (m.name || "?").trim().charAt(0).toUpperCase();
+  return `<div class="avatar ph" style="width:${size}px;height:${size}px">${esc(initial)}</div>`;
+}
+
+function addMember() {
+  const name = prompt("チームメンバーの名前を入力してください");
+  if (!name || !name.trim()) return;
+  const m = { id: uid(), name: name.trim(), photo: "", recognitions: [] };
+  DB.members.push(m); save();
+  openMember(m.id);
+}
+
+/* ============ ② メンバー詳細 ============ */
+function openMember(id) {
+  view = { name: "member", memberId: id };
+  render();
+}
+function renderMember() {
+  const m = getMember(view.memberId);
+  if (!m) { view = { name: "list" }; return render(); }
+  setHeader("", "", "");
+  document.getElementById("logo").style.display = "none";
+  document.getElementById("title").style.display = "none";
+  document.getElementById("tagline").style.display = "none";
+
+  let html = `<div class="member-head">
+    ${avatarHTML(m, 96)}
+    <h2>${esc(m.name)}</h2>
+    <div class="sub">Recognition ${m.recognitions.length}件</div>
+    <div class="photo-edit">
+      <button class="btn ghost sm" onclick="changePhoto('${m.id}')">📷 ${m.photo ? "写真を変更" : "写真を設定"}</button>
+      <button class="btn ghost sm" onclick="renameMember('${m.id}')">✎ 名前を編集</button>
+    </div>
+  </div>`;
+
+  html += `<button class="btn" onclick="openCompose('${m.id}')">＋ Recognitionを作成</button>
+    <div style="height:18px"></div>`;
+
+  const list = [...m.recognitions].reverse();
+  if (list.length === 0) {
+    html += `<div class="empty" style="padding:30px 20px">まだ記録がありません。<br>最初のRecognitionを贈りましょう ✨</div>`;
+  }
+  for (const r of list) {
+    html += `<div class="reco-item" onclick="openCompose('${m.id}','${r.id}')">
+      <div class="rdate">${esc(r.date)}</div>
+      <div class="rjp">${esc(r.jp)}</div>
+      ${r.en ? `<div class="ren">${esc(r.en)}</div>` : ""}
+    </div>`;
+  }
+  html += `<div style="height:14px"></div>
+    <button class="btn danger" onclick="deleteMember('${m.id}')">このメンバーを削除</button>`;
+  appEl.innerHTML = html;
+
+  // 詳細→一覧に戻ったときヘッダーを元に戻すため、戻る時に再表示
+  ["logo","title","tagline"].forEach(id => document.getElementById(id).style.display = "");
+  // member画面ではロゴ系を隠す
+  document.getElementById("logo").style.display = "none";
+  document.getElementById("title").style.display = "none";
+  document.getElementById("tagline").style.display = "none";
+}
+
+function renameMember(id) {
+  const m = getMember(id); if (!m) return;
+  const name = prompt("名前を編集", m.name);
+  if (!name || !name.trim()) return;
+  m.name = name.trim(); save(); render();
+}
+function deleteMember(id) {
+  const m = getMember(id); if (!m) return;
+  if (!confirm(`「${m.name}」とそのRecognition記録(${m.recognitions.length}件)を削除しますか？`)) return;
+  DB.members = DB.members.filter(x => x.id !== id); save();
+  view = { name: "list" }; render();
+}
+
+/* 写真設定（メンバー詳細から） */
+let photoTargetMember = null;
+function changePhoto(id) {
+  photoTargetMember = id;
+  composePhotoPending = false;
+  document.getElementById("photoInput").click();
+}
+
+/* ============ ③ 作成画面 ============ */
+let composeState = null;        // { memberId, recoId, jp, en, date }
+let currentPhotoImg = null;     // 描画用の読み込み済みImage
+let composePhotoPending = false;
+
+function openCompose(memberId, recoId) {
+  const m = getMember(memberId); if (!m) return;
+  let r = recoId ? m.recognitions.find(x => x.id === recoId) : null;
+  composeState = {
+    memberId,
+    recoId: r ? r.id : null,
+    jp: r ? r.jp : "",
+    en: r ? r.en : "",
+    date: r ? r.date : todayStr()
+  };
+  view = { name: "compose", memberId, recoId: composeState.recoId };
+  render();
+}
+
+function renderCompose() {
+  const m = getMember(composeState.memberId);
+  setHeader("", "", "");
+  document.getElementById("logo").style.display = "none";
+  document.getElementById("title").style.display = "";
+  document.getElementById("tagline").style.display = "";
+  document.getElementById("title").textContent = composeState.recoId ? "Recognitionを編集" : "Recognitionを作成";
+  document.getElementById("tagline").textContent = m.name + " さんへ";
+
+  appEl.innerHTML = `
+    <div class="preview-wrap">
+      <canvas id="cardCanvas" width="1920" height="1080"></canvas>
+    </div>
+
+    <div class="card">
+      <label class="field">
+        <span class="lab">写真</span>
+        <span class="file-btn" onclick="changePhotoFromCompose()">📷 ${m.photo ? "写真を変更" : "写真をアップロード"}</span>
+      </label>
+      <label class="field">
+        <span class="lab">Recognitionしたい内容（日本語）</span>
+        <textarea id="inJp" placeholder="例）困っているお客様に最後まで寄り添って対応していた姿が素敵でした。">${esc(composeState.jp)}</textarea>
+      </label>
+      <label class="field">
+        <span class="lab">英語訳（English）</span>
+        <textarea id="inEn" placeholder="e.g. Your dedication to supporting the customer until the very end was wonderful.">${esc(composeState.en)}</textarea>
+      </label>
+      <p class="hint">入力するとプレビューにすぐ反映されます。</p>
+    </div>
+
+    <button class="btn" onclick="exportImage()">⬇︎ 画像として保存</button>
+    <div style="height:10px"></div>
+    <button class="btn secondary" onclick="saveReco()">${composeState.recoId ? "変更を保存" : "記録に保存"}</button>
+    ${composeState.recoId ? `<div style="height:10px"></div><button class="btn danger" onclick="deleteReco()">この記録を削除</button>` : ""}
+  `;
+
+  document.getElementById("inJp").addEventListener("input", e => { composeState.jp = e.target.value; drawCard(); });
+  document.getElementById("inEn").addEventListener("input", e => { composeState.en = e.target.value; drawCard(); });
+
+  // 写真の読み込み
+  loadPhoto(m.photo, () => drawCard());
+}
+
+function changePhotoFromCompose() {
+  photoTargetMember = composeState.memberId;
+  composePhotoPending = true;
+  document.getElementById("photoInput").click();
+}
+
+function loadPhoto(dataUrl, cb) {
+  if (!dataUrl) { currentPhotoImg = null; cb && cb(); return; }
+  const img = new Image();
+  img.onload = () => { currentPhotoImg = img; cb && cb(); };
+  img.onerror = () => { currentPhotoImg = null; cb && cb(); };
+  img.src = dataUrl;
+}
+
+/* ===== Canvas 描画（プレビュー＝書き出しと同一・16:9 横長） ===== */
+function drawCard() {
+  const canvas = document.getElementById("cardCanvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;   // 1920 x 1080
+  const m = getMember(composeState.memberId);
+
+  // 背景
+  ctx.fillStyle = "#f5f5f7";
+  ctx.fillRect(0, 0, W, H);
+
+  // 白カード
+  const pad = 60;
+  roundRect(ctx, pad, pad, W - pad*2, H - pad*2, 48);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+
+  /* ---- 左カラム：写真 ＋ 名前 ---- */
+  const leftL = pad, leftR = 760;            // 左カラムの範囲
+  const lcx = (leftL + leftR) / 2;           // 左カラム中央 x
+  const photoR = 190;
+  const photoCY = 460;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(lcx, photoCY, photoR, 0, Math.PI*2);
+  ctx.closePath();
+  ctx.clip();
+  if (currentPhotoImg) {
+    drawImageCover(ctx, currentPhotoImg, lcx - photoR, photoCY - photoR, photoR*2, photoR*2);
+  } else {
+    ctx.fillStyle = "#eaf3fe";
+    ctx.fillRect(lcx - photoR, photoCY - photoR, photoR*2, photoR*2);
+    ctx.fillStyle = "#0071e3";
+    ctx.font = "600 140px -apple-system, sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText((m.name || "?").trim().charAt(0).toUpperCase(), lcx, photoCY + 8);
+    ctx.textBaseline = "alphabetic";
+  }
+  ctx.restore();
+
+  // 名前（左カラム幅に収まるよう自動縮小）
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#1d1d1f";
+  const nameMaxW = (leftR - leftL) - 40;
+  let nameSize = 56;
+  do {
+    ctx.font = "600 " + nameSize + "px -apple-system, 'Hiragino Sans', sans-serif";
+    if (ctx.measureText(m.name || "").width <= nameMaxW) break;
+    nameSize -= 3;
+  } while (nameSize > 30);
+  ctx.fillText(m.name || "", lcx, photoCY + photoR + 90);
+
+  /* ---- 区切り線（縦） ---- */
+  const divX = 800;
+  ctx.strokeStyle = "#e3e3e6"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(divX, 260); ctx.lineTo(divX, H - 260); ctx.stroke();
+
+  /* ---- 右カラム：ラベル ＋ 本文 ＋ 英語訳 ＋ 日付 ---- */
+  const rx = 880;
+  const rMaxW = (W - pad) - rx - 30;   // 右端まで
+
+  // ラベル
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#0071e3";
+  ctx.font = "600 30px -apple-system, 'Hiragino Sans', sans-serif";
+  ctx.fillText("✨ R E C O G N I T I O N", rx, 300);
+
+  // 本文・英語訳の行を計算
+  const jpLH = 66, enLH = 52, gap = 44;
+  ctx.font = "500 46px -apple-system, 'Hiragino Sans', sans-serif";
+  const jpLines = splitLines(ctx, composeState.jp || "（称賛したい内容を入力）", rMaxW);
+  let enLines = [];
+  if (composeState.en && composeState.en.trim()) {
+    ctx.font = "italic 400 34px -apple-system, 'Helvetica Neue', sans-serif";
+    enLines = splitLines(ctx, composeState.en, rMaxW);
+  }
+  const blockH = jpLines.length*jpLH + (enLines.length ? gap + enLines.length*enLH : 0);
+
+  // 本文ブロックを縦方向に中央寄せ（ラベル下〜日付上の領域内）
+  const regTop = 360, regBot = H - 200;
+  let y = regTop + Math.max(0, (regBot - regTop - blockH) / 2) + 48;
+
+  ctx.fillStyle = "#1d1d1f";
+  ctx.font = "500 46px -apple-system, 'Hiragino Sans', sans-serif";
+  for (const l of jpLines) { ctx.fillText(l, rx, y); y += jpLH; }
+
+  if (enLines.length) {
+    y += gap - jpLH + enLH;   // 段落間の余白調整
+    ctx.fillStyle = "#6e6e73";
+    ctx.font = "italic 400 34px -apple-system, 'Helvetica Neue', sans-serif";
+    for (const l of enLines) { ctx.fillText(l, rx, y); y += enLH; }
+  }
+
+  // 日付（右下）
+  ctx.textAlign = "right";
+  ctx.fillStyle = "#a1a1a6";
+  ctx.font = "400 28px -apple-system, sans-serif";
+  ctx.fillText(composeState.date, W - pad - 40, H - pad - 50);
+}
+
+/* テキストを行配列に分割（日本語=文字単位＋簡易禁則 / 英語=単語単位 を自動判定）
+   ※ 呼び出し前に ctx.font を設定しておくこと */
+function splitLines(ctx, text, maxW) {
+  const out = [];
+  const paragraphs = String(text).split("\n");
+  for (const para of paragraphs) {
+    if (para === "") { out.push(""); continue; }
+    const hasSpace = /\s/.test(para.trim()) && /^[\x00-\x7F\s.,!?'"()-]+$/.test(para);
+    if (hasSpace) {
+      // 英語：単語単位
+      const words = para.split(" ");
+      let line = "";
+      for (const w of words) {
+        const test = line ? line + " " + w : w;
+        if (ctx.measureText(test).width > maxW && line) { out.push(line); line = w; }
+        else line = test;
+      }
+      if (line) out.push(line);
+    } else {
+      // 日本語：文字単位（簡易禁則：行頭に句読点・閉じ括弧を置かない）
+      const noStart = "、。，．！？）」』】〕〉》)』”’ー…";
+      let line = "";
+      for (const ch of para) {
+        const test = line + ch;
+        if (ctx.measureText(test).width > maxW && line) {
+          if (noStart.indexOf(ch) >= 0) { line = test; }   // 禁則文字は前行に残す
+          else { out.push(line); line = ch; }
+        } else line = test;
+      }
+      if (line) out.push(line);
+    }
+  }
+  return out;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function drawImageCover(ctx, img, dx, dy, dw, dh) {
+  const ir = img.width / img.height, dr = dw / dh;
+  let sx, sy, sw, sh;
+  if (ir > dr) { sh = img.height; sw = sh * dr; sx = (img.width - sw)/2; sy = 0; }
+  else { sw = img.width; sh = sw / dr; sx = 0; sy = (img.height - sh)/2; }
+  ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+}
+
+/* ===== 保存系 ===== */
+function saveReco() {
+  if (!composeState.jp.trim()) { toast("日本語の内容を入力してください"); return; }
+  const m = getMember(composeState.memberId);
+  if (composeState.recoId) {
+    const r = m.recognitions.find(x => x.id === composeState.recoId);
+    r.jp = composeState.jp.trim(); r.en = composeState.en.trim();
+  } else {
+    m.recognitions.push({ id: uid(), jp: composeState.jp.trim(), en: composeState.en.trim(), date: composeState.date });
+  }
+  save();
+  toast("記録に保存しました ✓");
+  view = { name: "member", memberId: composeState.memberId };
+  render();
+}
+function deleteReco() {
+  if (!confirm("この記録を削除しますか？")) return;
+  const m = getMember(composeState.memberId);
+  m.recognitions = m.recognitions.filter(x => x.id !== composeState.recoId);
+  save();
+  view = { name: "member", memberId: composeState.memberId };
+  render();
+}
+
+function exportImage() {
+  if (!composeState.jp.trim()) { toast("日本語の内容を入力してください"); return; }
+  drawCard();
+  const canvas = document.getElementById("cardCanvas");
+  const m = getMember(composeState.memberId);
+  const safeName = (m.name || "member").replace(/[\\/:*?"<>|\s]/g, "_");
+  const filename = `Recognition_${safeName}_${composeState.date.replace(/\./g,"")}.png`;
+
+  canvas.toBlob(async (blob) => {
+    if (!blob) { toast("画像の生成に失敗しました"); return; }
+    const file = new File([blob], filename, { type: "image/png" });
+
+    // iPhone/iPad Safari は <a download> が効かないので、共有シート（写真に保存）を優先
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: "Recognition" });
+        toast("共有シートから「写真に保存」を選べます");
+        return;
+      } catch (err) {
+        if (err && err.name === "AbortError") return;   // ユーザーがキャンセル
+        // 共有に失敗したらダウンロード/プレビューにフォールバック
+      }
+    }
+
+    // PC・Androidなど：通常のダウンロード
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast("画像を保存しました ✓");
+  }, "image/png");
+}
+
+/* ===== 写真アップロード（共通ハンドラ） ===== */
+document.getElementById("photoInput").addEventListener("change", function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    resizeDataUrl(ev.target.result, 900, (resized) => {
+      const m = getMember(photoTargetMember);
+      if (m) { m.photo = resized; save(); }
+      if (view.name === "compose") loadPhoto(resized, () => drawCard());
+      else render();
+    });
+  };
+  reader.readAsDataURL(file);
+  e.target.value = "";  // 同じファイル再選択を許可
+});
+
+/* アップロード画像を縮小してlocalStorage肥大を防ぐ */
+function resizeDataUrl(dataUrl, maxSize, cb) {
+  const img = new Image();
+  img.onload = () => {
+    let { width, height } = img;
+    const scale = Math.min(1, maxSize / Math.max(width, height));
+    width = Math.round(width * scale); height = Math.round(height * scale);
+    const c = document.createElement("canvas");
+    c.width = width; c.height = height;
+    c.getContext("2d").drawImage(img, 0, 0, width, height);
+    cb(c.toDataURL("image/jpeg", 0.85));
+  };
+  img.onerror = () => cb(dataUrl);
+  img.src = dataUrl;
+}
+
+/* ===== ユーティリティ ===== */
+function esc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+let toastTimer = null;
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2000);
+}
+
+/* 起動 */
+render();
+</script>
+</body>
+</html>

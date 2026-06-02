@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>GROW ノート — チームの成長に伴走する</title>
+<style>
+  :root{
+    --bg:#f5f5f7; --card:#ffffff; --ink:#1d1d1f; --sub:#6e6e73;
+    --line:#e3e3e6; --accent:#0071e3; --accent-soft:#e8f1fd;
+    --warm:#fff7e6; --warm-line:#f1d99a; --good:#34c759; --good-soft:#e7f8ec; --danger:#ff3b30;
+    --radius:16px; --shadow:0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Helvetica Neue",Arial,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.55;
+    -webkit-font-smoothing:antialiased; padding-bottom:env(safe-area-inset-bottom);
+  }
+  .wrap{max-width:680px;margin:0 auto;padding:0 16px 96px}
+  header.app{
+    position:sticky;top:0;z-index:20;background:rgba(245,245,247,.82);
+    backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);
+    padding:calc(env(safe-area-inset-top) + 10px) 16px 10px;border-bottom:1px solid var(--line);
+  }
+  .app-row{max-width:680px;margin:0 auto;display:flex;align-items:center;gap:10px}
+  .back{font-size:16px;color:var(--accent);background:none;border:0;padding:6px 2px;cursor:pointer;font-weight:500;display:none}
+  .back.show{display:inline-block}
+  .title{font-size:20px;font-weight:700;letter-spacing:.2px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .title small{display:block;font-size:11px;font-weight:500;color:var(--sub);letter-spacing:.3px}
+  .hbtn{font-size:14px;color:var(--accent);background:none;border:0;padding:6px;cursor:pointer;font-weight:600}
+
+  /* generic */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  button{font-family:inherit}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:12px;
+    background:var(--accent);color:#fff;font-size:15px;font-weight:600;padding:13px 18px;cursor:pointer;width:100%}
+  .btn:active{transform:scale(.985)}
+  .btn.ghost{background:var(--accent-soft);color:var(--accent)}
+  .btn.line{background:#fff;border:1px solid var(--line);color:var(--ink)}
+  .btn.danger{background:#fff;border:1px solid #ffd0cc;color:var(--danger)}
+  .muted{color:var(--sub)}
+  .empty{text-align:center;color:var(--sub);padding:48px 20px}
+  .empty .big{font-size:40px;margin-bottom:8px}
+
+  /* progress bars */
+  .bar{height:8px;border-radius:999px;background:#ececf0;overflow:hidden}
+  .bar > i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#0071e3,#34c759);transition:width .35s ease}
+  .bar.sm{height:6px}
+  .progress-row{display:flex;align-items:center;gap:10px}
+  .progress-row .bar{flex:1}
+  .progress-row .pct{font-size:13px;font-weight:700;color:var(--ink);flex:0 0 auto;min-width:42px;text-align:right}
+  .slider{-webkit-appearance:none;appearance:none;width:100%;height:10px;border-radius:999px;outline:none;background:#ececf0;margin:14px 0 2px}
+  .slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:26px;height:26px;border-radius:50%;background:#fff;border:1px solid var(--line);box-shadow:0 1px 5px rgba(0,0,0,.28);cursor:pointer;margin-top:-8px}
+  .slider::-moz-range-thumb{width:26px;height:26px;border:1px solid var(--line);border-radius:50%;background:#fff;box-shadow:0 1px 5px rgba(0,0,0,.28);cursor:pointer}
+
+  /* team summary */
+  .summary{padding:16px;margin:16px 0 4px}
+  .summary .srow{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px}
+  .summary .srow span:first-child{font-size:13px;font-weight:700;color:var(--sub);letter-spacing:.3px}
+  .summary .savg{font-size:26px;font-weight:800;line-height:1;background:linear-gradient(90deg,#0071e3,#34c759);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .summary .smeta{margin-top:9px;font-size:12px;color:var(--sub)}
+
+  /* HOME — member list */
+  .section-lead{margin:20px 4px 10px;font-size:13px;font-weight:600;color:var(--sub);letter-spacing:.4px;text-transform:uppercase}
+  .member{padding:16px;margin-bottom:12px;cursor:pointer;display:block;position:relative;overflow:hidden}
+  .member:active{background:#fafafa}
+  .member .name{font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px}
+  .avatar{width:34px;height:34px;border-radius:50%;background:var(--accent-soft);color:var(--accent);
+    display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex:0 0 auto}
+  .member .goal{margin-top:8px;font-size:14px;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .member .goal.none{color:var(--sub);font-style:italic}
+  .member .meta{margin-top:10px;font-size:12px;color:var(--sub);display:flex;gap:14px;flex-wrap:wrap}
+  .chev{position:absolute;right:16px;top:18px;color:#c4c4c9;font-size:20px}
+
+  /* data transfer entry */
+  .xfer{padding:14px 16px;margin-top:18px;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;font-size:14px;font-weight:600}
+  .xfer:active{background:#fafafa}
+  .xfer .muted{font-weight:400;font-size:12px}
+  .bk-actions{display:flex;gap:10px;margin-top:10px}
+  .bk-actions .btn{flex:1}
+
+  /* MEMBER detail */
+  .goalcard{padding:16px;margin:16px 0 6px}
+  .goalcard h3{margin:0 0 6px;font-size:12px;color:var(--sub);font-weight:700;letter-spacing:.4px;text-transform:uppercase}
+  .goaltext{font-size:17px;font-weight:600;line-height:1.5;white-space:pre-wrap}
+  .goaltext.none{color:var(--sub);font-weight:400;font-style:italic}
+  .goalcard .edit{margin-top:10px}
+
+  .timeline{position:relative;margin-top:8px;padding-left:6px}
+  .sess{padding:15px 16px;margin-bottom:12px;cursor:pointer}
+  .sess:active{background:#fafafa}
+  .sess .top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .date-chip{font-size:12px;font-weight:700;color:var(--accent);background:var(--accent-soft);padding:3px 10px;border-radius:999px}
+  .sess .sgoal{margin-top:9px;font-size:15px;font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .sess .insight{margin-top:9px;font-size:13px;color:var(--sub);background:var(--warm);border:1px solid var(--warm-line);
+    border-radius:10px;padding:8px 10px;display:flex;gap:6px}
+  .sess .insight b{color:#9a6b00;font-weight:700;flex:0 0 auto}
+  .stepcount{font-size:11px;color:var(--sub)}
+  .action-chip{margin-top:9px;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--accent);background:var(--accent-soft);border:1px solid #cfe3fb;border-radius:10px;padding:6px 10px;max-width:100%}
+  .action-chip span{font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .action-chip .sp{flex:0 0 auto;color:var(--good);font-weight:700}
+
+  /* EDITOR */
+  .field{margin:16px 0}
+  .field label{display:block;font-size:13px;font-weight:700;margin:0 2px 7px;color:var(--ink)}
+  .field .hint{font-weight:400;color:var(--sub);font-size:12px;display:block;margin-top:2px}
+  input[type=text],input[type=date],textarea{
+    width:100%;border:1px solid var(--line);border-radius:12px;background:#fff;
+    font-family:inherit;font-size:16px;color:var(--ink);padding:12px 13px;resize:none;line-height:1.5}
+  textarea{min-height:70px}
+  input:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+
+  /* GROW step heads */
+  .gstep{display:flex;align-items:center;gap:9px;margin:24px 2px 4px}
+  .gstep .gn{flex:0 0 auto;width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;
+    font-size:13px;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
+  .gstep .gt{font-size:15px;font-weight:700}
+  .gstep .ge{font-size:18px}
+
+  /* feedback keep/more */
+  .fb{border-radius:14px;padding:13px 14px;margin-bottom:10px;border:1px solid}
+  .fb.keep{background:var(--good-soft);border-color:#bfe6c9}
+  .fb.more{background:#eef4ff;border-color:#cfe0fb}
+  .fb h4{margin:0 0 7px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px}
+  .fb.keep h4{color:#1f8a3b}
+  .fb.more h4{color:#0a59b8}
+  .fb textarea{background:#fff}
+
+  /* idea / advice rows */
+  .sublabel{font-size:13px;font-weight:700;margin:6px 2px 8px;display:flex;align-items:center;gap:6px}
+  .sublabel .opt{font-weight:400;color:var(--sub);font-size:12px}
+  .idea-row{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+  .idea-row input[type=text]{flex:1}
+  .row-del{flex:0 0 auto;width:30px;height:34px;border:0;background:none;color:#c4c4c9;font-size:15px;cursor:pointer}
+  .advice-row{border:1px solid var(--line);border-radius:12px;padding:10px 10px 6px;margin-bottom:9px;background:#fbfbfe}
+  .advice-row .ar-top{display:flex;align-items:flex-start;gap:8px}
+  .advice-row .ar-top textarea{flex:1;min-height:46px}
+  .advice-row .ar-by{display:flex;align-items:center;gap:7px;margin:8px 2px 4px}
+  .advice-row .ar-by .lbl{font-size:12px;color:var(--sub);font-weight:600;flex:0 0 auto}
+  .advice-row .ar-by input{flex:1;font-size:14px;padding:8px 10px}
+  .addbtn{margin-top:4px}
+
+  /* materials + insight */
+  .materials{margin:10px 0 4px;background:var(--accent-soft);border:1px solid #cfe3fb;border-radius:14px;padding:13px 15px}
+  .materials h4{margin:0 0 7px;font-size:12px;color:var(--accent);font-weight:700;letter-spacing:.3px}
+  .materials ul{margin:0;padding-left:18px;font-size:14px;line-height:1.6}
+  .materials li{margin:3px 0}
+  .materials .by{color:var(--accent);font-weight:700;font-size:12px}
+  .materials .none{color:#8fb4e0;font-size:13px;margin:0}
+  .insight-field textarea{background:var(--warm);border-color:var(--warm-line);font-weight:600}
+
+  /* action todos (reused step look) */
+  .step{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+  .step-check{flex:0 0 auto;width:28px;height:28px;border-radius:8px;border:1.5px solid var(--line);background:#fff;color:#fff;font-size:15px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+  .step-check.on{background:var(--good);border-color:var(--good)}
+  .step input[type=text]{flex:1;font-size:15px;padding:10px 12px}
+  .step.done input[type=text]{color:var(--sub);text-decoration:line-through;background:#fafafa}
+  .step-del{flex:0 0 auto;width:30px;height:30px;border:0;background:none;color:#c4c4c9;font-size:15px;cursor:pointer}
+
+  .editor-actions{margin-top:26px;display:flex;flex-direction:column;gap:10px}
+
+  /* modal */
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:flex-end;justify-content:center;z-index:50;padding:0}
+  .scrim.show{display:flex}
+  .sheet{background:#fff;width:100%;max-width:680px;border-radius:20px 20px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom));
+    box-shadow:0 -8px 40px rgba(0,0,0,.2);animation:rise .22s ease}
+  @keyframes rise{from{transform:translateY(40px);opacity:.6}to{transform:translateY(0);opacity:1}}
+  .sheet h3{margin:0 0 4px;font-size:18px}
+  .sheet p.sub{margin:0 0 16px;font-size:13px;color:var(--sub)}
+  .sheet-actions{display:flex;gap:10px;margin-top:18px}
+  .sheet-actions .btn{flex:1}
+  .imgwrap{max-height:56vh;overflow:auto;border-radius:14px;border:1px solid var(--line);background:#f5f5f7;-webkit-overflow-scrolling:touch}
+  .imgwrap img{width:100%;display:block}
+
+  .fab{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+    background:linear-gradient(to top,var(--bg) 60%,transparent);z-index:15}
+  .fab .inner{max-width:680px;margin:0 auto}
+
+  .view{display:none}
+  .view.active{display:block}
+  .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%) translateY(20px);background:#1d1d1f;color:#fff;
+    padding:10px 18px;border-radius:999px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;z-index:99}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<header class="app">
+  <div class="app-row">
+    <button class="back" id="backBtn">‹ 戻る</button>
+    <div class="title" id="appTitle">GROW ノート<small>チームの叶えたいゴールに伴走する</small></div>
+    <button class="hbtn" id="headerAction"></button>
+  </div>
+</header>
+
+<div class="wrap">
+  <section class="view active" id="homeView">
+    <div id="teamSummary"></div>
+    <div class="section-lead">Team members</div>
+    <div id="memberList"></div>
+    <div id="homeFooter"></div>
+  </section>
+  <section class="view" id="memberView"></section>
+  <section class="view" id="editorView"></section>
+</div>
+
+<div class="fab" id="fab" style="display:none"><div class="inner"><button class="btn" id="fabBtn"></button></div></div>
+<div class="scrim" id="scrim"><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const KEY="grownote_v1";
+
+/* ---------- store ---------- */
+let DB=load();
+function load(){
+  try{const r=JSON.parse(localStorage.getItem(KEY));if(r&&Array.isArray(r.members)){
+    r.members.forEach(m=>{if(typeof m.progress!=="number")m.progress=0;});return r;}}catch(e){}
+  return {members:[]};
+}
+function save(){localStorage.setItem(KEY,JSON.stringify(DB));}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+function memberById(id){return DB.members.find(m=>m.id===id);}
+
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+function esc(s){return (s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function todayStr(){const d=new Date();return d.toISOString().slice(0,10);}
+function fmtFull(s){if(!s)return"";const[y,m,d]=s.split("-");return `${y}年${+m}月${+d}日`;}
+function initial(name){return (name||"?").trim().charAt(0)||"?";}
+function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),1600);}
+function autoGrow(e){e.style.height="auto";e.style.height=Math.max(e.scrollHeight,e.tagName==="TEXTAREA"?46:0)+"px";}
+
+/* session content checks */
+function sessHasContent(s){
+  return !!((s.goal&&s.goal.trim())||(s.reality&&s.reality.trim())||
+    (s.feedback&&((s.feedback.keep||"").trim()||(s.feedback.more||"").trim()))||
+    (s.memberIdeas&&s.memberIdeas.some(x=>x&&x.trim()))||
+    (s.advice&&s.advice.some(a=>a.text&&a.text.trim()))||
+    (s.insight&&s.insight.trim())||
+    (s.action&&((s.action.deadline||"").trim()||(s.action.todos&&s.action.todos.some(t=>t.text&&t.text.trim())))));
+}
+
+/* ---------- navigation ---------- */
+let route={view:"home",memberId:null,sessionId:null};
+function go(r){route={...route,...r};render();window.scrollTo(0,0);}
+
+function render(){
+  ["homeView","memberView","editorView"].forEach(v=>$("#"+v).classList.remove("active"));
+  const back=$("#backBtn"),ha=$("#headerAction"),fab=$("#fab"),title=$("#appTitle");
+  back.classList.remove("show");ha.textContent="";ha.onclick=null;fab.style.display="none";
+
+  if(route.view==="home"){
+    $("#homeView").classList.add("active");
+    title.innerHTML='GROW ノート<small>チームの叶えたいゴールに伴走する</small>';
+    ha.textContent = DB.members.length?"⤓ CSV":"";
+    ha.onclick = DB.members.length?exportCSV:null;
+    fab.style.display="block";$("#fabBtn").textContent="＋ メンバーを追加";$("#fabBtn").onclick=()=>addMember();
+    renderHome();
+  }else if(route.view==="member"){
+    $("#memberView").classList.add("active");back.classList.add("show");back.onclick=()=>go({view:"home"});
+    renderMember();
+    fab.style.display="block";$("#fabBtn").textContent="＋ 新しい会話を記録";$("#fabBtn").onclick=()=>go({view:"editor",sessionId:null});
+  }else if(route.view==="editor"){
+    $("#editorView").classList.add("active");back.classList.add("show");
+    const m=memberById(route.memberId);back.onclick=()=>go({view:"member"});
+    title.innerHTML = `${esc(m?m.name:"")}<small>${route.sessionId?"会話を編集":"新しい会話"}</small>`;
+    renderEditor();
+  }
+}
+
+/* ---------- HOME ---------- */
+function renderHome(){
+  const sum=$("#teamSummary"),el=$("#memberList");
+  $("#homeFooter").innerHTML=`<div class="xfer card" onclick="transferSheet()"><span>⚙️ データの引き継ぎ・バックアップ</span><span class="muted">別の端末/ブラウザで続ける ›</span></div>`;
+  if(!DB.members.length){
+    sum.innerHTML="";
+    el.innerHTML=`<div class="empty"><div class="big">🌱</div>まだメンバーがいません。<br>下のボタンから最初のメンバーを追加しましょう。</div>`;return;
+  }
+  const n=DB.members.length;
+  const avg=Math.round(DB.members.reduce((s,m)=>s+(m.progress||0),0)/n);
+  sum.innerHTML=`<div class="summary card">
+      <div class="srow"><span>🚀 チーム全体の進捗</span><span class="savg">${avg}%</span></div>
+      <div class="bar"><i style="width:${avg}%"></i></div>
+      <div class="smeta">メンバー ${n}人 ・ ゴール達成度の平均</div>
+    </div>`;
+
+  const sorted=[...DB.members].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+  el.innerHTML=sorted.map(m=>{
+    const cnt=m.sessions.length;const p=m.progress||0;
+    const last=cnt?fmtFull(m.sessions[m.sessions.length-1].date):"—";
+    const goal=m.goal?`<div class="goal">🎯 ${esc(m.goal)}</div>`:`<div class="goal none">🎯 叶えたいゴールはまだ未設定</div>`;
+    return `<div class="member card" onclick="go({view:'member',memberId:'${m.id}'})">
+      <div class="name"><span class="avatar">${esc(initial(m.name))}</span>${esc(m.name)}</div>
+      ${goal}
+      <div class="progress-row" style="margin-top:12px"><div class="bar sm"><i style="width:${p}%"></i></div><span class="pct">${p}%</span></div>
+      <div class="meta"><span>🗒 会話 ${cnt}件</span><span>最終 ${last}</span></div>
+      <span class="chev">›</span>
+    </div>`;
+  }).join("");
+}
+
+/* ---------- MEMBER ---------- */
+function renderMember(){
+  const m=memberById(route.memberId);if(!m){go({view:"home"});return;}
+  $("#appTitle").innerHTML=`${esc(m.name)}<small>叶えたいことの記録</small>`;
+  const ha=$("#headerAction");ha.textContent="編集";ha.onclick=()=>editMemberSheet(m.id);
+
+  const p=m.progress||0;
+  const goalBlock=`<div class="goalcard card">
+      <h3>🎯 叶えたいゴール</h3>
+      <div class="goaltext ${m.goal?"":"none"}">${m.goal?esc(m.goal):"このメンバーが最終的に叶えたいことを設定しましょう"}</div>
+      <div style="margin-top:14px">
+        <div class="progress-row"><div class="bar"><i id="goalFill" style="width:${p}%"></i></div><span class="pct" id="goalPct">${p}%</span></div>
+        <input type="range" class="slider" id="progSlider" min="0" max="100" step="5" value="${p}">
+        <div class="smeta" style="color:var(--sub);font-size:12px">スライドして達成度を更新（体感でOK）</div>
+      </div>
+      <button class="btn ghost edit" onclick="editGoalSheet('${m.id}')">${m.goal?"ゴールを編集":"ゴールを設定する"}</button>
+    </div>`;
+
+  let body;
+  if(!m.sessions.length){
+    body=`<div class="empty"><div class="big">💬</div>まだ会話の記録がありません。<br>下のボタンから1on1をGROWで記録しましょう。</div>`;
+  }else{
+    const list=[...m.sessions].sort((a,b)=>(b.date<a.date?-1:b.date>a.date?1:(b.createdAt||0)-(a.createdAt||0)));
+    body=`<div class="section-lead">会話の履歴（${m.sessions.length}）</div><div class="timeline">`+list.map(s=>{
+      const ideaN=(s.memberIdeas||[]).filter(x=>x&&x.trim()).length+(s.advice||[]).filter(a=>a.text&&a.text.trim()).length;
+      const insight=(s.insight&&s.insight.trim())?`<div class="insight"><b>今日から</b><span>${esc(s.insight)}</span></div>`:"";
+      let actionChip="";
+      const act=s.action||{};const todos=(act.todos||[]).filter(t=>t.text&&t.text.trim());
+      if(act.deadline||todos.length){
+        const done=todos.filter(t=>t.done).length;
+        const sp=todos.length?`<span class="sp">${done}/${todos.length}</span>`:"";
+        const lbl=act.deadline?`${fmtFull(act.deadline)}まで`:"アクション";
+        actionChip=`<div class="action-chip">🚀 ${sp}<span>${lbl}</span></div>`;
+      }
+      const head=(s.goal&&s.goal.trim())?s.goal:((s.reality&&s.reality.trim())?s.reality:"（内容未記入）");
+      return `<div class="sess card" onclick="go({view:'editor',sessionId:'${s.id}'})">
+        <div class="top"><span class="date-chip">${fmtFull(s.date)}</span><span class="stepcount">💡 ${ideaN}件</span></div>
+        <div class="sgoal">🎯 ${esc(head)}</div>
+        ${insight}
+        ${actionChip}
+      </div>`;
+    }).join("")+`</div>`;
+  }
+  $("#memberView").innerHTML=goalBlock+body;
+
+  const slider=$("#progSlider");
+  function paint(v){slider.style.background=`linear-gradient(90deg,#0071e3 0%,#34c759 ${v}%,#ececf0 ${v}%)`;}
+  paint(p);
+  slider.addEventListener("input",()=>{const v=+slider.value;$("#goalFill").style.width=v+"%";$("#goalPct").textContent=v+"%";paint(v);});
+  slider.addEventListener("change",()=>{m.progress=+slider.value;m.updatedAt=Date.now();save();toast(`達成度 ${m.progress}%`);});
+}
+
+/* ---------- EDITOR ---------- */
+function renderEditor(){
+  const m=memberById(route.memberId);if(!m){go({view:"home"});return;}
+  const s=route.sessionId?m.sessions.find(x=>x.id===route.sessionId):null;
+  const data=s||{date:todayStr(),goal:"",reality:"",feedback:{keep:"",more:""},
+    memberIdeas:[],advice:[],insight:"",action:{deadline:"",todos:[]}};
+
+  // working arrays
+  const ideas=(data.memberIdeas||[]).slice();
+  const advice=(data.advice||[]).map(a=>({text:a.text||"",by:a.by||""}));
+  const todos=((data.action||{}).todos||[]).map(t=>({id:t.id||uid(),text:t.text||"",done:!!t.done}));
+  const goalInit = s?(data.goal||"") : (data.goal||m.goal||"");
+
+  $("#editorView").innerHTML=`
+    <div class="field" style="margin-top:18px">
+      <label>📅 日付</label>
+      <input type="date" id="f_date" value="${data.date}">
+    </div>
+
+    <div class="gstep"><span class="gn">1</span><span class="ge">🎯</span><span class="gt">ゴール</span></div>
+    <div class="field">
+      <textarea id="f_goal" placeholder="この人が目指すゴール（数値があれば一緒に書こう。例：NPS70 / 全員にプロモーターになってもらう）">${esc(goalInit)}</textarea>
+    </div>
+
+    <div class="gstep"><span class="gn">2</span><span class="ge">📍</span><span class="gt">現状</span></div>
+    <div class="field">
+      <textarea id="f_reality" placeholder="いま、どこにいる？（例：6/1時点で52くらい。量はできている）">${esc(data.reality||"")}</textarea>
+    </div>
+
+    <div class="gstep"><span class="gn">3</span><span class="ge">💬</span><span class="gt">Reflection</span></div>
+    <div class="field">
+      <div class="fb keep">
+        <h4>👍 Success</h4>
+        <textarea id="f_keep" placeholder="うまくいっていること・強み（例：フレンドリーで好評）">${esc((data.feedback||{}).keep||"")}</textarea>
+      </div>
+      <div class="fb more">
+        <h4>📈 Opportunity</h4>
+        <textarea id="f_more" placeholder="あと一歩・伸ばしたい点（例：もう少し情報が欲しかった）">${esc((data.feedback||{}).more||"")}</textarea>
+      </div>
+    </div>
+
+    <div class="gstep"><span class="gn">4</span><span class="ge">💡</span><span class="gt">Ways Forward</span></div>
+    <div class="field">
+      <div class="sublabel">🙋 ${esc(m.name)}のアイデア <span class="opt">（無くてもOK）</span></div>
+      <div id="ideaList"></div>
+      <button class="btn line addbtn" id="addIdea">＋ アイデアを追加</button>
+
+      <div class="sublabel" style="margin-top:18px">🗣 もらったアドバイス <span class="opt">（誰の視点か残す）</span></div>
+      <div id="adviceList"></div>
+      <button class="btn line addbtn" id="addAdvice">＋ アドバイスを追加</button>
+    </div>
+
+    <div class="gstep"><span class="gn">5</span><span class="ge">⭐</span><span class="gt">今日からできること</span></div>
+    <div class="field insight-field">
+      <div class="materials" id="materials"></div>
+      <textarea id="f_insight" placeholder="Ways Forwardを踏まえて、今日から具体的に何をする？（例：自分だけでなく、チーム・Apple環境を活用してコラボでご案内の質を高める）">${esc(data.insight||"")}</textarea>
+    </div>
+
+    <div class="gstep"><span class="gn">6</span><span class="ge">🚀</span><span class="gt">アクション宣言</span></div>
+    <div class="field">
+      <label>📅 期限<span class="hint">いつまでに達成する？ 期限を決めると動き出せる</span></label>
+      <input type="date" id="f_deadline" value="${(data.action||{}).deadline||""}">
+    </div>
+    <div class="field">
+      <label>🪜 やること<span class="hint">ゴールに向けた具体的な行動。チェックで進捗管理</span></label>
+      <div id="todoList"></div>
+      <button class="btn line addbtn" id="addTodo">＋ やることを追加</button>
+    </div>
+
+    <div class="editor-actions">
+      <button class="btn" id="saveBtn">${s?"更新する":"保存する"}</button>
+      <button class="btn line" id="imgBtn">🖼 この会話を画像で書き出す</button>
+      ${s?'<button class="btn danger" id="delBtn">この会話を削除</button>':''}
+    </div>
+  `;
+
+  ["f_goal","f_reality","f_keep","f_more","f_insight"].forEach(id=>{const e=$("#"+id);autoGrow(e);e.addEventListener("input",()=>autoGrow(e));});
+
+  /* ideas list */
+  function renderIdeas(){
+    const c=$("#ideaList");
+    if(!ideas.length){c.innerHTML=`<div class="muted" style="font-size:13px;padding:4px 2px 8px">まだアイデアがありません（このセッションでは無くてもOK）</div>`;return;}
+    c.innerHTML=ideas.map((t,i)=>`
+      <div class="idea-row">
+        <input type="text" data-idea="${i}" value="${esc(t)}" placeholder="${esc(m.name)}自身から出たアイデア">
+        <button class="row-del" data-idel="${i}">✕</button>
+      </div>`).join("");
+    c.querySelectorAll("[data-idea]").forEach(inp=>inp.oninput=()=>{ideas[+inp.dataset.idea]=inp.value;refreshMaterials();});
+    c.querySelectorAll("[data-idel]").forEach(b=>b.onclick=()=>{ideas.splice(+b.dataset.idel,1);renderIdeas();refreshMaterials();});
+  }
+  renderIdeas();
+  $("#addIdea").onclick=()=>{ideas.push("");renderIdeas();const ins=$("#ideaList").querySelectorAll("[data-idea]");if(ins.length)ins[ins.length-1].focus();};
+
+  /* advice list */
+  function renderAdvice(){
+    const c=$("#adviceList");
+    if(!advice.length){c.innerHTML=`<div class="muted" style="font-size:13px;padding:4px 2px 8px">まだアドバイスがありません</div>`;return;}
+    c.innerHTML=advice.map((a,i)=>`
+      <div class="advice-row">
+        <div class="ar-top">
+          <textarea data-adv="${i}" placeholder="もらったアドバイス（例：Appleのエコシステムを使ったら？）">${esc(a.text)}</textarea>
+          <button class="row-del" data-adel="${i}">✕</button>
+        </div>
+        <div class="ar-by"><span class="lbl">🗣 誰から</span><input type="text" data-by="${i}" value="${esc(a.by)}" placeholder="例：Kodai"></div>
+      </div>`).join("");
+    c.querySelectorAll("[data-adv]").forEach(t=>{autoGrow(t);t.oninput=()=>{advice[+t.dataset.adv].text=t.value;autoGrow(t);refreshMaterials();};});
+    c.querySelectorAll("[data-by]").forEach(inp=>inp.oninput=()=>{advice[+inp.dataset.by].by=inp.value;refreshMaterials();});
+    c.querySelectorAll("[data-adel]").forEach(b=>b.onclick=()=>{advice.splice(+b.dataset.adel,1);renderAdvice();refreshMaterials();});
+  }
+  renderAdvice();
+  $("#addAdvice").onclick=()=>{advice.push({text:"",by:""});renderAdvice();const ts=$("#adviceList").querySelectorAll("[data-adv]");if(ts.length)ts[ts.length-1].focus();};
+
+  /* materials live echo */
+  function refreshMaterials(){
+    const box=$("#materials");
+    const items=[];
+    ideas.forEach(t=>{if(t&&t.trim())items.push(`<li>${esc(t)} <span class="by">🙋 ${esc(m.name)}</span></li>`);});
+    advice.forEach(a=>{if(a.text&&a.text.trim())items.push(`<li>${esc(a.text)}${a.by&&a.by.trim()?` <span class="by">🗣 ${esc(a.by)}</span>`:""}</li>`);});
+    if(items.length){box.innerHTML=`<h4>🧩 束ねる材料（${items.length}）</h4><ul>${items.join("")}</ul>`;}
+    else{box.innerHTML=`<p class="none">アイデアやアドバイスを入れると、ここに材料が並びます。それを見て下の一文に束ねよう。</p>`;}
+  }
+  refreshMaterials();
+
+  /* todos */
+  function renderTodos(){
+    const c=$("#todoList");
+    if(!todos.length){c.innerHTML=`<div class="muted" style="font-size:13px;padding:4px 2px 8px">まだやることがありません</div>`;return;}
+    c.innerHTML=todos.map((st,i)=>`
+      <div class="step ${st.done?'done':''}">
+        <button class="step-check ${st.done?'on':''}" data-toggle="${i}">${st.done?'✓':''}</button>
+        <input type="text" data-todo="${i}" value="${esc(st.text)}" placeholder="例：チームと共有して次の接客で試す">
+        <button class="step-del" data-tdel="${i}">✕</button>
+      </div>`).join("");
+    c.querySelectorAll("[data-toggle]").forEach(b=>b.onclick=()=>{const i=+b.dataset.toggle;todos[i].done=!todos[i].done;renderTodos();});
+    c.querySelectorAll("[data-todo]").forEach(inp=>inp.oninput=()=>{todos[+inp.dataset.todo].text=inp.value;});
+    c.querySelectorAll("[data-tdel]").forEach(b=>b.onclick=()=>{todos.splice(+b.dataset.tdel,1);renderTodos();});
+  }
+  renderTodos();
+  $("#addTodo").onclick=()=>{todos.push({id:uid(),text:"",done:false});renderTodos();const ins=$("#todoList").querySelectorAll("[data-todo]");if(ins.length)ins[ins.length-1].focus();};
+
+  /* build + persist */
+  let workingId=s?s.id:null;
+  function buildRec(){
+    if(!workingId)workingId=uid();
+    const ex=m.sessions.find(x=>x.id===workingId);
+    return {
+      id:workingId,
+      date:$("#f_date").value||todayStr(),
+      goal:$("#f_goal").value.trim(),
+      reality:$("#f_reality").value.trim(),
+      feedback:{keep:$("#f_keep").value.trim(),more:$("#f_more").value.trim()},
+      memberIdeas:ideas.map(t=>t.trim()).filter(Boolean),
+      advice:advice.map(a=>({text:a.text.trim(),by:a.by.trim()})).filter(a=>a.text),
+      insight:$("#f_insight").value.trim(),
+      action:{deadline:$("#f_deadline").value||"",todos:todos.map(t=>({id:t.id,text:t.text.trim(),done:t.done})).filter(t=>t.text)},
+      createdAt:ex?ex.createdAt:(s?s.createdAt:Date.now()),
+      updatedAt:Date.now()
+    };
+  }
+  function persist(rec){
+    const idx=m.sessions.findIndex(x=>x.id===rec.id);
+    if(idx>=0)m.sessions[idx]=rec;else m.sessions.push(rec);
+    m.updatedAt=Date.now();save();return rec;
+  }
+
+  $("#saveBtn").onclick=()=>{
+    const rec=buildRec();
+    if(!sessHasContent(rec)){toast("何か入力してね");return;}
+    persist(rec);toast(s?"更新しました":"保存しました");go({view:"member"});
+  };
+  $("#imgBtn").onclick=()=>{
+    const rec=buildRec();
+    if(!sessHasContent(rec)){toast("先に内容を入力してね");return;}
+    exportSessionImage(rec,m);
+  };
+  const del=$("#delBtn");
+  if(del)del.onclick=()=>confirmSheet("この会話を削除しますか？","削除した記録は元に戻せません。",()=>{
+    m.sessions=m.sessions.filter(x=>x.id!==s.id);m.updatedAt=Date.now();save();toast("削除しました");go({view:"member"});
+  });
+}
+
+/* ---------- image export ---------- */
+const IMG_FONT=(w,s)=>`${w} ${s}px -apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif`;
+function wrapPara(ctx,text,maxW){
+  const out=[];
+  (text||"").split("\n").forEach(p=>{
+    if(!p){out.push("");return;}
+    let line="";
+    for(const ch of p){
+      if(ctx.measureText(line+ch).width>maxW && line){out.push(line);line=ch;}
+      else line+=ch;
+    }
+    out.push(line);
+  });
+  return out;
+}
+function exportSessionImage(s,m){
+  const W=540,PAD=22,CARDX=PAD,CARDW=W-PAD*2,IN=18,GAP=13,maxTextW=CARDW-IN*2;
+  const mc=document.createElement("canvas").getContext("2d");
+
+  const sections=[];
+  if(s.goal)sections.push({emoji:"🎯",label:"ゴール",lc:"#0071e3",bg:"#f4f8ff",bd:"#cfe3fb",
+    blocks:[{text:s.goal,font:IMG_FONT(700,20),color:"#1d1d1f",lineH:29}]});
+  if(s.reality)sections.push({emoji:"📍",label:"現状",lc:"#0071e3",bg:"#f4f8ff",bd:"#cfe3fb",
+    blocks:[{text:s.reality,font:IMG_FONT(500,18),color:"#1d1d1f",lineH:27}]});
+  const fb=s.feedback||{};
+  if((fb.keep&&fb.keep.trim())||(fb.more&&fb.more.trim())){
+    const blocks=[];
+    if(fb.keep&&fb.keep.trim()){blocks.push({text:"👍 Success",font:IMG_FONT(700,14),color:"#1f8a3b",lineH:22});
+      blocks.push({text:fb.keep,font:IMG_FONT(500,17),color:"#1d1d1f",lineH:26,gap:6});}
+    if(fb.more&&fb.more.trim()){blocks.push({text:"📈 Opportunity",font:IMG_FONT(700,14),color:"#0a59b8",lineH:22});
+      blocks.push({text:fb.more,font:IMG_FONT(500,17),color:"#1d1d1f",lineH:26});}
+    sections.push({emoji:"💬",label:"Reflection",lc:"#6e6e73",bg:"#fafafa",bd:"#e3e3e6",blocks});
+  }
+  const ideas=(s.memberIdeas||[]).filter(x=>x&&x.trim());
+  const adv=(s.advice||[]).filter(a=>a.text&&a.text.trim());
+  if(ideas.length||adv.length){
+    const blocks=[];
+    ideas.forEach(t=>blocks.push({text:`• ${t}　🙋${m.name}`,font:IMG_FONT(500,17),color:"#1d1d1f",lineH:26}));
+    adv.forEach(a=>blocks.push({text:`• ${a.text}${a.by?`　🗣${a.by}`:""}`,font:IMG_FONT(500,17),color:"#1d1d1f",lineH:26}));
+    sections.push({emoji:"💡",label:"Ways Forward",lc:"#0071e3",bg:"#f4f8ff",bd:"#cfe3fb",blocks});
+  }
+  if(s.insight&&s.insight.trim())sections.push({emoji:"⭐",label:"今日からできること",lc:"#9a6b00",bg:"#fff7e6",bd:"#f1d99a",
+    blocks:[{text:s.insight,font:IMG_FONT(700,20),color:"#1d1d1f",lineH:29}]});
+  const act=s.action||{};const todos=(act.todos||[]).filter(t=>t.text&&t.text.trim());
+  if(act.deadline||todos.length){
+    const blocks=[];
+    if(act.deadline)blocks.push({text:`📅 期限：${fmtFull(act.deadline)}`,font:IMG_FONT(700,17),color:"#0071e3",lineH:26,gap:4});
+    todos.forEach(t=>blocks.push({text:`${t.done?"✓":"□"} ${t.text}`,font:IMG_FONT(500,17),color:t.done?"#34c759":"#1d1d1f",lineH:26}));
+    sections.push({emoji:"🚀",label:"アクション宣言",lc:"#0071e3",bg:"#f4f8ff",bd:"#cfe3fb",blocks});
+  }
+
+  mc.font=IMG_FONT(500,15);
+  const goalLines=m.goal?wrapPara(mc,"🎯 "+m.goal,CARDW):[];
+
+  sections.forEach(sec=>{
+    let h=IN+26+6;
+    sec._wrapped=sec.blocks.map(b=>{mc.font=b.font;const wl=wrapPara(mc,b.text,maxTextW);h+=wl.length*b.lineH+(b.gap||0);return wl;});
+    h+=IN;sec._h=h;
+  });
+  const headH=102+8+(goalLines.length?goalLines.length*21+6:0);
+  const footerH=42;
+  const totalH=Math.ceil(headH+sections.reduce((a,s)=>a+s._h+GAP,0)+footerH);
+
+  const scale=2,cv=document.createElement("canvas");
+  cv.width=W*scale;cv.height=totalH*scale;
+  const ctx=cv.getContext("2d");ctx.scale(scale,scale);ctx.textBaseline="top";
+  ctx.fillStyle="#f5f5f7";ctx.fillRect(0,0,W,totalH);
+  function rr(x,yy,w,h,r){ctx.beginPath();ctx.moveTo(x+r,yy);ctx.arcTo(x+w,yy,x+w,yy+h,r);ctx.arcTo(x+w,yy+h,x,yy+h,r);ctx.arcTo(x,yy+h,x,yy,r);ctx.arcTo(x,yy,x+w,yy,r);ctx.closePath();}
+
+  let y=24;
+  ctx.fillStyle="#0071e3";ctx.font=IMG_FONT(800,16);ctx.fillText("🌱 GROW ノート",PAD,y);
+  ctx.font=IMG_FONT(700,14);const dtxt=fmtFull(s.date),dw=ctx.measureText(dtxt).width;
+  ctx.fillStyle="#e8f1fd";rr(W-PAD-dw-20,y-3,dw+20,24,12);ctx.fill();
+  ctx.fillStyle="#0071e3";ctx.fillText(dtxt,W-PAD-dw-10,y);
+  y+=26;
+  const av=40,ax=PAD,ay=y;
+  ctx.fillStyle="#e8f1fd";ctx.beginPath();ctx.arc(ax+av/2,ay+av/2,av/2,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle="#0071e3";ctx.font=IMG_FONT(700,20);ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillText(initial(m.name),ax+av/2,ay+av/2+1);ctx.textAlign="left";ctx.textBaseline="top";
+  ctx.fillStyle="#1d1d1f";ctx.font=IMG_FONT(800,24);ctx.fillText(m.name,ax+av+12,ay+8);
+  y+=52;
+  if(goalLines.length){ctx.font=IMG_FONT(500,15);ctx.fillStyle="#6e6e73";goalLines.forEach(l=>{ctx.fillText(l,PAD,y);y+=21;});y+=6;}
+  y+=8;
+
+  sections.forEach(sec=>{
+    const cardY=y;
+    ctx.fillStyle=sec.bg;rr(CARDX,cardY,CARDW,sec._h,16);ctx.fill();
+    ctx.strokeStyle=sec.bd;ctx.lineWidth=1;rr(CARDX+.5,cardY+.5,CARDW-1,sec._h-1,16);ctx.stroke();
+    let cy=cardY+IN;
+    ctx.font=IMG_FONT(700,15);ctx.fillStyle=sec.lc;ctx.fillText(`${sec.emoji} ${sec.label}`,CARDX+IN,cy);
+    cy+=32;
+    sec.blocks.forEach((b,bi)=>{ctx.font=b.font;ctx.fillStyle=b.color;sec._wrapped[bi].forEach(l=>{ctx.fillText(l,CARDX+IN,cy);cy+=b.lineH;});cy+=(b.gap||0);});
+    y=cardY+sec._h+GAP;
+  });
+  ctx.fillStyle="#9a9aa0";ctx.font=IMG_FONT(500,12);ctx.fillText(`GROW ノート ・ ${m.name} ・ ${fmtFull(s.date)}`,PAD,y+8);
+
+  const fname=`GROW_${(m.name||"member").replace(/[\\/:*?"<>|\s]/g,"_")}_${s.date}.png`;
+  cv.toBlob(b=>{if(!b){toast("画像化に失敗しました");return;}showImageSheet(URL.createObjectURL(b),b,fname);},"image/png");
+}
+function showImageSheet(url,blob,fname){
+  openSheet(`<h3>🖼 画像で書き出し</h3><p class="sub">画像を長押しでも保存・共有できます。下のボタンからもどうぞ。</p>
+    <div class="imgwrap"><img src="${url}" alt="会話の記録"></div>
+    <div class="sheet-actions"><button class="btn line" onclick="closeSheet()">閉じる</button><button class="btn" id="img_share">保存・共有</button></div>`);
+  $("#img_share").onclick=async()=>{
+    try{
+      const file=new File([blob],fname,{type:"image/png"});
+      if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:"GROW ノート"});}
+      else{const a=document.createElement("a");a.href=url;a.download=fname;document.body.appendChild(a);a.click();a.remove();toast("画像を保存しました");}
+    }catch(e){}
+  };
+}
+
+/* ---------- sheets ---------- */
+function openSheet(html){$("#sheet").innerHTML=html;$("#scrim").classList.add("show");}
+function closeSheet(){$("#scrim").classList.remove("show");}
+$("#scrim").addEventListener("click",e=>{if(e.target.id==="scrim")closeSheet();});
+
+function addMember(){
+  openSheet(`<h3>メンバーを追加</h3><p class="sub">名前と、分かっていれば叶えたいゴールを入力（あとで編集可）</p>
+    <div class="field"><label>👤 名前</label><input type="text" id="m_name" placeholder="例：田中さん / Yuki" autofocus></div>
+    <div class="field"><label>🎯 叶えたいゴール（任意）</label><textarea id="m_goal" placeholder="このメンバーが最終的に目指したいこと"></textarea></div>
+    <div class="sheet-actions"><button class="btn line" onclick="closeSheet()">キャンセル</button><button class="btn" id="m_save">追加する</button></div>`);
+  setTimeout(()=>$("#m_name").focus(),50);
+  $("#m_save").onclick=()=>{
+    const name=$("#m_name").value.trim();if(!name){toast("名前を入れてね");return;}
+    const m={id:uid(),name,goal:$("#m_goal").value.trim(),progress:0,createdAt:Date.now(),updatedAt:Date.now(),sessions:[]};
+    DB.members.push(m);save();closeSheet();toast("追加しました");go({view:"member",memberId:m.id});
+  };
+}
+function editMemberSheet(id){
+  const m=memberById(id);if(!m)return;
+  openSheet(`<h3>メンバーを編集</h3>
+    <div class="field"><label>👤 名前</label><input type="text" id="m_name" value="${esc(m.name)}"></div>
+    <div class="sheet-actions"><button class="btn danger" id="m_del">削除</button><button class="btn" id="m_save">保存</button></div>`);
+  $("#m_save").onclick=()=>{const v=$("#m_name").value.trim();if(!v){toast("名前を入れてね");return;}m.name=v;m.updatedAt=Date.now();save();closeSheet();render();toast("保存しました");};
+  $("#m_del").onclick=()=>{closeSheet();confirmSheet(`「${m.name}」を削除しますか？`,"このメンバーの会話記録もすべて削除されます。",()=>{
+    DB.members=DB.members.filter(x=>x.id!==id);save();toast("削除しました");go({view:"home",memberId:null});});};
+}
+function editGoalSheet(id){
+  const m=memberById(id);if(!m)return;
+  openSheet(`<h3>🎯 叶えたいゴール</h3><p class="sub">最終的に目指したいこと。会話を重ねて変わったら更新してOK</p>
+    <div class="field"><textarea id="g_text" placeholder="例：全てのお客様にプロモーターになってもらえる質の高いご案内ができる">${esc(m.goal)}</textarea></div>
+    <div class="sheet-actions"><button class="btn line" onclick="closeSheet()">キャンセル</button><button class="btn" id="g_save">保存</button></div>`);
+  setTimeout(()=>{const t=$("#g_text");t.focus();autoGrow(t);t.addEventListener("input",()=>autoGrow(t));},50);
+  $("#g_save").onclick=()=>{m.goal=$("#g_text").value.trim();m.updatedAt=Date.now();save();closeSheet();render();toast("保存しました");};
+}
+function confirmSheet(title,sub,onYes){
+  openSheet(`<h3>${esc(title)}</h3><p class="sub">${esc(sub)}</p>
+    <div class="sheet-actions"><button class="btn line" onclick="closeSheet()">やめる</button><button class="btn danger" id="c_yes">削除する</button></div>`);
+  $("#c_yes").onclick=()=>{closeSheet();onYes();};
+}
+
+/* ---------- data transfer / backup ---------- */
+function buildBackup(){
+  return JSON.stringify({app:"grownote",version:1,exportedAt:new Date().toISOString(),grownote_v1:DB},null,2);
+}
+function transferSheet(){
+  const backup=buildBackup();
+  openSheet(`<h3>⚙️ データの引き継ぎ・バックアップ</h3>
+    <p class="sub">記録はこの端末の中だけに保存されています。別のブラウザ／端末で続けるには、ここで書き出して、向こうで読み込みます。</p>
+    <div class="field" style="margin:6px 0 16px">
+      <label>📤 書き出す（バックアップ）<span class="hint">下のテキストがいまの全データ。コピー or ファイル保存で持ち出せます</span></label>
+      <textarea id="bkText" spellcheck="false" style="min-height:118px;font-size:12px;line-height:1.45">${esc(backup)}</textarea>
+      <div class="bk-actions">
+        <button class="btn line" id="bkCopy">📋 コピー</button>
+        <button class="btn line" id="bkDownload">⤓ ファイル保存</button>
+      </div>
+    </div>
+    <div class="field" style="margin:0">
+      <label>📥 読み込む（復元）<span class="hint">別ブラウザでは、コピーした内容を上の枠に貼り付けて「復元」。ファイルからでもOK</span></label>
+      <input type="file" id="bkFileInput" accept="application/json,.json,.txt" hidden>
+      <div class="bk-actions">
+        <button class="btn line" id="bkFileBtn">📂 ファイルを選ぶ</button>
+        <button class="btn" id="bkRestore">この内容で復元する</button>
+      </div>
+    </div>
+    <p id="bkMsg" class="sub" style="margin:12px 2px 0;min-height:18px"></p>`);
+
+  const txt=$("#bkText"),msg=$("#bkMsg");
+  const setMsg=(t,err)=>{msg.textContent=t;msg.style.color=err?"var(--danger)":"var(--accent)";};
+
+  $("#bkCopy").onclick=()=>{
+    const v=txt.value;const ok=()=>setMsg("コピーしました。メモやLINE等に貼って保存できます。");
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(v).then(ok).catch(()=>{txt.focus();txt.select();try{document.execCommand("copy");}catch(e){}ok();});}
+    else{txt.focus();txt.select();try{document.execCommand("copy");}catch(e){}ok();}
+  };
+  $("#bkDownload").onclick=()=>{
+    const blob=new Blob([txt.value],{type:"application/json"});const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");a.href=url;a.download=`grownote-backup-${todayStr().replace(/-/g,"")}.json`;
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),300);
+    setMsg("バックアップファイルを書き出しました。");
+  };
+  $("#bkFileBtn").onclick=()=>$("#bkFileInput").click();
+  $("#bkFileInput").addEventListener("change",e=>{
+    const f=e.target.files&&e.target.files[0];if(!f)return;
+    const rd=new FileReader();rd.onload=()=>{txt.value=rd.result;doRestore();};rd.readAsText(f);e.target.value="";
+  });
+  $("#bkRestore").onclick=doRestore;
+
+  function doRestore(){
+    let parsed;
+    try{parsed=JSON.parse(txt.value);}catch(e){setMsg("読み込めませんでした。内容（文字列）を確認してね。",true);return;}
+    const incoming=(parsed&&parsed.grownote_v1)?parsed.grownote_v1:parsed;
+    if(!incoming||!Array.isArray(incoming.members)){setMsg("このバックアップに GROW ノートのデータが見つかりませんでした。",true);return;}
+    incoming.members.forEach(m=>{if(typeof m.progress!=="number")m.progress=0;if(!Array.isArray(m.sessions))m.sessions=[];});
+    const apply=()=>{localStorage.setItem(KEY,JSON.stringify(incoming));DB=load();closeSheet();go({view:"home"});toast("復元しました 🎉");};
+    if(DB.members.length){
+      openSheet(`<h3>現在のデータを置き換えますか？</h3>
+        <p class="sub">いまの <b>${DB.members.length}人</b> の記録は、読み込むデータ（<b>${incoming.members.length}人</b>）で上書きされます。元に戻せません。</p>
+        <div class="sheet-actions"><button class="btn line" id="r_cancel">やめる</button><button class="btn" id="r_ok">置き換える</button></div>`);
+      $("#r_cancel").onclick=()=>transferSheet();
+      $("#r_ok").onclick=apply;
+    }else apply();
+  }
+}
+
+/* ---------- CSV ---------- */
+function csvCell(v){return '"'+String(v==null?"":v).replace(/"/g,'""')+'"';}
+function exportCSV(){
+  const head=["メンバー","叶えたいゴール","達成度(%)","日付","今回のゴール","現状","Success","Opportunity","本人のアイデア","もらったアドバイス","今日からできること","期限","アクション"];
+  const rows=[head];
+  DB.members.forEach(m=>{
+    const pg=m.progress||0;
+    if(!m.sessions.length){rows.push([m.name,m.goal,pg,"","","","","","","","","",""]);return;}
+    [...m.sessions].sort((a,b)=>a.date<b.date?-1:1).forEach(s=>{
+      const fb=s.feedback||{};const act=s.action||{};
+      const ideas=(s.memberIdeas||[]).filter(Boolean).join(" / ");
+      const adv=(s.advice||[]).filter(a=>a.text).map(a=>a.by?`${a.text}（${a.by}）`:a.text).join(" / ");
+      const todos=(act.todos||[]).filter(t=>t.text).map(t=>`${t.done?"✓":"□"} ${t.text}`).join(" / ");
+      rows.push([m.name,m.goal,pg,s.date,s.goal||"",s.reality||"",fb.keep||"",fb.more||"",ideas,adv,s.insight||"",act.deadline||"",todos]);
+    });
+  });
+  const csv="﻿"+rows.map(r=>r.map(csvCell).join(",")).join("\r\n");
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob);const a=document.createElement("a");
+  a.href=url;a.download=`GROWノート_${todayStr().replace(/-/g,"")}.csv`;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast("CSVを書き出しました");
+}
+
+window.go=go;window.closeSheet=closeSheet;window.editGoalSheet=editGoalSheet;window.transferSheet=transferSheet;
+render();
+</script>
+</body>
+</html>
