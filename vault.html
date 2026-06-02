@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="apple-touch-icon" href="icons/icon-vault.png">
+<meta name="apple-mobile-web-app-title" content="Password manager">
+<title>Password manager — パスワード保管</title>
+<style>
+  :root{
+    --bg:#f5f5f7; --card:#ffffff; --ink:#1d1d1f; --sub:#6e6e73;
+    --line:#e5e5ea; --accent:#0071e3; --danger:#ff3b30; --radius:20px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Helvetica Neue",Arial,sans-serif;
+    background:var(--bg); color:var(--ink);
+    line-height:1.6; padding:env(safe-area-inset-top) 16px 120px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:720px; margin:0 auto;}
+  header{padding:36px 4px 18px; text-align:center;}
+  .logo{font-size:42px; line-height:1;}
+  h1{font-size:28px; font-weight:700; letter-spacing:-.02em; margin-top:8px;}
+  .tagline{color:var(--sub); font-size:14px; margin-top:6px;}
+
+  /* 検索 */
+  .search{position:relative; margin-top:22px;}
+  .search input{
+    width:100%; border:1px solid var(--line); background:var(--card);
+    border-radius:14px; padding:13px 16px 13px 42px; font-size:16px; color:var(--ink);
+  }
+  .search input:focus{outline:none; border-color:var(--accent);}
+  .search .ico{position:absolute; left:15px; top:50%; transform:translateY(-50%); color:#c7c7cc; font-size:17px;}
+
+  /* ジャンルチップ */
+  .chips{display:flex; gap:8px; overflow-x:auto; padding:16px 2px 4px; -webkit-overflow-scrolling:touch;}
+  .chips::-webkit-scrollbar{display:none;}
+  .chip{
+    flex:0 0 auto; border:1px solid var(--line); background:var(--card);
+    border-radius:999px; padding:7px 15px; font-size:14px; font-weight:600; color:var(--sub);
+    cursor:pointer; transition:all .15s ease; white-space:nowrap;
+  }
+  .chip.active{background:var(--ink); color:#fff; border-color:var(--ink);}
+
+  /* リスト */
+  .list{margin-top:14px; display:flex; flex-direction:column; gap:11px;}
+  .item{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:15px 16px; transition:box-shadow .15s ease;
+  }
+  .item-head{display:flex; align-items:center; gap:13px;}
+  .badge-ico{
+    flex:0 0 auto; width:46px; height:46px; border-radius:13px; display:flex;
+    align-items:center; justify-content:center; font-size:22px; color:#fff; font-weight:700;
+  }
+  .item-meta{min-width:0; flex:1;}
+  .item-title{font-size:16px; font-weight:600; letter-spacing:-.01em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .item-cat{font-size:12px; color:var(--sub); margin-top:1px;}
+  .item-actions{display:flex; gap:6px; flex:0 0 auto;}
+  .icon-btn{
+    width:34px; height:34px; border:none; background:var(--bg); border-radius:10px;
+    font-size:15px; cursor:pointer; color:var(--sub); display:flex; align-items:center; justify-content:center;
+    transition:background .15s ease;
+  }
+  .icon-btn:active{background:var(--line);}
+
+  /* フィールド行（展開時） */
+  .fields{margin-top:13px; border-top:1px solid var(--line); padding-top:12px; display:none; flex-direction:column; gap:10px;}
+  .item.open .fields{display:flex;}
+  .field{display:flex; align-items:center; gap:10px;}
+  .field-label{font-size:12px; color:var(--sub); width:64px; flex:0 0 auto;}
+  .field-val{
+    flex:1; min-width:0; font-size:15px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; letter-spacing:.02em;
+  }
+  .field-val.mask{letter-spacing:.18em;}
+  .copy-btn{
+    flex:0 0 auto; border:1px solid var(--line); background:var(--card); color:var(--accent);
+    border-radius:9px; padding:6px 11px; font-size:13px; font-weight:600; cursor:pointer;
+  }
+  .copy-btn:active{background:var(--bg);}
+
+  /* 空状態 */
+  .empty{text-align:center; color:var(--sub); padding:60px 20px; font-size:15px;}
+  .empty .big{font-size:46px; margin-bottom:12px;}
+
+  /* 追加ボタン（FAB） */
+  .fab{
+    position:fixed; right:20px; bottom:calc(20px + env(safe-area-inset-bottom));
+    width:58px; height:58px; border-radius:50%; border:none; background:var(--accent);
+    color:#fff; font-size:30px; line-height:1; box-shadow:0 8px 24px rgba(0,113,227,.4);
+    cursor:pointer; z-index:20; display:flex; align-items:center; justify-content:center;
+  }
+  .fab:active{transform:scale(.94);}
+
+  /* モーダル */
+  .overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:30;
+    display:none; align-items:flex-end; justify-content:center; padding:0;
+  }
+  .overlay.show{display:flex;}
+  @media(min-width:560px){ .overlay{align-items:center; padding:20px;} }
+  .sheet{
+    background:var(--card); width:100%; max-width:560px;
+    border-radius:24px 24px 0 0; padding:22px 20px calc(24px + env(safe-area-inset-bottom));
+    max-height:92vh; overflow-y:auto;
+  }
+  @media(min-width:560px){ .sheet{border-radius:24px;} }
+  .sheet h2{font-size:20px; font-weight:700; text-align:center; margin-bottom:18px;}
+  .form-group{margin-bottom:15px;}
+  .form-group label{display:block; font-size:13px; font-weight:600; color:var(--sub); margin-bottom:6px;}
+  .form-group input{
+    width:100%; border:1px solid var(--line); background:#fbfbfd; border-radius:12px;
+    padding:13px 14px; font-size:16px; color:var(--ink);
+  }
+  .form-group input:focus{outline:none; border-color:var(--accent); background:#fff;}
+  .pw-row{display:flex; gap:8px;}
+  .pw-row input{flex:1;}
+  .mini-btn{
+    border:1px solid var(--line); background:#fbfbfd; border-radius:12px; padding:0 13px;
+    font-size:14px; font-weight:600; color:var(--accent); cursor:pointer; white-space:nowrap;
+  }
+  .mini-btn:active{background:var(--bg);}
+  .cat-suggest{display:flex; flex-wrap:wrap; gap:7px; margin-top:9px;}
+  .cat-suggest span{
+    font-size:13px; padding:5px 11px; border-radius:999px; background:var(--bg);
+    color:var(--sub); cursor:pointer; border:1px solid var(--line);
+  }
+  .cat-suggest span:active{background:var(--line);}
+  .sheet-actions{display:flex; gap:10px; margin-top:8px;}
+  .btn{
+    flex:1; border:none; border-radius:14px; padding:15px; font-size:16px; font-weight:600; cursor:pointer;
+  }
+  .btn-primary{background:var(--accent); color:#fff;}
+  .btn-ghost{background:var(--bg); color:var(--ink);}
+  .btn-danger{background:transparent; color:var(--danger); margin-top:6px; width:100%; border:none; padding:12px; font-size:15px; font-weight:600; cursor:pointer;}
+
+  /* トースト */
+  .toast{
+    position:fixed; left:50%; bottom:calc(92px + env(safe-area-inset-bottom)); transform:translateX(-50%) translateY(20px);
+    background:var(--ink); color:#fff; padding:11px 20px; border-radius:999px; font-size:14px; font-weight:600;
+    opacity:0; pointer-events:none; transition:all .25s ease; z-index:50;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  /* バックアップ行 */
+  .tools{display:flex; justify-content:center; gap:18px; margin-top:30px;}
+  .tools button{background:none; border:none; color:var(--sub); font-size:13px; font-weight:600; cursor:pointer; text-decoration:underline;}
+
+  footer{text-align:center; color:var(--sub); font-size:11px; margin-top:24px; line-height:1.8;}
+  .note{background:#fff8e6; border:1px solid #ffe7a3; color:#8a6d00; font-size:12px; border-radius:12px; padding:10px 13px; margin-top:14px; line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">🔐</div>
+    <h1>Password manager</h1>
+    <p class="tagline">パスワードを、ジャンルごとに保管</p>
+  </header>
+
+  <div class="search">
+    <span class="ico">🔍</span>
+    <input id="search" type="search" placeholder="タイトル・ユーザー名で検索" autocomplete="off">
+  </div>
+
+  <div class="chips" id="chips"></div>
+
+  <div class="list" id="list"></div>
+
+  <div class="tools">
+    <button id="exportBtn">⬇️ バックアップ書き出し</button>
+    <button id="importBtn">⬆️ 読み込み</button>
+    <input type="file" id="importFile" accept="application/json" hidden>
+  </div>
+
+  <div class="note">
+    🔒 データはこの端末のブラウザ内だけに保存されます（暗号化はしていません）。
+    同じブラウザを使える人には中身が見えるのでご注意を。大事なデータは時々「書き出し」でバックアップを。
+  </div>
+
+  <footer>
+    Password manager — つみき<br>
+    tsumiki-apps.github.io
+  </footer>
+</div>
+
+<button class="fab" id="addBtn" aria-label="追加">＋</button>
+
+<!-- 追加/編集シート -->
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <h2 id="sheetTitle">新しいパスワード</h2>
+    <input type="hidden" id="editId">
+    <div class="form-group">
+      <label for="fTitle">タイトル（なんのパスワード？）</label>
+      <input id="fTitle" type="text" placeholder="例：Apple ID、楽天、社内ポータル" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label for="fCategory">ジャンル</label>
+      <input id="fCategory" type="text" placeholder="例：SNS、金融、仕事" autocomplete="off">
+      <div class="cat-suggest" id="catSuggest"></div>
+    </div>
+    <div class="form-group">
+      <label for="fUser">ユーザー名 / ID（任意）</label>
+      <input id="fUser" type="text" placeholder="メールアドレス・ログインIDなど" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label for="fPass">パスワード</label>
+      <div class="pw-row">
+        <input id="fPass" type="text" placeholder="パスワードを入力" autocomplete="off">
+        <button type="button" class="mini-btn" id="genBtn">🎲 自動生成</button>
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="cancelBtn">キャンセル</button>
+      <button class="btn btn-primary" id="saveBtn">保存</button>
+    </div>
+    <button class="btn-danger" id="deleteBtn" style="display:none;">このパスワードを削除</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const STORE = "tsumiki-vault-v1";
+  const DEFAULT_CATS = ["SNS","金融・銀行","買い物","仕事","メール","ゲーム","その他"];
+
+  // ジャンル名 → 配色（決まった色で一貫させる）
+  const PALETTE = ["#ff6b6b","#4d8bf0","#34c759","#ff9f0a","#af52de","#5ac8fa","#ff2d92","#30b0c7","#a2845e","#8e8e93"];
+  function colorFor(cat){
+    if(!cat) return "#8e8e93";
+    let h=0; for(let i=0;i<cat.length;i++) h=(h*31+cat.charCodeAt(i))>>>0;
+    return PALETTE[h % PALETTE.length];
+  }
+
+  let data = load();
+  let filterCat = "すべて";
+  let query = "";
+
+  function load(){
+    try{ return JSON.parse(localStorage.getItem(STORE)) || []; }catch(e){ return []; }
+  }
+  function save(){ localStorage.setItem(STORE, JSON.stringify(data)); }
+  function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+  // ---- 描画 ----
+  const listEl = document.getElementById("list");
+  const chipsEl = document.getElementById("chips");
+
+  function allCats(){
+    const set = new Set();
+    data.forEach(d=>{ if(d.category) set.add(d.category); });
+    return [...set];
+  }
+
+  function renderChips(){
+    const cats = ["すべて", ...allCats()];
+    chipsEl.innerHTML = cats.map(c=>
+      `<div class="chip ${c===filterCat?'active':''}" data-cat="${esc(c)}">${esc(c)}${c==="すべて"?` (${data.length})`:""}</div>`
+    ).join("");
+    chipsEl.querySelectorAll(".chip").forEach(el=>{
+      el.onclick = ()=>{ filterCat = el.dataset.cat; render(); };
+    });
+  }
+
+  function render(){
+    renderChips();
+    let items = data.slice();
+    if(filterCat!=="すべて") items = items.filter(d=>d.category===filterCat);
+    if(query){
+      const q = query.toLowerCase();
+      items = items.filter(d=>
+        (d.title||"").toLowerCase().includes(q) ||
+        (d.username||"").toLowerCase().includes(q) ||
+        (d.category||"").toLowerCase().includes(q)
+      );
+    }
+    items.sort((a,b)=> (a.title||"").localeCompare(b.title||"", "ja"));
+
+    if(items.length===0){
+      listEl.innerHTML = `<div class="empty"><div class="big">🗝️</div>${
+        data.length===0 ? "まだパスワードがありません。<br>右下の ＋ から追加しましょう。" : "該当するパスワードがありません。"
+      }</div>`;
+      return;
+    }
+
+    listEl.innerHTML = items.map(d=>{
+      const col = colorFor(d.category);
+      const initial = (d.title||"?").trim().charAt(0).toUpperCase();
+      return `
+      <div class="item" data-id="${d.id}">
+        <div class="item-head">
+          <div class="badge-ico" style="background:${col}">${esc(initial)}</div>
+          <div class="item-meta">
+            <div class="item-title">${esc(d.title||"(無題)")}</div>
+            <div class="item-cat">${esc(d.category||"未分類")}${d.username?` ・ ${esc(d.username)}`:""}</div>
+          </div>
+          <div class="item-actions">
+            <button class="icon-btn js-toggle" title="表示">👁️</button>
+            <button class="icon-btn js-edit" title="編集">✏️</button>
+          </div>
+        </div>
+        <div class="fields">
+          ${d.username?`
+          <div class="field">
+            <span class="field-label">ユーザー名</span>
+            <span class="field-val">${esc(d.username)}</span>
+            <button class="copy-btn js-copy" data-val="${esc(d.username)}">コピー</button>
+          </div>`:""}
+          <div class="field">
+            <span class="field-label">パスワード</span>
+            <span class="field-val mask js-pw" data-pw="${esc(d.password||"")}" data-shown="0">${"•".repeat(Math.min((d.password||"").length||6,12))}</span>
+            <button class="copy-btn js-copy" data-val="${esc(d.password||"")}">コピー</button>
+          </div>
+        </div>
+      </div>`;
+    }).join("");
+
+    // イベント
+    listEl.querySelectorAll(".item").forEach(item=>{
+      const id = item.dataset.id;
+      item.querySelector(".js-toggle").onclick = ()=>{
+        item.classList.toggle("open");
+      };
+      item.querySelector(".js-edit").onclick = ()=> openSheet(id);
+      const pw = item.querySelector(".js-pw");
+      if(pw){
+        pw.onclick = ()=>{
+          const shown = pw.dataset.shown==="1";
+          if(shown){
+            pw.textContent = "•".repeat(Math.min((pw.dataset.pw||"").length||6,12));
+            pw.classList.add("mask"); pw.dataset.shown="0";
+          }else{
+            pw.textContent = pw.dataset.pw; pw.classList.remove("mask"); pw.dataset.shown="1";
+          }
+        };
+      }
+      item.querySelectorAll(".js-copy").forEach(b=>{
+        b.onclick = ()=> copy(b.dataset.val);
+      });
+    });
+  }
+
+  function esc(s){ return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+  // ---- コピー ----
+  async function copy(text){
+    try{
+      await navigator.clipboard.writeText(text);
+    }catch(e){
+      const ta=document.createElement("textarea"); ta.value=text; document.body.appendChild(ta);
+      ta.select(); document.execCommand("copy"); ta.remove();
+    }
+    toast("コピーしました");
+  }
+
+  // ---- トースト ----
+  let toastTimer;
+  function toast(msg){
+    const t=document.getElementById("toast");
+    t.textContent=msg; t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(()=>t.classList.remove("show"),1600);
+  }
+
+  // ---- シート（追加/編集） ----
+  const overlay=document.getElementById("overlay");
+  const fId=document.getElementById("editId");
+  const fTitle=document.getElementById("fTitle");
+  const fCat=document.getElementById("fCategory");
+  const fUser=document.getElementById("fUser");
+  const fPass=document.getElementById("fPass");
+
+  function renderCatSuggest(){
+    const cats = [...new Set([...allCats(), ...DEFAULT_CATS])];
+    document.getElementById("catSuggest").innerHTML =
+      cats.map(c=>`<span data-cat="${esc(c)}">${esc(c)}</span>`).join("");
+    document.querySelectorAll("#catSuggest span").forEach(el=>{
+      el.onclick=()=>{ fCat.value = el.dataset.cat; };
+    });
+  }
+
+  function openSheet(id){
+    renderCatSuggest();
+    if(id){
+      const d = data.find(x=>x.id===id);
+      document.getElementById("sheetTitle").textContent="パスワードを編集";
+      fId.value=d.id; fTitle.value=d.title||""; fCat.value=d.category||"";
+      fUser.value=d.username||""; fPass.value=d.password||"";
+      document.getElementById("deleteBtn").style.display="block";
+    }else{
+      document.getElementById("sheetTitle").textContent="新しいパスワード";
+      fId.value=""; fTitle.value=""; fCat.value=""; fUser.value=""; fPass.value="";
+      document.getElementById("deleteBtn").style.display="none";
+    }
+    overlay.classList.add("show");
+    setTimeout(()=>fTitle.focus(),100);
+  }
+  function closeSheet(){ overlay.classList.remove("show"); }
+
+  document.getElementById("addBtn").onclick=()=>openSheet(null);
+  document.getElementById("cancelBtn").onclick=closeSheet;
+  overlay.onclick=(e)=>{ if(e.target===overlay) closeSheet(); };
+
+  document.getElementById("saveBtn").onclick=()=>{
+    const title=fTitle.value.trim();
+    const pass=fPass.value;
+    if(!title){ toast("タイトルを入力してください"); fTitle.focus(); return; }
+    if(!pass){ toast("パスワードを入力してください"); fPass.focus(); return; }
+    const entry={
+      title, category:fCat.value.trim(), username:fUser.value.trim(), password:pass
+    };
+    if(fId.value){
+      const i=data.findIndex(x=>x.id===fId.value);
+      data[i]={...data[i],...entry};
+      toast("更新しました");
+    }else{
+      entry.id=uid(); data.push(entry);
+      toast("保存しました");
+    }
+    save(); render(); closeSheet();
+  };
+
+  document.getElementById("deleteBtn").onclick=()=>{
+    if(!fId.value) return;
+    if(!confirm("このパスワードを削除しますか？")) return;
+    data=data.filter(x=>x.id!==fId.value);
+    save(); render(); closeSheet(); toast("削除しました");
+  };
+
+  // ---- パスワード自動生成 ----
+  document.getElementById("genBtn").onclick=()=>{
+    const chars="ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*?";
+    let out=""; const arr=new Uint32Array(16); crypto.getRandomValues(arr);
+    for(let i=0;i<16;i++) out+=chars[arr[i]%chars.length];
+    fPass.value=out;
+    toast("16文字を生成しました");
+  };
+
+  // ---- 検索 ----
+  document.getElementById("search").oninput=(e)=>{ query=e.target.value.trim(); render(); };
+
+  // ---- バックアップ ----
+  document.getElementById("exportBtn").onclick=()=>{
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=`password-manager-backup-${new Date().toISOString().slice(0,10)}.json`;
+    a.click(); URL.revokeObjectURL(a.href);
+    toast("書き出しました");
+  };
+  document.getElementById("importBtn").onclick=()=>document.getElementById("importFile").click();
+  document.getElementById("importFile").onchange=(e)=>{
+    const file=e.target.files[0]; if(!file) return;
+    const r=new FileReader();
+    r.onload=()=>{
+      try{
+        const arr=JSON.parse(r.result);
+        if(!Array.isArray(arr)) throw new Error();
+        if(!confirm(`${arr.length}件を読み込みます。現在のデータに追加されます。よろしいですか？`)) return;
+        arr.forEach(x=>{
+          if(x && x.title){
+            data.push({id:uid(), title:x.title, category:x.category||"", username:x.username||"", password:x.password||""});
+          }
+        });
+        save(); render(); toast("読み込みました");
+      }catch(err){ toast("読み込めませんでした"); }
+    };
+    r.readAsText(file);
+    e.target.value="";
+  };
+
+  // 初期描画
+  render();
+</script>
+</body>
+</html>

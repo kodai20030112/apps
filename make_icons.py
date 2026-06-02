@@ -23,6 +23,7 @@ APPS = {
     "reflection":  ("🪞", "#73cffb", "#36a7e8"),
     "team5whys":   ("🌳", "#3fb87a", "#1f8a55"),
     "tsunagu":     ("🌟", "#9b8dff", "#6d5efc"),
+    "vault":       ("🔐", "#8a97b5", "#586585"),
 }
 
 
