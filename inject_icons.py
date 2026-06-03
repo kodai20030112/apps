@@ -14,6 +14,7 @@ TITLES = {
     "nps":         "NPS計算",
     "money":       "残高計算",
     "recap":       "Recap",
+    "schedule":    "予定変換",
     "recognition": "Recognition",
     "reflection":  "振り返り",
     "team5whys":   "5Whys",

@@ -20,6 +20,7 @@ APPS = {
     "osusowake":   ("🎁", "#ff9a76", "#ef6a45"),
     "money":       ("💰", "#ffc94d", "#f0a319"),
     "recap":       ("📆", "#7d7bf0", "#4f4dd0"),
+    "schedule":    ("🗓️", "#5ac8e8", "#1f8fd0"),
     "recognition": ("✨", "#ffd35e", "#f5a623"),
     "reflection":  ("🪞", "#73cffb", "#36a7e8"),
     "team5whys":   ("🌳", "#3fb87a", "#1f8a55"),

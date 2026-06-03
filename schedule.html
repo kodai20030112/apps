@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="apple-touch-icon" href="icons/icon-schedule.png">
+<meta name="apple-mobile-web-app-title" content="予定変換">
+<title>スケジュール → カレンダー変換</title>
+<style>
+  :root{
+    --bg:#f5f5f7; --card:#ffffff; --ink:#1d1d1f; --sub:#6e6e73;
+    --line:#e5e5ea; --accent:#0071e3; --ok:#34c759; --warn:#ff9f0a; --err:#ff3b30;
+    --radius:20px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Helvetica Neue",Arial,sans-serif;
+    background:var(--bg); color:var(--ink);
+    line-height:1.6; padding:env(safe-area-inset-top) 16px 56px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:680px; margin:0 auto;}
+  header{padding:40px 4px 22px; text-align:center;}
+  .logo{font-size:44px; line-height:1;}
+  h1{font-size:27px; font-weight:700; letter-spacing:-.02em; margin-top:10px;}
+  .tagline{color:var(--sub); font-size:14px; margin-top:8px;}
+
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:20px 18px; margin-top:16px;
+  }
+  .card h2{font-size:16px; font-weight:700; letter-spacing:-.01em; display:flex;
+    align-items:center; gap:9px; margin-bottom:12px;}
+  .step{flex:0 0 auto; width:24px; height:24px; border-radius:50%;
+    background:var(--accent); color:#fff; font-size:13px; font-weight:700;
+    display:flex; align-items:center; justify-content:center;}
+  .muted{color:var(--sub); font-size:13px;}
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:7px;
+    background:var(--accent); color:#fff; border:none; border-radius:13px;
+    padding:13px 20px; font-size:15px; font-weight:600; cursor:pointer;
+    width:100%; transition:transform .12s ease, opacity .12s ease;
+    font-family:inherit;
+  }
+  .btn:active{transform:scale(.98);}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+  .btn.sub{background:var(--bg); color:var(--accent); border:1px solid var(--line);}
+  .btn.big{padding:16px 20px; font-size:16px;}
+
+  .drop{
+    border:2px dashed #c7c7cc; border-radius:16px; padding:30px 16px; text-align:center;
+    color:var(--sub); cursor:pointer; transition:.15s; background:var(--bg);
+  }
+  .drop.hover{border-color:var(--accent); background:#eef6ff; color:var(--accent);}
+  .drop .ico{font-size:34px;}
+  .drop .main{font-size:15px; font-weight:600; color:var(--ink); margin-top:8px;}
+  .drop .sub2{font-size:12px; margin-top:4px;}
+  input[type=file]{display:none;}
+
+  label.field{display:block; font-size:13px; font-weight:600; margin:14px 0 6px;}
+  input[type=text]{
+    width:100%; padding:11px 13px; font-size:15px; border:1px solid var(--line);
+    border-radius:11px; font-family:inherit; background:var(--bg); color:var(--ink);
+  }
+  input[type=text]:focus{outline:none; border-color:var(--accent); background:#fff;}
+
+  .summary{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:6px;}
+  .pill{font-size:13px; font-weight:600; border-radius:999px; padding:5px 13px;}
+  .pill.ok{background:rgba(52,199,89,.12); color:#1a8f3c;}
+  .pill.warn{background:rgba(255,159,10,.14); color:#b86a00;}
+
+  .tbl{width:100%; border-collapse:collapse; font-size:13px; margin-top:10px;}
+  .tbl th,.tbl td{text-align:left; padding:8px 8px; border-bottom:1px solid var(--line);
+    vertical-align:top;}
+  .tbl th{color:var(--sub); font-weight:600; font-size:12px;}
+  .tbl tr.bad td{background:rgba(255,59,48,.06);}
+  .tbl .why{color:var(--err); font-size:11px;}
+  .scroll{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+  .tag-allday{font-size:11px; color:var(--sub);}
+
+  details{margin-top:16px;}
+  details summary{cursor:pointer; font-weight:600; font-size:15px; list-style:none;
+    padding:6px 0; display:flex; align-items:center; gap:8px;}
+  details summary::-webkit-details-marker{display:none;}
+  details summary .chev{transition:.2s; color:var(--sub);}
+  details[open] summary .chev{transform:rotate(90deg);}
+  details .body{font-size:14px; color:var(--ink); padding:6px 2px 4px;}
+  details .body ol{padding-left:20px;}
+  details .body li{margin:7px 0;}
+  details .body code{background:var(--bg); padding:1px 6px; border-radius:6px; font-size:13px;}
+
+  .hint{background:#fff8e8; border:1px solid #ffe6ad; border-radius:13px;
+    padding:12px 14px; font-size:13px; color:#6b4e00; margin-top:14px;}
+  .err-box{background:rgba(255,59,48,.07); border:1px solid rgba(255,59,48,.25);
+    border-radius:13px; padding:12px 14px; font-size:13px; color:#a3261d; margin-top:12px;}
+
+  .gap{margin-top:12px;}
+  .priv{display:flex; align-items:center; gap:7px; justify-content:center;
+    color:var(--sub); font-size:12px; margin-top:20px;}
+  footer{text-align:center; color:var(--sub); font-size:12px; margin-top:30px; line-height:1.8;}
+  .hidden{display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">🗓️</div>
+    <h1>スケジュール → カレンダー変換</h1>
+    <p class="tagline">Excelの予定を、iPhone・Macのカレンダーに取り込める形（.ics）に変換します</p>
+  </header>
+
+  <!-- STEP 1: テンプレート -->
+  <div class="card">
+    <h2><span class="step">1</span>テンプレートに予定を記入</h2>
+    <p class="muted">下のボタンでExcelテンプレートをダウンロードし、予定を書き込んでください。<br>
+      <strong>1行＝1予定</strong>です。時刻を空欄にすると「終日の予定」になります。</p>
+    <button class="btn sub gap" id="tmplBtn">⬇️ 記入テンプレートをダウンロード（.xlsx）</button>
+  </div>
+
+  <!-- STEP 2: アップロード -->
+  <div class="card">
+    <h2><span class="step">2</span>記入したExcelを選ぶ</h2>
+    <div class="drop" id="drop">
+      <div class="ico">📄</div>
+      <div class="main">Excelファイルをここにドロップ</div>
+      <div class="sub2">またはタップして選択（.xlsx / .xls / .csv）</div>
+    </div>
+    <input type="file" id="file" accept=".xlsx,.xls,.csv">
+    <label class="field" for="calname">カレンダー名（取り込み時の名前）</label>
+    <input type="text" id="calname" value="提出スケジュール" autocomplete="off">
+  </div>
+
+  <!-- STEP 3: 結果 -->
+  <div class="card hidden" id="resultCard">
+    <h2><span class="step">3</span>確認してダウンロード</h2>
+    <div class="summary" id="summary"></div>
+    <div id="errBox"></div>
+    <div class="scroll"><table class="tbl" id="preview"></table></div>
+    <button class="btn big gap" id="dlBtn">📅 カレンダーに追加（.icsをダウンロード）</button>
+    <div class="hint" id="afterHint" style="display:none">
+      ダウンロードした <code>.ics</code> ファイルをタップ → カレンダーが開いて「追加しますか？」と表示されます。<br>
+      初回は新規カレンダー（例：<strong>提出スケジュール</strong>）を作って取り込むと、自分の他の予定と混ざらず安心です。
+    </div>
+  </div>
+
+  <!-- 使い方 -->
+  <details>
+    <summary><span class="chev">›</span>📱 取り込み方（iPhone / Mac）</summary>
+    <div class="body">
+      <p style="margin-bottom:8px"><strong>iPhone</strong></p>
+      <ol>
+        <li>ダウンロードした <code>.ics</code> ファイルをタップ（ファイルアプリやメール添付からでもOK）</li>
+        <li>「すべてのイベントを追加」を選ぶ</li>
+        <li>追加先カレンダーを選んで完了</li>
+      </ol>
+      <p style="margin:12px 0 8px"><strong>Mac</strong></p>
+      <ol>
+        <li><code>.ics</code> をダブルクリック</li>
+        <li>追加先カレンダー（新規でもOK）を選んで「OK」</li>
+      </ol>
+    </div>
+  </details>
+
+  <details>
+    <summary><span class="chev">›</span>✏️ 記入のルール</summary>
+    <div class="body">
+      <ol>
+        <li><strong>日付</strong>（必須）… <code>2026/06/10</code> のように年から書く</li>
+        <li><strong>開始時刻 / 終了時刻</strong>… <code>9:00</code> 形式。両方空なら「終日」、終了だけ空なら開始＋1時間</li>
+        <li><strong>予定</strong>（必須）… カレンダーに表示されるタイトル</li>
+        <li><strong>場所 / メモ</strong>… 空欄でOK</li>
+      </ol>
+      <p class="muted" style="margin-top:8px">列の順番が違っても、見出し名（日付・予定など）で自動的に読み取ります。</p>
+    </div>
+  </details>
+
+  <div class="priv">🔒 ファイルは端末内だけで処理され、どこにも送信されません</div>
+
+  <footer>
+    つみき — こうだいの制作物<br>
+    tsumiki-apps.github.io
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- 列の見出し同義語 ---------- */
+  const SYN = {
+    date:  ["日付","日にち","日","年月日","date","期日"],
+    start: ["開始時刻","開始時間","開始","始まり","start","時刻","時間"],
+    end:   ["終了時刻","終了時間","終了","終わり","end"],
+    title: ["予定","タイトル","件名","内容","用件","項目","title","subject","イベント"],
+    loc:   ["場所","ロケーション","会場","location","place"],
+    memo:  ["メモ","備考","詳細","notes","note","description","memo","コメント"],
+  };
+
+  function norm(s){
+    return String(s == null ? "" : s)
+      .replace(/\s+/g,"")
+      .replace(/[Ａ-Ｚａ-ｚ０-９]/g, c => String.fromCharCode(c.charCodeAt(0)-0xFEE0))
+      .toLowerCase();
+  }
+
+  function matchColumns(headers){
+    const map = {};
+    const used = new Set();
+    Object.keys(SYN).forEach(key=>{
+      for(let i=0;i<headers.length;i++){
+        if(used.has(i)) continue;
+        const h = norm(headers[i]);
+        if(!h) continue;
+        if(SYN[key].some(syn => h === norm(syn) || h.includes(norm(syn)))){
+          map[key] = i; used.add(i); break;
+        }
+      }
+    });
+    return map;
+  }
+
+  /* ---------- 日付・時刻パース ---------- */
+  function excelDateParts(serial){
+    const whole = Math.floor(serial);
+    const ms = Date.UTC(1899,11,30) + whole*86400000;
+    const d = new Date(ms);
+    return {y:d.getUTCFullYear(), m:d.getUTCMonth()+1, d:d.getUTCDate()};
+  }
+  function excelTimeParts(serial){
+    let frac = serial - Math.floor(serial);
+    if(frac < 0) frac = 0;
+    let total = Math.round(frac*24*60);
+    return {h: Math.floor(total/60)%24, min: total%60};
+  }
+
+  function parseDate(v){
+    if(v == null || v === "") return null;
+    if(v instanceof Date && !isNaN(v)) return {y:v.getFullYear(), m:v.getMonth()+1, d:v.getDate()};
+    if(typeof v === "number") return excelDateParts(v);
+    const s = String(v).trim();
+    let m = s.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);   // 2026/6/10
+    if(m) return {y:+m[1], m:+m[2], d:+m[3]};
+    m = s.match(/^(\d{1,2})\D+(\d{1,2})$/);               // 6/10 → 今年
+    if(m) return {y:new Date().getFullYear(), m:+m[1], d:+m[2]};
+    return null;
+  }
+
+  function parseTime(v){
+    if(v == null || v === "") return null;
+    if(v instanceof Date && !isNaN(v)) return {h:v.getHours(), min:v.getMinutes()};
+    if(typeof v === "number"){
+      if(v >= 1) return excelTimeParts(v - Math.floor(v)); // datetime serial
+      return excelTimeParts(v);                             // time fraction
+    }
+    const s = String(v).trim();
+    let m = s.match(/(\d{1,2}):(\d{2})/);                   // 9:00
+    if(m) return {h:+m[1]%24, min:+m[2]};
+    m = s.match(/(\d{1,2})\s*時\s*(\d{1,2})?\s*分?/);        // 9時30分 / 9時
+    if(m) return {h:+m[1]%24, min: m[2]?+m[2]:0};
+    m = s.match(/^(\d{1,2})$/);                             // 9 → 9:00
+    if(m) return {h:+m[1]%24, min:0};
+    return null;
+  }
+
+  function validDate(d){
+    if(!d) return false;
+    if(d.m<1||d.m>12||d.d<1||d.d>31) return false;
+    const t = new Date(d.y, d.m-1, d.d);
+    return t.getMonth()===d.m-1 && t.getDate()===d.d;
+  }
+
+  /* ---------- .ics 生成 ---------- */
+  function pad(n){return String(n).padStart(2,"0");}
+  function ymd(d){return `${d.y}${pad(d.m)}${pad(d.d)}`;}
+
+  function nextDay(d){
+    const t = new Date(d.y, d.m-1, d.d+1);
+    return {y:t.getFullYear(), m:t.getMonth()+1, d:t.getDate()};
+  }
+  function addHour(d,t){
+    const dt = new Date(d.y, d.m-1, d.d, t.h+1, t.min);
+    return {date:{y:dt.getFullYear(), m:dt.getMonth()+1, d:dt.getDate()},
+            time:{h:dt.getHours(), min:dt.getMinutes()}};
+  }
+
+  function esc(s){
+    return String(s==null?"":s)
+      .replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,")
+      .replace(/\r?\n/g,"\\n");
+  }
+
+  // UTF-8 バイト長で 75 octet に折りたたむ
+  function fold(line){
+    const enc = new TextEncoder();
+    let out = "", cur = "", curBytes = 0;
+    for(const ch of line){
+      const b = enc.encode(ch).length;
+      const limit = out === "" ? 75 : 74; // 継続行は先頭スペース1つ分
+      if(curBytes + b > limit){
+        out += (out===""?"":"\r\n ") + cur;
+        cur = ch; curBytes = b;
+      } else { cur += ch; curBytes += b; }
+    }
+    out += (out===""?"":"\r\n ") + cur;
+    return out;
+  }
+
+  function hash(s){
+    let h = 5381;
+    for(let i=0;i<s.length;i++) h = ((h<<5)+h + s.charCodeAt(i))|0;
+    return (h>>>0).toString(36);
+  }
+
+  function stamp(){
+    const d = new Date();
+    return d.getUTCFullYear()+pad(d.getUTCMonth()+1)+pad(d.getUTCDate())+"T"+
+           pad(d.getUTCHours())+pad(d.getUTCMinutes())+pad(d.getUTCSeconds())+"Z";
+  }
+
+  function buildICS(events, calName){
+    const L = [];
+    L.push("BEGIN:VCALENDAR");
+    L.push("VERSION:2.0");
+    L.push("PRODID:-//tsumiki//schedule-converter//JP");
+    L.push("CALSCALE:GREGORIAN");
+    L.push("METHOD:PUBLISH");
+    if(calName) L.push("X-WR-CALNAME:"+esc(calName));
+    L.push("X-WR-TIMEZONE:Asia/Tokyo");
+    const dtstamp = stamp();
+    events.forEach(ev=>{
+      const uid = hash(ymd(ev.date)+(ev.start?ev.start.h+":"+ev.start.min:"") + ev.title) + "@tsumiki-schedule";
+      L.push("BEGIN:VEVENT");
+      L.push("UID:"+uid);
+      L.push("DTSTAMP:"+dtstamp);
+      if(ev.allDay){
+        L.push("DTSTART;VALUE=DATE:"+ymd(ev.date));
+        L.push("DTEND;VALUE=DATE:"+ymd(nextDay(ev.date)));
+      } else {
+        const st = `${ymd(ev.date)}T${pad(ev.start.h)}${pad(ev.start.min)}00`;
+        let endDate, endTime;
+        if(ev.end){ endDate = ev.date; endTime = ev.end; }
+        else { const a = addHour(ev.date, ev.start); endDate = a.date; endTime = a.time; }
+        const en = `${ymd(endDate)}T${pad(endTime.h)}${pad(endTime.min)}00`;
+        L.push("DTSTART:"+st);
+        L.push("DTEND:"+en);
+      }
+      L.push(fold("SUMMARY:"+esc(ev.title)));
+      if(ev.loc) L.push(fold("LOCATION:"+esc(ev.loc)));
+      if(ev.memo) L.push(fold("DESCRIPTION:"+esc(ev.memo)));
+      L.push("END:VEVENT");
+    });
+    L.push("END:VCALENDAR");
+    return L.join("\r\n");
+  }
+
+  /* ---------- 画面処理 ---------- */
+  const $ = id => document.getElementById(id);
+  let parsed = null; // {events, bad}
+
+  function fmtTime(t){ return t ? pad(t.h)+":"+pad(t.min) : ""; }
+
+  function handleRows(rows){
+    if(!rows.length){ showError("シートが空のようです。"); return; }
+    // 見出し行を探す（最初の非空行）
+    let hi = 0;
+    while(hi<rows.length && rows[hi].every(c=>c==null||String(c).trim()==="")) hi++;
+    const headers = rows[hi] || [];
+    const cols = matchColumns(headers);
+
+    if(cols.date == null || cols.title == null){
+      showError("「日付」と「予定」の列が見つかりませんでした。テンプレートの見出し（日付・予定）を消さずに記入してください。");
+      return;
+    }
+
+    const events = [], bad = [];
+    for(let r=hi+1; r<rows.length; r++){
+      const row = rows[r];
+      if(!row || row.every(c=>c==null||String(c).trim()==="")) continue;
+      const rawDate = row[cols.date];
+      const title = cols.title!=null ? String(row[cols.title]??"").trim() : "";
+      const d = parseDate(rawDate);
+
+      if(!title && !validDate(d)) continue; // 完全な空行扱い
+      if(!validDate(d)){ bad.push({row:r+1, why:"日付が読み取れません: 「"+(rawDate??"")+"」"}); continue; }
+      if(!title){ bad.push({row:r+1, why:"予定（タイトル）が空です"}); continue; }
+
+      const start = cols.start!=null ? parseTime(row[cols.start]) : null;
+      let end = cols.end!=null ? parseTime(row[cols.end]) : null;
+      const allDay = !start;
+      if(allDay) end = null;
+
+      events.push({
+        date:d, start, end, allDay,
+        title,
+        loc: cols.loc!=null ? String(row[cols.loc]??"").trim() : "",
+        memo: cols.memo!=null ? String(row[cols.memo]??"").trim() : "",
+      });
+    }
+
+    if(!events.length){
+      showError("有効な予定が1件も見つかりませんでした。日付と予定が記入されているか確認してください。");
+      return;
+    }
+    parsed = {events, bad};
+    render();
+  }
+
+  function showError(msg){
+    parsed = null;
+    $("resultCard").classList.remove("hidden");
+    $("summary").innerHTML = "";
+    $("preview").innerHTML = "";
+    $("dlBtn").disabled = true;
+    $("afterHint").style.display = "none";
+    $("errBox").innerHTML = '<div class="err-box">⚠️ '+msg+'</div>';
+  }
+
+  function render(){
+    const {events, bad} = parsed;
+    $("resultCard").classList.remove("hidden");
+    $("errBox").innerHTML = "";
+    $("dlBtn").disabled = false;
+
+    let pills = '<span class="pill ok">✓ '+events.length+' 件の予定</span>';
+    if(bad.length) pills += '<span class="pill warn">⚠️ '+bad.length+' 行スキップ</span>';
+    $("summary").innerHTML = pills;
+
+    let html = "<thead><tr><th>日付</th><th>時間</th><th>予定</th><th>場所</th></tr></thead><tbody>";
+    events.slice(0,50).forEach(e=>{
+      const time = e.allDay ? '<span class="tag-allday">終日</span>'
+                            : fmtTime(e.start)+(e.end?"–"+fmtTime(e.end):"");
+      html += "<tr><td>"+e.date.y+"/"+pad(e.date.m)+"/"+pad(e.date.d)+"</td><td>"+time+
+              "</td><td>"+escapeHTML(e.title)+"</td><td>"+escapeHTML(e.loc)+"</td></tr>";
+    });
+    if(events.length>50) html += '<tr><td colspan="4" class="muted">…ほか '+(events.length-50)+' 件</td></tr>';
+    bad.forEach(b=>{
+      html += '<tr class="bad"><td>'+b.row+'行目</td><td colspan="3" class="why">'+escapeHTML(b.why)+'</td></tr>';
+    });
+    html += "</tbody>";
+    $("preview").innerHTML = html;
+  }
+
+  function escapeHTML(s){
+    return String(s==null?"":s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+  }
+
+  function download(filename, text, mime){
+    const blob = new Blob([text], {type:mime});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+  }
+
+  function readFile(file){
+    const reader = new FileReader();
+    reader.onload = e =>{
+      try{
+        const wb = XLSX.read(new Uint8Array(e.target.result), {type:"array", cellDates:true});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:""});
+        handleRows(rows);
+      }catch(err){
+        showError("ファイルを読み込めませんでした。Excel(.xlsx)かCSVか確認してください。");
+        console.error(err);
+      }
+      $("resultCard").scrollIntoView({behavior:"smooth", block:"start"});
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  /* ---------- テンプレート生成 ---------- */
+  function makeTemplate(){
+    const data = [
+      ["日付","開始時刻","終了時刻","予定","場所","メモ"],
+      ["2026/06/10","9:00","18:00","早番シフト","渋谷店","エプロン持参"],
+      ["2026/06/11","13:00","22:00","遅番シフト","渋谷店",""],
+      ["2026/06/12","","","公休","",""],
+      ["2026/06/13","10:00","","ミーティング","本社2F","終了時刻は空でもOK（1時間で登録）"],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws["!cols"] = [{wch:12},{wch:10},{wch:10},{wch:18},{wch:12},{wch:28}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "スケジュール");
+    XLSX.writeFile(wb, "スケジュール記入テンプレート.xlsx");
+  }
+
+  /* ---------- イベント配線 ---------- */
+  $("tmplBtn").addEventListener("click", makeTemplate);
+
+  const drop = $("drop"), fileInput = $("file");
+  drop.addEventListener("click", ()=>fileInput.click());
+  fileInput.addEventListener("change", e=>{ if(e.target.files[0]) readFile(e.target.files[0]); });
+
+  ["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev, e=>{
+    e.preventDefault(); drop.classList.add("hover");
+  }));
+  ["dragleave","drop"].forEach(ev=>drop.addEventListener(ev, e=>{
+    e.preventDefault(); drop.classList.remove("hover");
+  }));
+  drop.addEventListener("drop", e=>{
+    const f = e.dataTransfer.files[0];
+    if(f) readFile(f);
+  });
+
+  $("dlBtn").addEventListener("click", ()=>{
+    if(!parsed) return;
+    const name = $("calname").value.trim() || "スケジュール";
+    const ics = buildICS(parsed.events, name);
+    download(name.replace(/[\/\\:*?"<>|]/g,"_")+".ics", ics, "text/calendar;charset=utf-8");
+    $("afterHint").style.display = "block";
+  });
+})();
+</script>
+<!-- tsumiki-back-button -->
+<style>
+  #tsumikiBack{
+    position:fixed; top:calc(env(safe-area-inset-top) + 8px); left:12px; z-index:1000;
+    display:none; align-items:center; gap:3px;
+    background:rgba(255,255,255,.82);
+    -webkit-backdrop-filter:saturate(180%) blur(12px); backdrop-filter:saturate(180%) blur(12px);
+    border:1px solid rgba(0,0,0,.08); border-radius:999px;
+    padding:7px 14px 7px 11px; font-size:14px; font-weight:600;
+    color:#0071e3; text-decoration:none; line-height:1;
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Helvetica Neue",Arial,sans-serif;
+    box-shadow:0 4px 14px rgba(0,0,0,.12); -webkit-tap-highlight-color:transparent;
+  }
+  #tsumikiBack:active{transform:scale(.96);}
+</style>
+<a id="tsumikiBack" href="index.html">‹ つみき</a>
+<script>
+  (function(){
+    var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+      || window.navigator.standalone === true;
+    var fromTsumiki = false;
+    try{
+      if(document.referrer){
+        var r = new URL(document.referrer);
+        fromTsumiki = (r.origin === location.origin);
+      }
+    }catch(e){}
+    if(standalone && fromTsumiki){
+      var b = document.getElementById('tsumikiBack');
+      if(b) b.style.display = 'inline-flex';
+    }
+  })();
+</script>
+<!-- /tsumiki-back-button -->
+</body>
+</html>
