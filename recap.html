@@ -958,7 +958,7 @@
 
   function collectMailData(){
     var s = cur();
-    var kpis = KPI_METRICS.map(function(m){
+    var kpis = KPIS.map(function(m){
       var v = num(s.kpi[m.key].v), b = num(s.kpi[m.key].b);
       return { label:m.name, value:v, bench:b, unit:m.unit||"",
                achieved:(v!==null && b!==null) ? (v>=b) : false };
