@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="apple-touch-icon" href="icons/icon-index.png">
+<meta name="apple-mobile-web-app-title" content="キャリアログ">
+<title>キャリアログ — 活動の足跡</title>
+<script src="career.js"></script>
+<style>
+  :root{
+    --bg:#f5f5f7; --card:#ffffff; --ink:#1d1d1f; --sub:#6e6e73;
+    --line:#e5e5ea; --accent:#0071e3; --radius:18px;
+    --g0:#ebedf0; --g1:#c6e6c1; --g2:#7bc96f; --g3:#49a942; --g4:#2e7d32;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Helvetica Neue",Arial,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.6;
+    padding:env(safe-area-inset-top) 16px 64px; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px; margin:0 auto;}
+  header{padding:34px 4px 16px; text-align:center;}
+  .logo{font-size:40px; line-height:1;}
+  h1{font-size:26px; font-weight:700; letter-spacing:-.02em; margin-top:8px;}
+  .tagline{color:var(--sub); font-size:14px; margin-top:6px;}
+
+  .banner{display:flex; align-items:center; gap:8px; font-size:13px;
+    border-radius:14px; padding:10px 14px; margin:14px 0 4px;}
+  .banner.ok{background:#e7f6ec; color:#1b7a36; border:1px solid #b9e3c6;}
+  .banner.local{background:#fff4e0; color:#9a6400; border:1px solid #f3dca6;}
+  .banner button{margin-left:auto; font:inherit; font-weight:600; color:inherit;
+    background:rgba(0,0,0,.06); border:none; border-radius:999px; padding:4px 11px; cursor:pointer;}
+
+  .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:16px;}
+  @media(max-width:520px){ .stats{grid-template-columns:repeat(2,1fr);} }
+  .stat{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px;}
+  .stat .num{font-size:24px; font-weight:700; letter-spacing:-.02em;}
+  .stat .lab{font-size:12px; color:var(--sub); margin-top:2px;}
+
+  .panel{background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px 16px 18px; margin-top:16px;}
+  .panel h2{font-size:16px; font-weight:700; margin-bottom:12px; display:flex; align-items:center; gap:7px;}
+  .panel h2 .sub{margin-left:auto; font-size:12px; font-weight:500; color:var(--sub);}
+
+  /* heatmap */
+  .heat-scroll{overflow-x:auto; padding-bottom:6px;}
+  .heat{display:grid; grid-auto-flow:column; grid-template-rows:repeat(7,12px); gap:3px;}
+  .heat .cell{width:12px; height:12px; border-radius:3px; background:var(--g0);}
+  .heat-legend{display:flex; align-items:center; gap:5px; font-size:11px; color:var(--sub); margin-top:8px; justify-content:flex-end;}
+  .heat-legend .cell{width:11px; height:11px; border-radius:3px;}
+
+  /* filters */
+  .chips{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:6px;}
+  .chip{font-size:12.5px; font-weight:600; color:var(--sub); background:var(--bg);
+    border:1px solid var(--line); border-radius:999px; padding:5px 12px; cursor:pointer;}
+  .chip.on{color:#fff; background:var(--accent); border-color:var(--accent);}
+  .search{width:100%; font:inherit; font-size:14px; padding:9px 13px; margin-top:8px;
+    border:1px solid var(--line); border-radius:12px; background:var(--bg);}
+
+  /* timeline */
+  .day-group{margin-top:14px;}
+  .day-head{font-size:12.5px; font-weight:700; color:var(--sub); margin-bottom:6px; position:sticky; top:0;}
+  .ev{display:flex; align-items:flex-start; gap:11px; padding:9px 2px; border-top:1px solid var(--line);}
+  .ev:first-child{border-top:none;}
+  .ev .em{font-size:20px; flex:0 0 auto; width:34px; height:34px; display:flex; align-items:center; justify-content:center;
+    background:var(--bg); border-radius:10px;}
+  .ev .body{min-width:0; flex:1;}
+  .ev .sum{font-size:14px; font-weight:500;}
+  .ev .met{font-size:11.5px; color:var(--sub); margin-top:1px; display:flex; gap:8px; flex-wrap:wrap;}
+  .ev .tag{font-size:10.5px; font-weight:700; color:var(--sub); background:var(--bg); border:1px solid var(--line);
+    border-radius:6px; padding:1px 6px;}
+  .ev.visit .sum{color:var(--sub); font-weight:400;}
+  .ev .del{margin-left:auto; flex:0 0 auto; color:#c7c7cc; font-size:15px; background:none; border:none; cursor:pointer; padding:2px 4px;}
+  .empty{color:var(--sub); font-size:13.5px; text-align:center; padding:24px 0;}
+
+  /* manual form */
+  .form-row{display:flex; flex-direction:column; gap:5px; margin-bottom:11px;}
+  .form-row label{font-size:12.5px; font-weight:600; color:var(--sub);}
+  .form-row input, .form-row textarea, .form-row select{
+    font:inherit; font-size:14px; padding:9px 12px; border:1px solid var(--line); border-radius:12px; background:var(--bg); width:100%;}
+  .form-row textarea{resize:vertical; min-height:62px;}
+  .btn{font:inherit; font-weight:600; font-size:14px; border:none; border-radius:12px; padding:11px 16px; cursor:pointer;}
+  .btn.primary{background:var(--accent); color:#fff;}
+  .btn.ghost{background:var(--bg); color:var(--ink); border:1px solid var(--line);}
+  .btn-row{display:flex; gap:9px; flex-wrap:wrap;}
+
+  .hint{font-size:12px; color:var(--sub); margin-top:8px; line-height:1.55;}
+  pre.out{white-space:pre-wrap; word-break:break-word; font-size:12px; line-height:1.5;
+    background:var(--bg); border:1px solid var(--line); border-radius:12px; padding:12px; margin-top:10px; max-height:340px; overflow:auto; display:none;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
+  .sql{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11.5px; white-space:pre-wrap;
+    background:#1d1d1f; color:#e8e8ea; border-radius:12px; padding:13px; margin-top:10px; display:none; overflow:auto;}
+  .toast{position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px);
+    background:#1d1d1f; color:#fff; font-size:13px; padding:10px 18px; border-radius:999px; opacity:0; pointer-events:none;
+    transition:opacity .2s, transform .2s; z-index:2000;}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  footer{text-align:center; color:var(--sub); font-size:12px; margin-top:30px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">🗂️</div>
+    <h1>キャリアログ</h1>
+    <p class="tagline">Workツールの活動を自動で残し、レジュメ・昇進の材料にする</p>
+  </header>
+
+  <div id="banner"></div>
+
+  <div class="stats" id="stats"></div>
+
+  <section class="panel">
+    <h2>📅 活動ヒートマップ <span class="sub" id="heatYear"></span></h2>
+    <div class="heat-scroll"><div class="heat" id="heat"></div></div>
+    <div class="heat-legend">少 <span class="cell" style="background:var(--g0)"></span><span class="cell" style="background:var(--g1)"></span><span class="cell" style="background:var(--g2)"></span><span class="cell" style="background:var(--g3)"></span><span class="cell" style="background:var(--g4)"></span> 多</div>
+  </section>
+
+  <section class="panel">
+    <h2>🧭 タイムライン</h2>
+    <div class="chips" id="appChips"></div>
+    <div class="chips" id="kindChips"></div>
+    <input class="search" id="search" placeholder="キーワードで絞り込み（人名・テーマなど）">
+    <div id="timeline"></div>
+  </section>
+
+  <section class="panel">
+    <h2>✍️ 実績を手動で追加 <span class="sub">結果・数字もここで</span></h2>
+    <div class="form-row">
+      <label>どのツール / 領域</label>
+      <select id="m_app"></select>
+    </div>
+    <div class="form-row">
+      <label>内容（やったこと・結果）</label>
+      <textarea id="m_summary" placeholder="例：NPSを四半期で+6pt改善。チームの返信率を15%向上"></textarea>
+    </div>
+    <div class="form-row">
+      <label>日付</label>
+      <input type="date" id="m_date">
+    </div>
+    <div class="btn-row">
+      <button class="btn primary" id="m_add">この実績を記録</button>
+    </div>
+    <p class="hint">ツールが自動で拾えない「成果・数字」を足しておくと、面接でそのまま話せる材料になります。</p>
+  </section>
+
+  <section class="panel">
+    <h2>📤 レジュメ素材を書き出す</h2>
+    <div class="btn-row">
+      <button class="btn ghost" id="ex_md">実績まとめ（Markdown）</button>
+      <button class="btn ghost" id="ex_star">面接用STAR下書き</button>
+      <button class="btn primary" id="ex_copy" style="display:none">コピー</button>
+      <button class="btn ghost" id="ex_dl" style="display:none">.md保存</button>
+    </div>
+    <pre class="out" id="out"></pre>
+    <p class="hint">STARは <b>STARS振り返り</b> アプリに書いた内容（この端末内）を整形します。実績まとめはクラウドのログ全体から作ります。</p>
+  </section>
+
+  <footer>つみき / career.js ・ <a href="index.html" style="color:var(--accent);text-decoration:none">‹ つみきトップ</a></footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const APPS = (window.Career && Career.APPS) || {};
+const ACTION_META = {
+  visit:       {label:"足跡",      emoji:"👣"},
+  recognition: {label:"称賛",      emoji:"🌟"},
+  reflection:  {label:"STAR経験",  emoji:"🪞"},
+  "5whys":     {label:"5Whys",     emoji:"🔍"},
+  grow:        {label:"1on1",      emoji:"🌳"},
+  share:       {label:"おすそわけ", emoji:"🎁"},
+  convert:     {label:"変換",      emoji:"🗓️"},
+  recap:       {label:"Recap",     emoji:"📈"},
+  calc:        {label:"試算",      emoji:"📊"},
+  manual:      {label:"手動実績",   emoji:"✍️"},
+  event:       {label:"記録",      emoji:"•"},
+};
+let ALL = [];
+let fApp = "all";    // フィルタ：ツール
+let fKind = "achieve"; // achieve(実績) / visit(足跡) / all
+let fText = "";
+
+function toast(m){ const t=$("#toast"); t.textContent=m; t.classList.add("show"); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"),1700); }
+function esc(s){ return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
+function appEmoji(a){ return (APPS[a]&&APPS[a].emoji) || (ACTION_META[a]&&ACTION_META[a].emoji) || "•"; }
+function ymd(d){ const z=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate()); }
+function dateOf(ev){ return new Date(ev.ts || Date.parse(ev.created_at) || 0); }
+
+/* ---------- 読み込み ---------- */
+async function load(){
+  const res = await Career.getAll();
+  ALL = res.items || [];
+  renderBanner(res.connected);
+  renderStats();
+  renderHeat();
+  renderChips();
+  renderTimeline();
+}
+
+function renderBanner(connected){
+  const b = $("#banner");
+  if(connected){
+    b.className = "banner ok";
+    b.innerHTML = "☁️ クラウド接続中 — 記録はすべての端末で共有・永続化されます";
+  } else {
+    b.className = "banner local";
+    b.innerHTML = "📱 この端末内だけに記録中（クラウド未接続）<button id='showSql'>同期を有効にする</button>"+
+      "<div class='sql' id='sqlBox'>Supabase の SQL Editor に貼って実行：\n\n"+
+      "create table if not exists public.career_log (\n"+
+      "  id text primary key,\n  app text,\n  app_label text,\n  action text,\n"+
+      "  summary text,\n  meta jsonb,\n  genre text,\n  created_at timestamptz default now()\n);\n"+
+      "alter table public.career_log enable row level security;\n"+
+      "create policy \"career_log anon all\" on public.career_log\n  for all to anon using (true) with check (true);</div>";
+    setTimeout(()=>{ const s=$("#showSql"); if(s) s.onclick=()=>{ const x=$("#sqlBox"); x.style.display = x.style.display==="block"?"none":"block"; }; },0);
+  }
+}
+
+/* ---------- 統計 ---------- */
+function renderStats(){
+  const achieve = ALL.filter(e=>e.action!=="visit");
+  const days = new Set(ALL.map(e=>ymd(dateOf(e))));
+  // 連続日数（今日 or 昨日から遡る）
+  let streak=0; const dset=new Set(ALL.map(e=>ymd(dateOf(e))));
+  let cur=new Date(); if(!dset.has(ymd(cur))) cur.setDate(cur.getDate()-1);
+  while(dset.has(ymd(cur))){ streak++; cur.setDate(cur.getDate()-1); }
+  // よく使うツール
+  const cnt={}; ALL.forEach(e=>{ cnt[e.app]=(cnt[e.app]||0)+1; });
+  let top="—"; let max=-1; for(const k in cnt){ if(cnt[k]>max){max=cnt[k];top=k;} }
+  const topLabel = (APPS[top]&&APPS[top].label) || top;
+  const cards=[
+    {num:achieve.length, lab:"実績の記録"},
+    {num:days.size, lab:"活動した日数"},
+    {num:streak+"日", lab:"連続活動"},
+    {num:(max>=0?appEmoji(top):"—"), lab:"最多："+(max>=0?topLabel:"なし")},
+  ];
+  $("#stats").innerHTML = cards.map(c=>
+    "<div class='stat'><div class='num'>"+c.num+"</div><div class='lab'>"+esc(c.lab)+"</div></div>").join("");
+}
+
+/* ---------- ヒートマップ（今年） ---------- */
+function renderHeat(){
+  const year=new Date().getFullYear();
+  $("#heatYear").textContent = year+"年";
+  const perDay={};
+  ALL.forEach(e=>{ const d=dateOf(e); if(d.getFullYear()===year){ const k=ymd(d); perDay[k]=(perDay[k]||0)+1; } });
+  const start=new Date(year,0,1);
+  // 週頭(日曜)に揃える
+  const first=new Date(start); first.setDate(first.getDate()-first.getDay());
+  const end=new Date(year,11,31);
+  const cells=[];
+  for(let d=new Date(first); d<=end; d.setDate(d.getDate()+1)){
+    const inYear=d.getFullYear()===year;
+    const k=ymd(d); const n=inYear?(perDay[k]||0):0;
+    const lvl = n===0?0 : n<=1?1 : n<=3?2 : n<=5?3 : 4;
+    cells.push("<div class='cell' title='"+k+"："+n+"件' style='background:var(--g"+lvl+")"+(inYear?"":";opacity:.25")+"'></div>");
+  }
+  $("#heat").innerHTML = cells.join("");
+}
+
+/* ---------- フィルタchip ---------- */
+function renderChips(){
+  const present = Array.from(new Set(ALL.map(e=>e.app)));
+  const appChips = [{k:"all",label:"すべて",em:"🗂️"}].concat(
+    present.map(a=>({k:a,label:(APPS[a]&&APPS[a].label)||a,em:appEmoji(a)})));
+  $("#appChips").innerHTML = appChips.map(c=>
+    "<span class='chip "+(fApp===c.k?"on":"")+"' data-app='"+c.k+"'>"+c.em+" "+esc(c.label)+"</span>").join("");
+  $("#appChips").querySelectorAll(".chip").forEach(ch=>ch.onclick=()=>{ fApp=ch.dataset.app; renderChips(); renderTimeline(); });
+
+  const kinds=[{k:"achieve",label:"実績だけ"},{k:"visit",label:"足跡だけ"},{k:"all",label:"全部"}];
+  $("#kindChips").innerHTML = kinds.map(c=>
+    "<span class='chip "+(fKind===c.k?"on":"")+"' data-kind='"+c.k+"'>"+esc(c.label)+"</span>").join("");
+  $("#kindChips").querySelectorAll(".chip").forEach(ch=>ch.onclick=()=>{ fKind=ch.dataset.kind; renderChips(); renderTimeline(); });
+}
+
+/* ---------- タイムライン ---------- */
+function filtered(){
+  return ALL.filter(e=>{
+    if(fApp!=="all" && e.app!==fApp) return false;
+    if(fKind==="achieve" && e.action==="visit") return false;
+    if(fKind==="visit" && e.action!=="visit") return false;
+    if(fText){ const hay=((e.summary||"")+" "+(e.app_label||"")).toLowerCase(); if(!hay.includes(fText.toLowerCase())) return false; }
+    return true;
+  });
+}
+function renderTimeline(){
+  const items=filtered();
+  const host=$("#timeline");
+  if(!items.length){ host.innerHTML="<div class='empty'>まだ記録がありません。Workツールを使うと自動で貯まります。</div>"; return; }
+  const groups={};
+  items.forEach(e=>{ const k=ymd(dateOf(e)); (groups[k]=groups[k]||[]).push(e); });
+  const keys=Object.keys(groups).sort((a,b)=>b.localeCompare(a));
+  const wd=["日","月","火","水","木","金","土"];
+  host.innerHTML = keys.map(k=>{
+    const d=new Date(k+"T00:00:00");
+    const head=k+"（"+wd[d.getDay()]+"）";
+    const rows=groups[k].map(e=>{
+      const am=ACTION_META[e.action]||ACTION_META.event;
+      const isVisit=e.action==="visit";
+      return "<div class='ev "+(isVisit?"visit":"")+"'>"+
+        "<span class='em'>"+appEmoji(e.app)+"</span>"+
+        "<div class='body'><div class='sum'>"+esc(e.summary||am.label)+"</div>"+
+        "<div class='met'><span class='tag'>"+esc(am.label)+"</span><span>"+esc(e.app_label||e.app)+"</span>"+
+        "<span>"+new Date(dateOf(e)).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})+"</span></div></div>"+
+        "<button class='del' data-id='"+e.id+"' title='削除'>×</button></div>";
+    }).join("");
+    return "<div class='day-group'><div class='day-head'>"+head+"</div>"+rows+"</div>";
+  }).join("");
+  host.querySelectorAll(".del").forEach(b=>b.onclick=async()=>{
+    if(!confirm("この記録を削除しますか？")) return;
+    await Career.remove(b.dataset.id);
+    ALL=ALL.filter(x=>x.id!==b.dataset.id);
+    renderStats(); renderHeat(); renderChips(); renderTimeline();
+    toast("削除しました");
+  });
+}
+
+/* ---------- 検索 ---------- */
+$("#search").addEventListener("input", e=>{ fText=e.target.value.trim(); renderTimeline(); });
+
+/* ---------- 手動追加 ---------- */
+(function initManual(){
+  const sel=$("#m_app");
+  const opts=[{k:"manual",label:"その他 / 全般"}].concat(
+    Object.keys(APPS).map(a=>({k:a,label:APPS[a].emoji+" "+APPS[a].label})));
+  sel.innerHTML=opts.map(o=>"<option value='"+o.k+"'>"+esc(o.label)+"</option>").join("");
+  $("#m_date").value = ymd(new Date());
+  $("#m_add").onclick=()=>{
+    const summary=$("#m_summary").value.trim();
+    if(!summary){ $("#m_summary").focus(); return; }
+    const app=sel.value==="manual"?"manual":sel.value;
+    const dateStr=$("#m_date").value || ymd(new Date());
+    Career.log({app:app, action:"manual", summary:summary, genre:"work", dedupeMs:0, meta:{manual:true}, at:dateStr+"T12:00:00"});
+    $("#m_summary").value="";
+    toast("実績を記録しました ✓");
+    setTimeout(load, 400);
+  };
+})();
+
+/* ---------- エクスポート ---------- */
+let exportText="";
+function showExport(text){
+  exportText=text;
+  const out=$("#out"); out.textContent=text; out.style.display="block";
+  $("#ex_copy").style.display="inline-block"; $("#ex_dl").style.display="inline-block";
+}
+function fmtList(items){
+  return items.slice().sort((a,b)=>dateOf(b)-dateOf(a))
+    .map(e=>"- "+ymd(dateOf(e))+"　"+(e.summary||"")).join("\n");
+}
+$("#ex_md").onclick=()=>{
+  const achieve=ALL.filter(e=>e.action!=="visit");
+  if(!achieve.length){ toast("まだ実績がありません"); return; }
+  const dates=ALL.map(e=>ymd(dateOf(e))).sort();
+  const days=new Set(ALL.map(e=>ymd(dateOf(e))));
+  let md="# こうだいの活動ログ（"+ymd(new Date())+" 時点）\n\n";
+  md+="## サマリー\n";
+  md+="- 記録期間："+(dates[0]||"-")+" 〜 "+(dates[dates.length-1]||"-")+"\n";
+  md+="- 実績の記録："+achieve.length+"件 ／ 活動日数："+days.size+"日\n\n";
+  const byApp={};
+  achieve.forEach(e=>{ (byApp[e.app_label||e.app]=byApp[e.app_label||e.app]||[]).push(e); });
+  Object.keys(byApp).forEach(label=>{
+    md+="## "+label+"（"+byApp[label].length+"件）\n"+fmtList(byApp[label])+"\n\n";
+  });
+  showExport(md.trim());
+};
+$("#ex_star").onclick=()=>{
+  let stories=[];
+  try{ stories=JSON.parse(localStorage.getItem("stars_reflection_v1")||"[]"); }catch(e){}
+  if(!stories.length){ toast("STARS振り返りの記録が この端末に ありません"); return; }
+  let md="# 面接用 STAR 下書き（"+stories.length+"件）\n\n";
+  stories.forEach(s=>{
+    md+="## "+(s.title||"無題")+"\n";
+    if(s.situation) md+="**Situation（状況）**\n"+s.situation+"\n\n";
+    if(s.task)      md+="**Task（課題）**\n"+s.task+"\n\n";
+    if(s.action)    md+="**Action（行動）**\n"+s.action+"\n\n";
+    if(s.result)    md+="**Result（結果）**\n"+s.result+"\n\n";
+    if(s.selfref)   md+="**自己内省**\n"+s.selfref+"\n\n";
+    md+="---\n\n";
+  });
+  showExport(md.trim());
+};
+$("#ex_copy").onclick=async()=>{
+  try{ await navigator.clipboard.writeText(exportText); toast("コピーしました ✓"); }
+  catch(e){ toast("コピーできませんでした"); }
+};
+$("#ex_dl").onclick=()=>{
+  const blob=new Blob([exportText],{type:"text/markdown;charset=utf-8"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="career-log-"+ymd(new Date())+".md"; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+};
+
+/* ---------- 起動 ---------- */
+load();
+</script>
+
+<!-- tsumiki-back-button -->
+<style>
+  #tsumikiBack{
+    position:fixed; top:calc(env(safe-area-inset-top) + 8px); left:12px; z-index:1000;
+    display:none; align-items:center; gap:3px;
+    background:rgba(255,255,255,.82);
+    -webkit-backdrop-filter:saturate(180%) blur(12px); backdrop-filter:saturate(180%) blur(12px);
+    border:1px solid rgba(0,0,0,.08); border-radius:999px;
+    padding:7px 14px 7px 11px; font-size:14px; font-weight:600;
+    color:#0071e3; text-decoration:none; line-height:1;
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Helvetica Neue",Arial,sans-serif;
+    box-shadow:0 4px 14px rgba(0,0,0,.12); -webkit-tap-highlight-color:transparent;
+  }
+  #tsumikiBack:active{transform:scale(.96);}
+</style>
+<a id="tsumikiBack" href="index.html">‹ つみき</a>
+<script>
+  (function(){
+    var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+      || window.navigator.standalone === true;
+    var fromTsumiki = false;
+    try{
+      if(document.referrer){
+        var r = new URL(document.referrer);
+        fromTsumiki = (r.origin === location.origin);
+      }
+    }catch(e){}
+    if(standalone && fromTsumiki){
+      var b = document.getElementById('tsumikiBack');
+      if(b) b.style.display = 'inline-flex';
+    }
+  })();
+</script>
+<!-- /tsumiki-back-button -->
+</body>
+</html>

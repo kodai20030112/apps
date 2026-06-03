@@ -181,6 +181,7 @@
     padding:10px 18px;border-radius:999px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;z-index:99}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
+<script src="career.js"></script>
 </head>
 <body>
 <header class="app">
@@ -442,7 +443,9 @@ function renderEditor(){
   function persist(rec){
     const idx=m.sessions.findIndex(x=>x.id===rec.id);
     if(idx>=0)m.sessions[idx]=rec;else m.sessions.push(rec);
-    m.updatedAt=Date.now();save();return rec;
+    m.updatedAt=Date.now();save();
+    if(window.Career)Career.log({action:"5whys",summary:"5Whysで深掘り："+((rec.problem||m.name||"課題").slice(0,40))});
+    return rec;
   }
 
   // SMART entry state

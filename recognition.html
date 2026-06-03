@@ -148,6 +148,7 @@
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>
+<script src="career.js"></script>
 </head>
 <body>
 <header class="app">
@@ -552,6 +553,7 @@ function saveReco() {
     r.jp = composeState.jp.trim(); r.en = composeState.en.trim();
   } else {
     m.recognitions.push({ id: uid(), jp: composeState.jp.trim(), en: composeState.en.trim(), date: composeState.date });
+    if (window.Career) Career.log({ action: "recognition", summary: "称賛を記録：" + (m.name || "メンバー") + "さんへ" });
   }
   save();
   toast("記録に保存しました ✓");

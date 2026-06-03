@@ -255,6 +255,7 @@
   .imgwrap { max-height: 56vh; overflow: auto; border-radius: 14px; border: 1px solid var(--line); background: #f5f5f7; -webkit-overflow-scrolling: touch; }
   .imgwrap img { width: 100%; display: block; }
 </style>
+<script src="career.js"></script>
 </head>
 <body>
 
@@ -800,6 +801,7 @@ function saveDraft(){
   const clean = {...draft}; delete clean.isNew;
   if (idx>=0) stories[idx] = clean; else stories.unshift(clean);
   saveStories(stories);
+  if (window.Career) Career.log({ action: "reflection", summary: (idx>=0 ? "STAR経験を更新：" : "STAR経験を記録：") + (draft.title || "無題") });
   toast("保存しました ✓");
   renderHome();
   openDetail(draft.id);

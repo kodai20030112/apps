@@ -96,6 +96,7 @@
   footer{text-align:center; color:var(--sub); font-size:12px; margin-top:34px; line-height:1.8;}
   .loading{text-align:center; color:var(--sub); font-size:14px; padding:40px 0;}
 </style>
+<script src="career.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -311,6 +312,7 @@ btnSave.addEventListener("click", () => {
     who, when: fWhen.value || new Date().toISOString().slice(0,10)
   });
   saveRecords(recs);
+  if(window.Career)Career.log({action:"share",summary:"おすそわけ："+app.title+" を "+who+"さんへ"});
   closeSheet();
   render();
 });

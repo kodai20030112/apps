@@ -101,6 +101,7 @@
   footer{text-align:center; color:var(--sub); font-size:12px; margin-top:30px; line-height:1.8;}
   .hidden{display:none;}
 </style>
+<script src="career.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -511,6 +512,7 @@
     const name = $("calname").value.trim() || "スケジュール";
     const ics = buildICS(parsed.events, name);
     download(name.replace(/[\/\\:*?"<>|]/g,"_")+".ics", ics, "text/calendar;charset=utf-8");
+    if(window.Career)Career.log({action:"convert",summary:"予定をカレンダー化："+name+"（"+(parsed.events?parsed.events.length:0)+"件）"});
     $("afterHint").style.display = "block";
   });
 })();

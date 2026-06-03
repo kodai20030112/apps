@@ -5,6 +5,9 @@ git add -A
 git commit -m "更新 $(date '+%Y-%m-%d %H:%M')" || { echo "変更がありません（公開済み）"; sleep 3; exit 0; }
 git push
 echo ""
+echo "📝 iPhoneのメモを更新中…"
+python3 notes_sync.py || echo "（メモ更新はスキップしました）"
+echo ""
 echo "✅ 公開しました！1〜2分後に反映されます。"
 echo "→ https://tsumiki-apps.github.io/apps/"
 echo ""

@@ -133,6 +133,7 @@
   .img-acts .ig { background: #f0f0f3; color: var(--text); }
   .img-acts .ip { background: var(--blue); color: #fff; }
 </style>
+<script src="career.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -395,6 +396,7 @@
     return out;
   }
   function exportImage() {
+    if(window.Career)Career.log({action:"calc",summary:"NPS目標を試算・出力",dedupeMs:300000});
     var c = state.counts;
     var promoters = c[5] || 0, neutral = c[4] || 0, detr = c.det || 0;
     var total = promoters + neutral + detr, net = promoters - detr;
