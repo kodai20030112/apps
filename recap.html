@@ -183,6 +183,12 @@
       </div>
     </div>
     <div class="row" style="margin-bottom:16px;">
+      <div class="field">
+        <label>自分のゴール（次のポジションなど）</label>
+        <input id="myGoal" type="text" placeholder="例: 次はSpecialist / Geniusを目指す">
+      </div>
+    </div>
+    <div class="row" style="margin-bottom:16px;">
       <div class="field"><label>FY（4桁）</label><input id="fy" type="number" inputmode="numeric" placeholder="2026"></div>
       <div class="field sm"><label>Q</label><input id="q" type="number" inputmode="numeric" min="1" max="4" placeholder="3"></div>
       <div class="field">
@@ -235,6 +241,7 @@
 
   <div class="actions">
     <button class="btn-save" id="saveImgBtn">🖼 1ページ目を16:9画像で保存</button>
+    <button class="btn-save" id="savePdfBtn" style="background:#34c759;margin-left:8px;">📄 全ページをPDFで保存</button>
     <button class="btn-reset" id="resetWeek">この週の入力をリセット</button>
   </div>
   </div><!-- /page1 -->
@@ -273,6 +280,7 @@
 
     <div class="actions">
       <button class="btn-save" id="saveImgBtn2">🖼 2ページ目を16:9画像で保存</button>
+      <button class="btn-save" id="savePdfBtn2" style="background:#34c759;margin-left:8px;">📄 全ページをPDFで保存</button>
     </div>
   </div><!-- /page2 -->
 </div>
@@ -309,7 +317,7 @@
   function emptyAction(){ return { name:"", collaborators:[], ja:"", en:"", photos:[] }; }
 
   var state = {
-    name:"Kodai Takahashi", cm:"", fy:"", q:"", w:1,
+    name:"Kodai Takahashi", cm:"", myGoal:"", fy:"", q:"", w:1,
     metric:"main",
     data:{}   // data[fyqKey][week] = snapshot
   };
@@ -338,7 +346,7 @@
       var raw = localStorage.getItem(STORAGE_KEY);
       if(raw){
         var s = JSON.parse(raw);
-        ["name","cm","fy","q","metric"].forEach(function(k){ if(typeof s[k]==="string") state[k]=s[k]; });
+        ["name","cm","myGoal","fy","q","metric"].forEach(function(k){ if(typeof s[k]==="string") state[k]=s[k]; });
         if(typeof s.w==="number") state.w=s.w;
         if(s.data && typeof s.data==="object") state.data=s.data;
       }
@@ -347,8 +355,9 @@
   function save(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){} }
 
   var el = {
-    name:gid("name"), cm:gid("cm"), fy:gid("fy"), q:gid("q"), week:gid("week"),
+    name:gid("name"), cm:gid("cm"), myGoal:gid("myGoal"), fy:gid("fy"), q:gid("q"), week:gid("week"),
     titlePreview:gid("titlePreview"), copyPrev:gid("copyPrev"),
+    savePdfBtn:gid("savePdfBtn"), savePdfBtn2:gid("savePdfBtn2"),
     kpiList:gid("kpiList"), npsTallies:gid("npsTallies"), goal:gid("goal"),
     npsTotal:gid("npsTotal"), npsCount:gid("npsCount"), npsGoalView:gid("npsGoalView"), npsNeed:gid("npsNeed"),
     metricChips:gid("metricChips"), liveChart:gid("liveChart"),
@@ -786,6 +795,9 @@
   function bind(){
     el.name.addEventListener("input",function(){ state.name=el.name.value; save(); });
     el.cm.addEventListener("input",function(){ state.cm=el.cm.value; save(); });
+    el.myGoal.addEventListener("input",function(){ state.myGoal=el.myGoal.value; save(); });
+    el.savePdfBtn.addEventListener("click",exportPDF);
+    el.savePdfBtn2.addEventListener("click",exportPDF);
     el.fy.addEventListener("input",function(){ state.fy=el.fy.value; renderTitle(); renderAll(); save(); });
     el.q.addEventListener("input",function(){ state.q=el.q.value; loadWeekIntoInputs(); renderAll(); save(); });
     el.week.addEventListener("change",function(){ state.w=parseInt(el.week.value,10)||1; loadWeekIntoInputs(); renderAll(); save(); });
@@ -819,7 +831,72 @@
 
   /* ---------- 16:9 画像書き出し ---------- */
   function imgFont(w,s){ return w+" "+s+'px -apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif'; }
+
+  /* ---------- 共通: ファイル名・枚数・PDF ---------- */
+  function firstName(){ var n=(state.name||"Kodai").trim().split(/\s+/)[0]; return n||"Kodai"; }
+  function pad3(n){ return String(n).padStart(3,"0"); }
+  function sheetBaseName(){ return "WeeklyRecap_"+firstName(); }      // 例: WeeklyRecap_Kodai
+  function imgFileName(sheetNo){ return sheetBaseName()+pad3(sheetNo)+".png"; }  // 例: WeeklyRecap_Kodai001.png
+  function pdfFileName(){ return "FY"+(state.fy||"")+"Q"+(state.q||"")+"W"+state.w+"WeeklyRecap_"+firstName()+".pdf"; }
+  // 1行に収まらない場合は末尾を「…」で省略
+  function ellipsize(ctx, text, maxW){
+    text=String(text==null?"":text);
+    if(ctx.measureText(text).width<=maxW) return text;
+    var e="…"; while(text.length>0 && ctx.measureText(text+e).width>maxW){ text=text.slice(0,-1); }
+    return text+e;
+  }
+  // 2ページ目の自動ページ割り当て（描画と枚数計算で共用）
+  function planP2Pages(arr){
+    var W=1920,H=1080,PAD=64,colGap=40,leftW=620,rightX=PAD+leftW+colGap,rightW=W-PAD-rightX;
+    var contColW=W-PAD*2, contX=PAD;
+    var bodyY=PAD+150, actionsTop=bodyY+44, availBottom=H-PAD;
+    var mctx=document.createElement("canvas").getContext("2d");
+    var pages=[{items:[], colW:rightW, colX:rightX, isFirst:true}];
+    var pi=0, y=actionsTop;
+    for(var i=0;i<arr.length;i++){
+      var colW=pages[pi].colW;
+      var L=buildActionLayout(mctx, arr[i], colW);
+      if(y+L.cardH>availBottom && pages[pi].items.length>0){
+        pi++; pages.push({items:[], colW:contColW, colX:contX, isFirst:false});
+        colW=contColW; L=buildActionLayout(mctx, arr[i], colW); y=actionsTop;
+      }
+      pages[pi].items.push({a:arr[i], L:L, y:y});
+      y+=L.cardH+14;
+    }
+    return pages;
+  }
+  // Recap全体の総枚数（1ページ目=1枚 ＋ 2ページ目の分割枚数）
+  function totalSheets(){ return 1 + planP2Pages(cur().actions).length; }
+
+  // jsPDF を必要時だけCDNから読み込む
+  var _jspdfP=null;
+  function loadJsPDF(){
+    if(window.jspdf && window.jspdf.jsPDF) return Promise.resolve();
+    if(_jspdfP) return _jspdfP;
+    _jspdfP=new Promise(function(res,rej){
+      var s=document.createElement("script");
+      s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+      s.onload=function(){ res(); };
+      s.onerror=function(){ _jspdfP=null; rej(); };
+      document.head.appendChild(s);
+    });
+    return _jspdfP;
+  }
+  function sharePdf(blob, fname){
+    try{
+      var file=new File([blob],fname,{type:"application/pdf"});
+      if(navigator.canShare && navigator.canShare({files:[file]})){ navigator.share({files:[file],title:"Weekly Recap"}); return; }
+    }catch(e){}
+    var u=URL.createObjectURL(blob); var a=document.createElement("a"); a.href=u; a.download=fname;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){URL.revokeObjectURL(u);},1000);
+  }
+
   function exportImage(){
+    var cv=renderP1Canvas();
+    cv.toBlob(function(b){ if(!b)return; showImageSheet(URL.createObjectURL(b), b, imgFileName(1), "1ページ目（16:9） ・ "+pad3(1)+"/"+pad3(totalSheets())+"枚"); }, "image/png");
+  }
+  // 1ページ目（Personal）を描いた canvas を返す
+  function renderP1Canvas(){
     var scale=2, W=1920, H=1080;
     var cv=document.createElement("canvas"); cv.width=W*scale; cv.height=H*scale;
     var ctx=cv.getContext("2d"); ctx.scale(scale,scale); ctx.textBaseline="top";
@@ -835,6 +912,11 @@
     ctx.fillText("FY"+(state.fy||"–")+"Q"+(state.q||"–")+"W"+state.w+" Recap", PAD, PAD+52);
     ctx.fillStyle="#6e6e73"; ctx.font=imgFont("500",22);
     ctx.fillText("Connection Manager: "+(state.cm||"—"), PAD, PAD+92);
+    // 自分のゴール（入力時のみ・ヘッダー下に常時表示）
+    if((state.myGoal||"").trim()){
+      ctx.fillStyle="#0058b0"; ctx.font=imgFont("700",20);
+      ctx.fillText(ellipsize(ctx, "🎯 ゴール: "+state.myGoal.trim(), W-PAD*2), PAD, PAD+122);
+    }
     // date chip
     var dt=new Date(); var dtxt=dt.getFullYear()+"/"+(dt.getMonth()+1)+"/"+dt.getDate();
     ctx.font=imgFont("700",20); var dw=ctx.measureText(dtxt).width;
@@ -942,13 +1024,10 @@
     ctx.fillText("NPS総計", rightX+innerPad+4, npsY);
     drawChart(ctx, rightX+innerPad, npsY+20, rightW-innerPad*2, npsAreaH-20, "nps", {compact:true});
 
-    // footer
+    // footer（FY…W… ＋ 何枚目か通し番号を明示）
     ctx.fillStyle="#9a9aa0"; ctx.font=imgFont("500",16); ctx.textAlign="left";
-    ctx.fillText("Weekly Recap ・ Page 1 Personal ・ "+dtxt, PAD, H-PAD+18);
-
-    var ymd=dt.getFullYear()+String(dt.getMonth()+1).padStart(2,"0")+String(dt.getDate()).padStart(2,"0");
-    var fname="Recap_P1_FY"+(state.fy||"")+"Q"+(state.q||"")+"W"+state.w+"_"+ymd+".png";
-    cv.toBlob(function(b){ if(!b)return; showImageSheet(URL.createObjectURL(b), b, fname, "1ページ目（16:9）"); }, "image/png");
+    ctx.fillText("Weekly Recap ・ 1ページ目 Personal ・ "+pad3(1)+" / "+pad3(totalSheets())+" 枚 ・ FY"+(state.fy||"–")+"Q"+(state.q||"–")+"W"+state.w+" ・ "+dtxt, PAD, H-PAD+18);
+    return cv;
   }
 
   /* ---------- 2ページ目（Store）16:9 画像書き出し ---------- */
@@ -974,7 +1053,11 @@
     ctx.fillText("FY"+(state.fy||"–")+"Q"+(state.q||"–")+"W"+state.w+" Recap", PAD, PAD+52);
     ctx.fillStyle="#6e6e73"; ctx.font=imgFont("500",22);
     ctx.fillText("Connection Manager: "+(state.cm||"—"), PAD, PAD+92);
-    ctx.font=imgFont("700",20); var dw=ctx.measureText(dtxt).width;
+    if((state.myGoal||"").trim()){
+      ctx.fillStyle="#0058b0"; ctx.font=imgFont("700",20);
+      ctx.fillText(ellipsize(ctx, "🎯 ゴール: "+state.myGoal.trim(), W-PAD*2), PAD, PAD+122);
+    }
+    ctx.fillStyle="#6e6e73"; ctx.font=imgFont("700",20); var dw=ctx.measureText(dtxt).width;
     ctx.fillStyle="#e8f1fd"; rr(W-PAD-dw-28, PAD+4, dw+28, 34, 17); ctx.fill();
     ctx.fillStyle="#0071e3"; ctx.textAlign="center"; ctx.fillText(dtxt, W-PAD-dw/2-14, PAD+11); ctx.textAlign="left";
   }
@@ -1073,55 +1156,82 @@
     }); });
     Promise.all(loads).then(function(){ drawPage2(arr, imgMap); });
   }
-  function drawPage2(arr, imgMap){
+  // 2ページ目の1枚を描いた canvas を返す（画像保存・PDF共用）
+  // idx:このページの0始まり番号 / totalPages:2ページ目の総枚数 / dtxt:日付
+  function renderP2Canvas(pg, idx, totalPages, dtxt, imgMap){
     var W=1920, H=1080, PAD=64;
-    var dt=new Date(); var dtxt=dt.getFullYear()+"/"+(dt.getMonth()+1)+"/"+dt.getDate();
-    var ymd=dt.getFullYear()+String(dt.getMonth()+1).padStart(2,"0")+String(dt.getDate()).padStart(2,"0");
     var bodyY=PAD+150;
     var colGap=40, leftW=620, rightX=PAD+leftW+colGap, rightW=W-PAD-rightX;
     var contColW=W-PAD*2, contX=PAD;
-    var actionsTop=bodyY+44, availBottom=H-PAD;
-
-    // ---- ページ割り当て（各アクションは丸ごと1ページに収める＝途中で切らない）----
-    var mctx=document.createElement("canvas").getContext("2d");
-    var pages=[{items:[], colW:rightW, colX:rightX, isFirst:true}];
-    var pi=0, y=actionsTop;
-    for(var i=0;i<arr.length;i++){
-      var colW=pages[pi].colW;
-      var L=buildActionLayout(mctx, arr[i], colW);
-      if(y+L.cardH>availBottom && pages[pi].items.length>0){
-        pi++; pages.push({items:[], colW:contColW, colX:contX, isFirst:false});
-        colW=contColW; L=buildActionLayout(mctx, arr[i], colW); y=actionsTop;
-      }
-      pages[pi].items.push({a:arr[i], L:L, y:y});
-      y+=L.cardH+14;
+    var actionsTop=bodyY+44;
+    var scale=2;
+    var cv=document.createElement("canvas"); cv.width=W*scale; cv.height=H*scale;
+    var ctx=cv.getContext("2d"); ctx.scale(scale,scale); ctx.textBaseline="top";
+    function rr(x,yy,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,yy); ctx.arcTo(x+w,yy,x+w,yy+h,r); ctx.arcTo(x+w,yy+h,x,yy+h,r); ctx.arcTo(x,yy+h,x,yy,r); ctx.arcTo(x,yy,x+w,yy,r); ctx.closePath(); }
+    function photo(im,x,yy,w,h,r){ ctx.save(); rr(x,yy,w,h,r); ctx.clip(); if(im){ var sc=Math.max(w/im.width,h/im.height); var dw2=im.width*sc, dh2=im.height*sc; ctx.drawImage(im, x+(w-dw2)/2, yy+(h-dh2)/2, dw2, dh2); } else { ctx.fillStyle="#eee"; ctx.fillRect(x,yy,w,h); } ctx.restore(); }
+    ctx.fillStyle="#f5f5f7"; ctx.fillRect(0,0,W,H);
+    drawHeader2(ctx, rr, W, PAD, dtxt);
+    if(pg.isFirst){
+      drawStoreLeft(ctx, rr, PAD, leftW, bodyY, H);
+      ctx.fillStyle="#1d1d1f"; ctx.font=imgFont("700",26); ctx.textAlign="left"; ctx.fillText("Personal Action", rightX, bodyY);
+      if(pg.items.length===0){ ctx.fillStyle="#fff"; rr(rightX, actionsTop, rightW, 80, 16); ctx.fill(); ctx.fillStyle="#9a9aa0"; ctx.font=imgFont("500",18); ctx.fillText("アクションが未登録です", rightX+24, actionsTop+30); }
+    } else {
+      ctx.fillStyle="#1d1d1f"; ctx.font=imgFont("700",26); ctx.textAlign="left"; ctx.fillText("Personal Action（続き）", contX, bodyY);
     }
+    pg.items.forEach(function(it){ drawActionCard(ctx, rr, photo, imgMap, it.a, it.L, pg.colX, it.y, pg.colW); });
+    // footer（全体での通し番号：1ページ目=1枚なので 2枚目以降がここ）
+    var grandTotal = 1 + totalPages, sheetNo = 2 + idx;
+    var lbl = totalPages>1 ? ("2ページ目 Store（"+(idx+1)+"/"+totalPages+"）") : "2ページ目 Store";
+    ctx.fillStyle="#9a9aa0"; ctx.font=imgFont("500",16); ctx.textAlign="left";
+    ctx.fillText("Weekly Recap ・ "+lbl+" ・ "+pad3(sheetNo)+" / "+pad3(grandTotal)+" 枚 ・ FY"+(state.fy||"–")+"Q"+(state.q||"–")+"W"+state.w+" ・ "+dtxt, PAD, H-PAD+18);
+    return cv;
+  }
+  function drawPage2(arr, imgMap){
+    var dt=new Date(); var dtxt=dt.getFullYear()+"/"+(dt.getMonth()+1)+"/"+dt.getDate();
+    var pages=planP2Pages(arr);
     var totalPages=pages.length;
-
     var results=new Array(totalPages), done=0;
     pages.forEach(function(pg, idx){
-      var scale=2;
-      var cv=document.createElement("canvas"); cv.width=W*scale; cv.height=H*scale;
-      var ctx=cv.getContext("2d"); ctx.scale(scale,scale); ctx.textBaseline="top";
-      function rr(x,yy,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,yy); ctx.arcTo(x+w,yy,x+w,yy+h,r); ctx.arcTo(x+w,yy+h,x,yy+h,r); ctx.arcTo(x,yy+h,x,yy,r); ctx.arcTo(x,yy,x+w,yy,r); ctx.closePath(); }
-      function photo(im,x,yy,w,h,r){ ctx.save(); rr(x,yy,w,h,r); ctx.clip(); if(im){ var sc=Math.max(w/im.width,h/im.height); var dw2=im.width*sc, dh2=im.height*sc; ctx.drawImage(im, x+(w-dw2)/2, yy+(h-dh2)/2, dw2, dh2); } else { ctx.fillStyle="#eee"; ctx.fillRect(x,yy,w,h); } ctx.restore(); }
-      ctx.fillStyle="#f5f5f7"; ctx.fillRect(0,0,W,H);
-      drawHeader2(ctx, rr, W, PAD, dtxt);
-      if(pg.isFirst){
-        drawStoreLeft(ctx, rr, PAD, leftW, bodyY, H);
-        ctx.fillStyle="#1d1d1f"; ctx.font=imgFont("700",26); ctx.textAlign="left"; ctx.fillText("Personal Action", rightX, bodyY);
-        if(arr.length===0){ ctx.fillStyle="#fff"; rr(rightX, actionsTop, rightW, 80, 16); ctx.fill(); ctx.fillStyle="#9a9aa0"; ctx.font=imgFont("500",18); ctx.fillText("アクションが未登録です", rightX+24, actionsTop+30); }
-      } else {
-        ctx.fillStyle="#1d1d1f"; ctx.font=imgFont("700",26); ctx.textAlign="left"; ctx.fillText("Personal Action（続き）", contX, bodyY);
-      }
-      pg.items.forEach(function(it){ drawActionCard(ctx, rr, photo, imgMap, it.a, it.L, pg.colX, it.y, pg.colW); });
-      // footer
-      ctx.fillStyle="#9a9aa0"; ctx.font=imgFont("500",16); ctx.textAlign="left";
-      var lbl = totalPages>1 ? ("Page 2 Store ("+(idx+1)+"/"+totalPages+")") : "Page 2 Store";
-      ctx.fillText("Weekly Recap ・ "+lbl+" ・ "+dtxt, PAD, H-PAD+18);
-      var fname="Recap_P2_FY"+(state.fy||"")+"Q"+(state.q||"")+"W"+state.w+(totalPages>1?("_"+(idx+1)+"of"+totalPages):"")+"_"+ymd+".png";
+      var cv=renderP2Canvas(pg, idx, totalPages, dtxt, imgMap);
+      var fname=imgFileName(2+idx);   // 全ページ通し番号（1ページ目=001、ここは002〜）
       cv.toBlob(function(b){ if(!b){ done++; return; } results[idx]={url:URL.createObjectURL(b), blob:b, fname:fname}; done++; if(done===totalPages){ showImageSheetMulti(results.filter(Boolean), "2ページ目（16:9）"); } }, "image/png");
     });
+  }
+
+  /* ---------- 全ページを1つのPDFで書き出し ---------- */
+  function exportPDF(){
+    var arr=cur().actions;
+    var loads=[], imgMap={};
+    arr.forEach(function(a){ a.photos.forEach(function(src){
+      loads.push(new Promise(function(res){ var im=new Image(); im.onload=function(){ imgMap[src]=im; res(); }; im.onerror=function(){ res(); }; im.src=src; }));
+    }); });
+    setPdfBtnBusy(true);
+    Promise.all(loads)
+      .then(function(){ return loadJsPDF(); })
+      .then(function(){ buildPDF(arr, imgMap); })
+      .catch(function(){ alert("PDF生成に必要なライブラリの読み込みに失敗しました。ネットワーク接続をご確認のうえ再度お試しください。"); })
+      .then(function(){ setPdfBtnBusy(false); });
+  }
+  function setPdfBtnBusy(busy){
+    [el.savePdfBtn, el.savePdfBtn2].forEach(function(b){
+      if(!b) return;
+      if(busy){ b.dataset.label=b.textContent; b.textContent="📄 PDF生成中…"; b.disabled=true; }
+      else if(b.dataset.label){ b.textContent=b.dataset.label; b.disabled=false; }
+    });
+  }
+  function buildPDF(arr, imgMap){
+    var dt=new Date(); var dtxt=dt.getFullYear()+"/"+(dt.getMonth()+1)+"/"+dt.getDate();
+    var p2pages=planP2Pages(arr), totalP2=p2pages.length;
+    var W=1920, H=1080;
+    // 1ページ目 ＋ 2ページ目（分割分）を順に描画
+    var canvases=[renderP1Canvas()];
+    p2pages.forEach(function(pg, idx){ canvases.push(renderP2Canvas(pg, idx, totalP2, dtxt, imgMap)); });
+    var doc=new jspdf.jsPDF({orientation:"landscape", unit:"px", format:[W,H], compress:true});
+    canvases.forEach(function(cv, i){
+      if(i>0) doc.addPage([W,H], "landscape");
+      doc.addImage(cv.toDataURL("image/jpeg",0.92), "JPEG", 0, 0, W, H);
+    });
+    sharePdf(doc.output("blob"), pdfFileName());
   }
   function showImageSheet(url,blob,fname,title){
     title=title||"画像（16:9）";
@@ -1174,7 +1284,7 @@
   /* ---------- init ---------- */
   load();
   buildWeekOptions(); buildKpi(); buildNps(); buildStoreNps(); buildChips();
-  el.name.value=state.name; el.cm.value=state.cm; el.fy.value=state.fy; el.q.value=state.q;
+  el.name.value=state.name; el.cm.value=state.cm; el.myGoal.value=state.myGoal; el.fy.value=state.fy; el.q.value=state.q;
   el.week.value=state.w;
   loadWeekIntoInputs();
   renderAll();
