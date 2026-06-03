@@ -162,12 +162,27 @@
     /* 画像プレビューシートを全画面寄りに */
     .img-sheet{max-height:94vh;}
   }
+
+  /* メール下書き（AI生成） */
+  .mail-bar{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .seg{display:inline-flex; border:1px solid var(--line); border-radius:10px; overflow:hidden;}
+  .seg-btn{background:#fff; border:none; padding:9px 16px; font-family:inherit; font-size:14px; color:var(--sub); cursor:pointer;}
+  .seg-btn + .seg-btn{border-left:1px solid var(--line);}
+  .seg-btn.active{background:#0071e3; color:#fff; font-weight:700;}
+  #mailOut{width:100%; box-sizing:border-box; margin-top:12px; padding:14px; border:1px solid var(--line);
+    border-radius:12px; font-family:inherit; font-size:14px; line-height:1.7; color:var(--text); background:#fff; resize:vertical;}
+  #mailOut:focus{outline:none; border-color:#0071e3;}
+  .mail-status{font-size:12px; color:var(--sub); align-self:center;}
+  .mail-status.err{color:#ff3b30;}
+  .mail-status.ok{color:#34c759;}
 </style>
+<script src="career.js"></script>
 </head>
 <body>
 <div class="wrap">
   <h1>Weekly Recap</h1>
   <p class="tagline">週次リキャップ作成 — Personal & Store（各ページ16:9画像で保存）</p>
+  <p style="font-size:12px;color:var(--sub);margin:-4px 0 8px;">☁️ <span id="syncStatus">…</span></p>
 
   <!-- ヘッダー情報 -->
   <div class="card">
@@ -278,6 +293,25 @@
       <button class="btn-ghost" id="addAction" type="button" style="margin-top:6px;">＋ アクションを追加</button>
     </div>
 
+    <!-- Leaders へのメール下書き（AI生成） -->
+    <div class="card" id="emailCard">
+      <h2>Leaders へのメール下書き ✨</h2>
+      <p style="font-size:12px;color:var(--sub);margin:0 0 12px;">今週のRecapの数値から、Leaders宛ての共有メールをAIが下書きします。生成後に自由に編集できます。</p>
+      <div class="mail-bar">
+        <div class="seg" id="mailLang">
+          <button type="button" class="seg-btn active" data-lang="ja">日本語</button>
+          <button type="button" class="seg-btn" data-lang="en">English</button>
+        </div>
+        <button class="btn-save" id="genMailBtn" style="background:#0071e3;">✨ AIで生成</button>
+      </div>
+      <textarea id="mailOut" rows="14" placeholder="「✨ AIで生成」を押すと、今週のRecapデータからLeaders宛てメールの下書きを作成します。"></textarea>
+      <div class="mail-bar" style="margin-top:10px;">
+        <button class="btn-ghost" id="copyMailBtn" type="button">📋 コピー</button>
+        <button class="btn-ghost" id="openMailBtn" type="button">✉️ メールアプリで開く</button>
+        <span id="mailStatus" class="mail-status"></span>
+      </div>
+    </div>
+
     <div class="actions">
       <button class="btn-save" id="saveImgBtn2">🖼 2ページ目を16:9画像で保存</button>
       <button class="btn-save" id="savePdfBtn2" style="background:#34c759;margin-left:8px;">📄 全ページをPDFで保存</button>
@@ -285,10 +319,99 @@
   </div><!-- /page2 -->
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (function(){
   "use strict";
   var STORAGE_KEY = "recap-v1";
+
+  /* ============ Supabase クラウド同期（ゆずごはん日記と同じプロジェクト） ============ */
+  var SUPABASE_URL  = 'https://okbjqtdirrathscctyvx.supabase.co';
+  var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rYmpxdGRpcnJhdGhzY2N0eXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMjI4NTIsImV4cCI6MjA5NTg5ODg1Mn0.T-1AOK6vCD6uGdqrVGXjPui3L6WPSNrnygS-IHyfZ6Y';
+  var PHOTO_BUCKET  = 'photos';
+  var ROW_ID        = 'kodai';          // 完全に個人用なので固定の1行に丸ごと保存
+  var sb = null;
+  try{ if(window.supabase) sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, { auth:{ persistSession:false } }); }catch(e){}
+
+  var dirty = false;        // ローカルに未同期の変更があるか
+  var pushTimer = null;     // デバウンス用
+  var pushing = false;      // 多重送信防止
+
+  function setSync(txt){ var e=gid("syncStatus"); if(e) e.textContent = txt; }
+
+  // state内のすべての data: 画像を photos バケットへ上げてURLに置換（クラウドJSONを軽く保つ）
+  async function uploadStatePhotos(){
+    if(!sb) return;
+    var qs = state.data || {};
+    for(var qk in qs){ var wk = qs[qk];
+      for(var w in wk){ var s = wk[w]; if(!s || !Array.isArray(s.actions)) continue;
+        for(var ai=0; ai<s.actions.length; ai++){ var a=s.actions[ai];
+          if(!Array.isArray(a.photos)) continue;
+          for(var pi=0; pi<a.photos.length; pi++){ var p=a.photos[pi];
+            if(typeof p==="string" && p.indexOf("data:")===0){
+              try{
+                var blob = await (await fetch(p)).blob();
+                var path = Date.now()+"-"+Math.random().toString(36).slice(2)+".jpg";
+                var up = await sb.storage.from(PHOTO_BUCKET).upload(path, blob, {contentType:"image/jpeg", upsert:false});
+                if(up.error){ console.error(up.error); continue; }
+                a.photos[pi] = sb.storage.from(PHOTO_BUCKET).getPublicUrl(path).data.publicUrl;
+              }catch(e){ console.error("photo upload fail", e); }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // クラウドへ丸ごと保存（写真アップ→localStorage更新→upsert）
+  async function pushCloud(){
+    if(!sb || pushing) return;
+    pushing = true; setSync("同期中…");
+    try{
+      await uploadStatePhotos();
+      saveLocal();   // 画像URL化をローカルにも反映
+      var res = await sb.from("recap_state").upsert({ id:ROW_ID, state:state, updated_at:new Date().toISOString() });
+      if(res.error){ console.error(res.error); setSync("⚠ 同期失敗"); }
+      else { dirty=false; setSync("✓ 同期済み"); }
+    }catch(e){ console.error(e); setSync("⚠ 同期失敗"); }
+    finally{ pushing=false; }
+  }
+  function scheduleCloud(){
+    if(!sb) return;
+    dirty = true; setSync("…");
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(pushCloud, 1200);
+  }
+
+  // クラウドから取り直してUIへ反映
+  async function pullCloud(){
+    if(!sb) return false;
+    var res;
+    try{ res = await sb.from("recap_state").select("state").eq("id", ROW_ID).maybeSingle(); }
+    catch(e){ console.error(e); return false; }
+    if(res.error){ console.error(res.error); return false; }
+    if(res.data && res.data.state && typeof res.data.state==="object"){
+      var s = res.data.state;
+      ["name","cm","myGoal","fy","q","metric"].forEach(function(k){ if(typeof s[k]==="string") state[k]=s[k]; });
+      if(typeof s.w==="number") state.w=s.w;
+      if(s.data && typeof s.data==="object") state.data=s.data;
+      saveLocal();          // ローカルキャッシュも更新
+      return true;
+    }
+    return false;
+  }
+
+  // 起動時：クラウド優先。空ならローカルから初回引っ越し。
+  async function bootstrapCloud(){
+    if(!sb){ setSync("オフライン（この端末のみ）"); return; }
+    setSync("読込中…");
+    var has = await pullCloud();
+    if(has){ refreshUI(); setSync("✓ 同期済み"); return; }
+    // クラウドが空 → ローカルに何かあればアップして移行
+    var hasLocal = state.data && Object.keys(state.data).length>0;
+    if(hasLocal){ setSync("初回アップロード中…"); await pushCloud(); }
+    else { setSync("✓ 同期済み"); }
+  }
 
   var KPIS = [
     {key:"main", name:"主力製品の合計台数", unit:""},
@@ -352,7 +475,8 @@
       }
     }catch(e){}
   }
-  function save(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){} }
+  function saveLocal(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){} }
+  function save(){ saveLocal(); scheduleCloud(); }
 
   var el = {
     name:gid("name"), cm:gid("cm"), myGoal:gid("myGoal"), fy:gid("fy"), q:gid("q"), week:gid("week"),
@@ -367,7 +491,10 @@
     storeNpsTotal:gid("storeNpsTotal"), storeNpsCount:gid("storeNpsCount"),
     storeNpsGoalView:gid("storeNpsGoalView"), storeNpsNeed:gid("storeNpsNeed"),
     actionList:gid("actionList"), addAction:gid("addAction"), saveImgBtn2:gid("saveImgBtn2"),
-    storeChart:gid("storeChart")
+    storeChart:gid("storeChart"),
+    // メール下書き（AI生成）
+    mailLang:gid("mailLang"), genMailBtn:gid("genMailBtn"), mailOut:gid("mailOut"),
+    copyMailBtn:gid("copyMailBtn"), openMailBtn:gid("openMailBtn"), mailStatus:gid("mailStatus")
   };
   function gid(id){ return document.getElementById(id); }
 
@@ -809,6 +936,100 @@
     el.addAction.addEventListener("click",addAction);
     el.saveImgBtn2.addEventListener("click",exportImage2);
     document.querySelectorAll(".tab").forEach(function(t){ t.addEventListener("click",function(){ switchPage(t.dataset.page); }); });
+    bindMail();
+  }
+
+  /* ---------- Leaders へのメール下書き（AI生成） ---------- */
+  // Supabase Edge Function（Geminiキーをサーバー側に隠す）のエンドポイント
+  var MAIL_FN_URL = SUPABASE_URL + "/functions/v1/generate-recap-email";
+  var mailLang = "ja";
+
+  function npsForMail(s, isStore){
+    var src = isStore ? s.storeNps : s.nps;
+    var p=src.promoter||0, pa=src.passive||0, d=src.detractor||0;
+    var total=p+pa+d, net=p-d;
+    if(total===0) return { current:null, goal:clamp(num(src.goal)||0,-100,100), total:0, achieved:false, need:null };
+    var nps = Math.round(((net*100)/total)*10)/10;
+    var G = clamp(num(src.goal)||0,-100,100);
+    var need = null;
+    if(nps < G && G < 100){ need = Math.ceil((G*total-100*net)/(100-G)); if(need<0) need=0; }
+    return { current:nps, goal:G, total:total, achieved:nps>=G, need:need };
+  }
+
+  function collectMailData(){
+    var s = cur();
+    var kpis = KPI_METRICS.map(function(m){
+      var v = num(s.kpi[m.key].v), b = num(s.kpi[m.key].b);
+      return { label:m.name, value:v, bench:b, unit:m.unit||"",
+               achieved:(v!==null && b!==null) ? (v>=b) : false };
+    });
+    return {
+      name:(state.name||"").trim(), cm:(state.cm||"").trim(),
+      fy:state.fy||"", q:state.q||"", week:state.w||"",
+      myGoal:(state.myGoal||"").trim(),
+      personalNps:npsForMail(s,false),
+      storeNps:npsForMail(s,true),
+      kpis:kpis,
+      actions:(s.actions||[]).map(function(a){ return { name:(a.name||"").trim() }; }).filter(function(a){ return a.name; })
+    };
+  }
+
+  function setMailStatus(msg, kind){
+    el.mailStatus.textContent = msg||"";
+    el.mailStatus.className = "mail-status" + (kind?(" "+kind):"");
+  }
+
+  async function generateMail(){
+    var btn = el.genMailBtn;
+    btn.disabled = true; var label = btn.textContent; btn.textContent = "✨ 生成中…";
+    setMailStatus("Recapデータから下書きを作成しています…");
+    try{
+      var res = await fetch(MAIL_FN_URL, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+SUPABASE_ANON },
+        body:JSON.stringify({ lang:mailLang, data:collectMailData() })
+      });
+      var j = await res.json();
+      if(!res.ok || j.error){ throw new Error(j && j.error ? j.error : ("HTTP "+res.status)); }
+      el.mailOut.value = (j.text||"").trim();
+      setMailStatus("生成しました。自由に編集できます。","ok");
+    }catch(e){
+      setMailStatus("生成に失敗しました: "+(e.message||e),"err");
+    }finally{
+      btn.disabled = false; btn.textContent = label;
+    }
+  }
+
+  function copyMail(){
+    var t = el.mailOut.value;
+    if(!t){ setMailStatus("先にメールを生成してください。","err"); return; }
+    var done = function(){ setMailStatus("コピーしました。","ok"); };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t).then(done).catch(function(){ el.mailOut.select(); document.execCommand("copy"); done(); });
+    }else{ el.mailOut.select(); document.execCommand("copy"); done(); }
+  }
+
+  function openMail(){
+    var t = el.mailOut.value;
+    if(!t){ setMailStatus("先にメールを生成してください。","err"); return; }
+    var subject = "", body = t;
+    var m = t.match(/^\s*(?:件名|Subject)\s*[:：]\s*(.+?)\r?\n/i);
+    if(m){ subject = m[1].trim(); body = t.slice(m[0].length).replace(/^\s*\r?\n/, ""); }
+    var href = "mailto:?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(body);
+    window.location.href = href;
+  }
+
+  function bindMail(){
+    if(!el.genMailBtn) return;
+    el.mailLang.querySelectorAll(".seg-btn").forEach(function(b){
+      b.addEventListener("click", function(){
+        mailLang = b.dataset.lang;
+        el.mailLang.querySelectorAll(".seg-btn").forEach(function(x){ x.classList.toggle("active", x===b); });
+      });
+    });
+    el.genMailBtn.addEventListener("click", generateMail);
+    el.copyMailBtn.addEventListener("click", copyMail);
+    el.openMailBtn.addEventListener("click", openMail);
   }
   function switchPage(p){
     gid("page1").style.display = p==="1" ? "" : "none";
@@ -892,6 +1113,7 @@
   }
 
   function exportImage(){
+    if(window.Career)Career.log({action:"recap",summary:"週次Recapを作成・出力",dedupeMs:300000});
     var cv=renderP1Canvas();
     cv.toBlob(function(b){ if(!b)return; showImageSheet(URL.createObjectURL(b), b, imgFileName(1), "1ページ目（16:9） ・ "+pad3(1)+"/"+pad3(totalSheets())+"枚"); }, "image/png");
   }
@@ -1200,6 +1422,7 @@
 
   /* ---------- 全ページを1つのPDFで書き出し ---------- */
   function exportPDF(){
+    if(window.Career)Career.log({action:"recap",summary:"週次Recapを作成・出力",dedupeMs:300000});
     var arr=cur().actions;
     var loads=[], imgMap={};
     arr.forEach(function(a){ a.photos.forEach(function(src){
@@ -1281,6 +1504,16 @@
     ov.querySelector(".ip").onclick=function(){ shareFiles(items.map(function(it){ return new File([it.blob], it.fname, {type:"image/png"}); })); };
   }
 
+  /* ---------- UI を現在の state に合わせて描き直す ---------- */
+  function refreshUI(){
+    buildWeekOptions();
+    el.name.value=state.name; el.cm.value=state.cm; el.myGoal.value=state.myGoal; el.fy.value=state.fy; el.q.value=state.q;
+    el.week.value=state.w;
+    loadWeekIntoInputs();
+    renderAll();
+    if(gid("page2").style.display!=="none") renderPage2();
+  }
+
   /* ---------- init ---------- */
   load();
   buildWeekOptions(); buildKpi(); buildNps(); buildStoreNps(); buildChips();
@@ -1289,6 +1522,14 @@
   loadWeekIntoInputs();
   renderAll();
   bind();
+
+  // クラウド同期：起動時に取り込み、タブ復帰時に取り直す（端末間の上書き事故を軽減）
+  bootstrapCloud();
+  document.addEventListener("visibilitychange", function(){
+    if(document.visibilityState==="visible" && !dirty && !pushing){
+      pullCloud().then(function(changed){ if(changed){ refreshUI(); setSync("✓ 同期済み"); } });
+    }
+  });
 })();
 </script>
 <!-- tsumiki-back-button -->
