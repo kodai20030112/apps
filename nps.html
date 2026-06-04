@@ -139,6 +139,11 @@
   .img-acts button { flex: 1; border: none; border-radius: 12px; padding: 13px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; }
   .img-acts .ig { background: #f0f0f3; color: var(--text); }
   .img-acts .ip { background: var(--blue); color: #fff; }
+  /* PC（広い画面）ではモーダルを画面中央に。iPhoneは従来どおり下からせり出す */
+  @media (min-width: 768px){
+    .img-overlay{ align-items:center; padding:24px; }
+    .img-sheet{ border-radius:20px; max-height:88vh; overflow-y:auto; }
+  }
 </style>
 <script src="career.js"></script>
 </head>

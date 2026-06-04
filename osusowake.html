@@ -75,6 +75,11 @@
     border-radius:24px 24px 0 0; padding:22px 18px calc(26px + env(safe-area-inset-bottom));
     animation:up .22s ease;}
   @keyframes up{from{transform:translateY(40px); opacity:.4;} to{transform:none; opacity:1;}}
+  /* PC（広い画面）ではモーダルを画面中央に。iPhoneは従来どおり下からせり出す */
+  @media (min-width: 768px){
+    .backdrop{ align-items:center; padding:24px; }
+    .sheet{ border-radius:24px; max-height:88vh; overflow-y:auto; }
+  }
   .sheet h3{font-size:19px; font-weight:700; letter-spacing:-.01em; margin-bottom:18px;}
   .field{margin-bottom:16px;}
   .field label{display:block; font-size:13px; font-weight:600; color:var(--sub); margin-bottom:7px;}

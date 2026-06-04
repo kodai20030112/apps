@@ -115,6 +115,11 @@
   }
   .modal-input { width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-size: 16px; font-family: inherit; }
   .modal-input:focus { outline: none; border-color: var(--accent); }
+  /* PC（広い画面）ではモーダルを画面中央に。iPhoneは従来どおり下からせり出す */
+  @media (min-width: 768px){
+    .modal-overlay{ align-items: center; padding: 24px; }
+    .modal-sheet{ border-radius: 20px; }
+  }
 
   /* ---------- Story list ---------- */
   .story {

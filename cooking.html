@@ -111,6 +111,11 @@
     -webkit-overflow-scrolling:touch; animation: slideUp .28s cubic-bezier(.2,.8,.3,1);
   }
   @keyframes slideUp { from{transform:translateY(40px);opacity:.6;} to{transform:translateY(0);opacity:1;} }
+  /* PC（広い画面）ではモーダルを画面中央に。iPhoneは従来どおり下からせり出す */
+  @media (min-width: 768px){
+    .modal-bg{ align-items:center; padding:24px; }
+    .modal{ border-radius:24px; max-height:88vh; }
+  }
   .grip { width:40px;height:5px;background:#dcd3c6;border-radius:3px;margin:8px auto 14px;}
   .modal-head { display:flex; align-items:center; justify-content:space-between; margin-bottom: 16px;}
   .modal-head h3 { margin:0; font-size:19px; font-weight:700;}
@@ -387,8 +392,24 @@ async function showOSNotification(body){
   if(!('Notification' in window) || Notification.permission!=='granted') return;
   const reg = _swReg || (navigator.serviceWorker && await navigator.serviceWorker.ready.catch(()=>null));
   const opts={ body, icon:'icons/icon-cooking.png', badge:'icons/icon-cooking.png', tag:'yuzu-diary', renotify:true };
-  try{ if(reg && reg.showNotification) await reg.showNotification('ゆずごはん日記 🍋', opts); }
+  try{ if(reg && reg.showNotification) await reg.showNotification('🍋', opts); }
   catch(e){ /* 通知できない環境では無視 */ }
+}
+
+/* 保存メッセージのパターン（{name}に料理名が入る。保存のたびにランダムで1つ選ぶ） */
+const SAVE_MESSAGES = [
+  'ゆずちゃん、{name}作ってくれてありがとう🍳',
+  'キ゚！キ゚！ギルティな味！{name}、最高でした☄️',
+  '毎日味のベストが更新している…{name}ありがとう🌟',
+  'いやー{name}、お酒が捗りました。',
+  'フルマラソン中の補給食で{name}、持って行く？🤔',
+  '{name}のおかげで！お腹くっつき解消です！',
+  '{name}美味しすぎたので、老後も作ってください👴🏻',
+  '{name}、最高でした。トモコレ出店確定！🥘',
+];
+function randomSaveMessage(name){
+  const t = SAVE_MESSAGES[Math.floor(Math.random()*SAVE_MESSAGES.length)];
+  return t.replace('{name}', name);
 }
 
 /* 保存成功時の通知（やわらかい合成音＋端末バイブ＋OS通知バナー） */
@@ -738,7 +759,7 @@ $('#saveRecordBtn').onclick=async()=>{
     await dbPut(rec);
     await loadRecords();
     hideModal('recordModal');
-    notifySaved(editingId? `「${name}」を更新しました` : `「${name}」を日記に残しました 🍋`);
+    notifySaved(randomSaveMessage(name));
     toast(editingId?'更新しました':'日記に残しました 🍋');
   }catch(e){
     console.error(e); toast('保存に失敗しました。通信環境を確認してください');
