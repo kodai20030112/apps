@@ -187,8 +187,23 @@
   .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%) translateY(20px);background:#1d1d1f;color:#fff;
     padding:10px 18px;border-radius:999px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;z-index:99}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* sync status */
+  .syncbar{max-width:680px;margin:6px auto 0;font-size:12px;color:var(--sub);padding:0 2px}
+
+  /* growth chart */
+  .growth{padding:16px;margin-bottom:16px}
+  .growth h3{margin:0 0 4px;font-size:16px}
+  .growth .sub{font-size:12px;color:var(--sub);margin:0 0 10px}
+  .gchips{display:flex;gap:8px;margin-bottom:10px}
+  .gchip{flex:0 0 auto;padding:7px 14px;border:1px solid var(--line);background:#fff;border-radius:999px;font-size:13px;font-weight:600;color:var(--sub);cursor:pointer;font-family:inherit}
+  .gchip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .gchart-wrap{position:relative;width:100%}
+  .gchart{width:100%;height:200px;display:block}
+  .gempty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--sub);font-size:13px;text-align:center;padding:0 24px;line-height:1.5}
 </style>
 <script src="career.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <header class="app">
@@ -197,6 +212,7 @@
     <div class="title" id="appTitle">GROW ノート<small>チームの叶えたいゴールに伴走する</small></div>
     <button class="hbtn" id="headerAction"></button>
   </div>
+  <div class="syncbar">☁️ <span id="syncStatus">…</span></div>
 </header>
 
 <div class="wrap">
@@ -225,9 +241,58 @@ function load(){
     r.members.forEach(m=>{if(typeof m.progress!=="number")m.progress=0;});return r;}}catch(e){}
   return {members:[]};
 }
-function save(){localStorage.setItem(KEY,JSON.stringify(DB));}
+function saveLocal(){localStorage.setItem(KEY,JSON.stringify(DB));}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
 function memberById(id){return DB.members.find(m=>m.id===id);}
+
+/* ---------- Supabase クラウド同期（recap / ゆずごはん日記と同じプロジェクト） ---------- */
+const SUPABASE_URL="https://okbjqtdirrathscctyvx.supabase.co";
+const SUPABASE_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rYmpxdGRpcnJhdGhzY2N0eXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMjI4NTIsImV4cCI6MjA5NTg5ODg1Mn0.T-1AOK6vCD6uGdqrVGXjPui3L6WPSNrnygS-IHyfZ6Y";
+const ROW_ID="kodai";            // 完全に個人用なので固定の1行に丸ごと保存
+let sb=null;
+try{ if(window.supabase) sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON,{auth:{persistSession:false}}); }catch(e){}
+let dirty=false, pushTimer=null, pushing=false;
+function setSync(t){const e=$("#syncStatus");if(e)e.textContent=t;}
+
+async function pushCloud(){
+  if(!sb||pushing)return;
+  pushing=true;setSync("同期中…");
+  try{
+    const res=await sb.from("grownote_state").upsert({id:ROW_ID,state:DB,updated_at:new Date().toISOString()});
+    if(res.error){console.error(res.error);setSync("⚠ 同期失敗");}
+    else{dirty=false;setSync("✓ 同期済み");}
+  }catch(e){console.error(e);setSync("⚠ 同期失敗");}
+  finally{pushing=false;}
+}
+function scheduleCloud(){ if(!sb)return; dirty=true;setSync("…");clearTimeout(pushTimer);pushTimer=setTimeout(pushCloud,1200); }
+
+async function pullCloud(){
+  if(!sb)return false;
+  let res;
+  try{res=await sb.from("grownote_state").select("state").eq("id",ROW_ID).maybeSingle();}
+  catch(e){console.error(e);return false;}
+  if(res.error){console.error(res.error);return false;}
+  if(res.data&&res.data.state&&Array.isArray(res.data.state.members)){
+    DB=res.data.state;
+    DB.members.forEach(m=>{if(typeof m.progress!=="number")m.progress=0;if(!Array.isArray(m.sessions))m.sessions=[];});
+    saveLocal();
+    return true;
+  }
+  return false;
+}
+
+async function bootstrapCloud(){
+  if(!sb){setSync("オフライン（この端末のみ）");return;}
+  setSync("読込中…");
+  const has=await pullCloud();
+  if(has){render();setSync("✓ 同期済み");return;}
+  const hasLocal=DB.members&&DB.members.length>0;
+  if(hasLocal){setSync("初回アップロード中…");await pushCloud();}
+  else{setSync("✓ 同期済み");}
+}
+
+// localStorage 即時保存 ＋ クラウドへデバウンス送信
+function save(){saveLocal();scheduleCloud();}
 
 /* ---------- helpers ---------- */
 const $=s=>document.querySelector(s);
@@ -250,6 +315,7 @@ function sessHasContent(s){
 
 /* ---------- navigation ---------- */
 let route={view:"home",memberId:null,sessionId:null};
+let growthSeries="nps";   // メンバー詳細の成長グラフで表示中の系列
 function go(r){route={...route,...r};render();window.scrollTo(0,0);}
 
 function render(){
@@ -350,13 +416,111 @@ function renderMember(){
       </div>`;
     }).join("")+`</div>`;
   }
-  $("#memberView").innerHTML=goalBlock+body;
+  const growthCard = m.sessions.length ? `<div class="growth card">
+      <h3>📈 成長の推移</h3>
+      <div class="sub">セッションごとに記録した数値の移り変わり。点をつなげて成長を見える化。</div>
+      <div class="gchips">
+        <button class="gchip" data-gs="nps">NPS実数値</button>
+        <button class="gchip" data-gs="progress">進捗%</button>
+      </div>
+      <div class="gchart-wrap"><canvas class="gchart" id="growthCanvas"></canvas><div class="gempty" id="growthEmpty" style="display:none"></div></div>
+    </div>` : "";
+
+  $("#memberView").innerHTML=goalBlock+growthCard+body;
+
+  if(m.sessions.length){
+    document.querySelectorAll(".gchip").forEach(b=>{
+      b.classList.toggle("on", b.dataset.gs===growthSeries);
+      b.onclick=()=>{
+        growthSeries=b.dataset.gs;
+        document.querySelectorAll(".gchip").forEach(x=>x.classList.toggle("on",x.dataset.gs===growthSeries));
+        drawGrowth(m);
+      };
+    });
+    drawGrowth(m);
+  }
 
   const slider=$("#progSlider");
   function paint(v){slider.style.background=`linear-gradient(90deg,#0071e3 0%,#34c759 ${v}%,#ececf0 ${v}%)`;}
   paint(p);
   slider.addEventListener("input",()=>{const v=+slider.value;$("#goalFill").style.width=v+"%";$("#goalPct").textContent=v+"%";paint(v);});
   slider.addEventListener("change",()=>{m.progress=+slider.value;m.updatedAt=Date.now();save();toast(`達成度 ${m.progress}%`);});
+}
+
+/* ---------- 成長グラフ ---------- */
+function growthPoints(m,series){
+  const arr=[...m.sessions].sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:((a.createdAt||0)-(b.createdAt||0)));
+  const pts=[];
+  arr.forEach(s=>{
+    const v = series==="nps" ? (typeof s.nps==="number"?s.nps:null)
+                             : (typeof s.progressAt==="number"?s.progressAt:null);
+    if(v===null) return;
+    pts.push({date:s.date,v:v});
+  });
+  return pts;
+}
+function drawGrowth(m){
+  const cv=$("#growthCanvas"); if(!cv)return;
+  const empty=$("#growthEmpty");
+  const series=growthSeries;
+  const pts=growthPoints(m,series);
+
+  const cssW=cv.clientWidth||cv.parentElement.clientWidth||320, cssH=200;
+  const dpr=window.devicePixelRatio||1;
+  cv.width=cssW*dpr; cv.height=cssH*dpr;
+  const ctx=cv.getContext("2d"); ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,cssW,cssH);
+
+  if(pts.length===0){
+    empty.style.display="flex";
+    empty.textContent = series==="nps"
+      ? "会話の「📊 数値メモ（NPS実数値など）」を入れると、ここに推移が出ます。"
+      : "新しく会話を保存すると、その時点の進捗%が点として残ります。";
+    return;
+  }
+  empty.style.display="none";
+
+  const accent = series==="progress" ? "#34c759" : "#0071e3";
+  const padL=40,padR=14,padT=16,padB=30;
+  const gx=padL,gy=padT,gw=cssW-padL-padR,gh=cssH-padT-padB;
+
+  let lo,hi;
+  if(series==="progress"){ lo=0; hi=100; }
+  else{
+    const vs=pts.map(p=>p.v); let mn=Math.min.apply(null,vs), mx=Math.max.apply(null,vs);
+    if(mn===mx){ const pad=Math.max(Math.abs(mn)*0.1,5); lo=mn-pad; hi=mx+pad; }
+    else{ const r=mx-mn; lo=mn-r*0.15; hi=mx+r*0.15; }
+  }
+  const n=pts.length;
+  const px=i=> n===1 ? gx+gw/2 : gx + gw*i/(n-1);
+  const py=v=> gy+gh-gh*((v-lo)/(hi-lo));
+
+  // grid + y labels
+  ctx.strokeStyle="#ececf0"; ctx.lineWidth=1; ctx.fillStyle="#9a9aa0";
+  ctx.font='11px -apple-system,"Hiragino Sans",sans-serif'; ctx.textBaseline="middle";
+  const steps=4;
+  for(let i=0;i<=steps;i++){ const v=lo+(hi-lo)*i/steps, yy=py(v);
+    ctx.beginPath(); ctx.moveTo(gx,yy); ctx.lineTo(gx+gw,yy); ctx.stroke();
+    ctx.textAlign="right"; ctx.fillText(Math.round(v*10)/10, gx-6, yy);
+  }
+  // x labels（日付 M/D・多いときは間引き）
+  ctx.textBaseline="top"; ctx.textAlign="center"; ctx.fillStyle="#9a9aa0";
+  const maxLabels=5, stepL=Math.ceil(n/maxLabels);
+  pts.forEach((p,i)=>{ if(n>maxLabels && i%stepL!==0 && i!==n-1) return;
+    const parts=p.date.split("-"); ctx.fillText((+parts[1])+"/"+(+parts[2]), px(i), gy+gh+8);
+  });
+  // line
+  ctx.strokeStyle=accent; ctx.lineWidth=2.5; ctx.lineJoin="round";
+  ctx.beginPath(); pts.forEach((p,i)=>{ const x=px(i),y=py(p.v); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke();
+  // points (+ value labels when few)
+  pts.forEach((p,i)=>{ const x=px(i),y=py(p.v);
+    ctx.fillStyle=accent; ctx.beginPath(); ctx.arc(x,y,4,0,7); ctx.fill();
+    ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(x,y,1.8,0,7); ctx.fill();
+    if(n<=8){ ctx.fillStyle="#1d1d1f"; ctx.font='600 11px -apple-system,"Hiragino Sans",sans-serif';
+      ctx.textAlign="center"; ctx.textBaseline="bottom";
+      ctx.fillText(Math.round(p.v*10)/10, x, Math.max(y-7, gy+8));
+    }
+  });
 }
 
 /* ---------- EDITOR ---------- */
@@ -376,6 +540,11 @@ function renderEditor(){
     <div class="field" style="margin-top:18px">
       <label>📅 日付</label>
       <input type="date" id="f_date" value="${data.date}">
+    </div>
+
+    <div class="field">
+      <label>📊 この時点の数値メモ<span class="hint">NPS実数値など。成長グラフに点として残ります（任意）</span></label>
+      <input type="number" id="f_nps" inputmode="decimal" step="any" value="${typeof data.nps==="number"?data.nps:""}" placeholder="例：70">
     </div>
 
     <div class="gstep"><span class="gn">1</span><span class="ge">🎯</span><span class="gt">ゴール</span></div>
@@ -504,9 +673,17 @@ function renderEditor(){
   function buildRec(){
     if(!workingId)workingId=uid();
     const ex=m.sessions.find(x=>x.id===workingId);
+    const npsRaw=($("#f_nps").value||"").trim();
+    const npsVal=npsRaw===""?null:(isFinite(+npsRaw)?+npsRaw:null);
+    // 進捗%スナップショット：既存セッションは元の値を保持、新規はその時点のメンバー進捗を記録
+    const prevProgAt = (ex&&typeof ex.progressAt==="number") ? ex.progressAt
+      : ((s&&typeof s.progressAt==="number") ? s.progressAt : null);
+    const progAt = prevProgAt!==null ? prevProgAt : (typeof m.progress==="number"?m.progress:null);
     return {
       id:workingId,
       date:$("#f_date").value||todayStr(),
+      nps:npsVal,
+      progressAt:progAt,
       goal:$("#f_goal").value.trim(),
       reality:$("#f_reality").value.trim(),
       feedback:{keep:$("#f_keep").value.trim(),more:$("#f_more").value.trim()},
@@ -747,7 +924,7 @@ function transferSheet(){
     const incoming=(parsed&&parsed.grownote_v1)?parsed.grownote_v1:parsed;
     if(!incoming||!Array.isArray(incoming.members)){setMsg("このバックアップに GROW ノートのデータが見つかりませんでした。",true);return;}
     incoming.members.forEach(m=>{if(typeof m.progress!=="number")m.progress=0;if(!Array.isArray(m.sessions))m.sessions=[];});
-    const apply=()=>{localStorage.setItem(KEY,JSON.stringify(incoming));DB=load();closeSheet();go({view:"home"});toast("復元しました 🎉");};
+    const apply=()=>{localStorage.setItem(KEY,JSON.stringify(incoming));DB=load();scheduleCloud();closeSheet();go({view:"home"});toast("復元しました 🎉");};
     if(DB.members.length){
       openSheet(`<h3>現在のデータを置き換えますか？</h3>
         <p class="sub">いまの <b>${DB.members.length}人</b> の記録は、読み込むデータ（<b>${incoming.members.length}人</b>）で上書きされます。元に戻せません。</p>
@@ -761,17 +938,18 @@ function transferSheet(){
 /* ---------- CSV ---------- */
 function csvCell(v){return '"'+String(v==null?"":v).replace(/"/g,'""')+'"';}
 function exportCSV(){
-  const head=["メンバー","叶えたいゴール","達成度(%)","日付","今回のゴール","現状","Success","Opportunity","本人のアイデア","もらったアドバイス","今日からできること","期限","アクション"];
+  const head=["メンバー","叶えたいゴール","達成度(%)","日付","NPS実数値","今回のゴール","現状","Success","Opportunity","本人のアイデア","もらったアドバイス","今日からできること","期限","アクション"];
   const rows=[head];
   DB.members.forEach(m=>{
     const pg=m.progress||0;
-    if(!m.sessions.length){rows.push([m.name,m.goal,pg,"","","","","","","","","",""]);return;}
+    if(!m.sessions.length){rows.push([m.name,m.goal,pg,"","","","","","","","","","",""]);return;}
     [...m.sessions].sort((a,b)=>a.date<b.date?-1:1).forEach(s=>{
       const fb=s.feedback||{};const act=s.action||{};
       const ideas=(s.memberIdeas||[]).filter(Boolean).join(" / ");
       const adv=(s.advice||[]).filter(a=>a.text).map(a=>a.by?`${a.text}（${a.by}）`:a.text).join(" / ");
       const todos=(act.todos||[]).filter(t=>t.text).map(t=>`${t.done?"✓":"□"} ${t.text}`).join(" / ");
-      rows.push([m.name,m.goal,pg,s.date,s.goal||"",s.reality||"",fb.keep||"",fb.more||"",ideas,adv,s.insight||"",act.deadline||"",todos]);
+      const npsCell=typeof s.nps==="number"?s.nps:"";
+      rows.push([m.name,m.goal,pg,s.date,npsCell,s.goal||"",s.reality||"",fb.keep||"",fb.more||"",ideas,adv,s.insight||"",act.deadline||"",todos]);
     });
   });
   const csv="﻿"+rows.map(r=>r.map(csvCell).join(",")).join("\r\n");
@@ -784,6 +962,12 @@ function exportCSV(){
 
 window.go=go;window.closeSheet=closeSheet;window.editGoalSheet=editGoalSheet;window.transferSheet=transferSheet;
 render();
+bootstrapCloud();
+document.addEventListener("visibilitychange",function(){
+  if(document.visibilityState==="visible" && !dirty){
+    pullCloud().then(function(changed){ if(changed){render();setSync("✓ 同期済み");} });
+  }
+});
 </script>
 <!-- tsumiki-back-button -->
 <style>
