@@ -80,6 +80,8 @@
   .nps-need.done{background:#effaf1;}
   .nps-need .big{display:block; font-size:30px; font-weight:700; color:var(--blue); margin:4px 0;}
   .nps-need.done .big{color:var(--green);}
+  .nps-need .nps-pace{display:block; margin-top:12px; padding-top:12px; border-top:1px solid rgba(0,0,0,.08); font-size:13px; color:var(--text); line-height:1.6;}
+  .nps-need .nps-pace strong{font-size:17px; font-weight:700; color:var(--blue);}
 
   /* chart */
   .chip-row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;}
@@ -209,6 +211,13 @@
       <div class="field">
         <label>Week（13週）</label>
         <select id="week"></select>
+      </div>
+    </div>
+    <div class="row" style="margin-bottom:16px;">
+      <div class="field">
+        <label>クォーター終了日（ペース計算用）</label>
+        <input id="qend" type="date">
+        <div id="qDaysLeft" style="font-size:13px;color:var(--sub);margin-top:6px;min-height:18px;"></div>
       </div>
     </div>
     <div class="week-bar">
@@ -502,6 +511,7 @@
 
   var el = {
     name:gid("name"), cm:gid("cm"), myGoal:gid("myGoal"), fy:gid("fy"), q:gid("q"), week:gid("week"),
+    qend:gid("qend"), qDaysLeft:gid("qDaysLeft"),
     titlePreview:gid("titlePreview"), copyPrev:gid("copyPrev"),
     savePdfBtn:gid("savePdfBtn"), savePdfBtn2:gid("savePdfBtn2"),
     kpiList:gid("kpiList"), npsTallies:gid("npsTallies"), goal:gid("goal"),
@@ -592,6 +602,7 @@
     });
     syncNpsInputs();
     el.goal.value = s.nps.goal;
+    el.qend.value = quarter().qend || "";
     renderPage2();
   }
   function syncNpsInputs(){
@@ -621,6 +632,38 @@
     return {p:p,pa:pa,d:d,total:total,net:net,nps:nps};
   }
   function fmtScore(n){ var r=Math.round(n*10)/10; return (r>0?"+":"")+r; }
+  // クォーター終了日（FY/Qごとに保持）までの残り日数。未設定・不正なら null
+  function getQuarterDaysLeft(){
+    var qe = quarter().qend;
+    if(!qe) return null;
+    var days = Math.ceil((new Date(qe+"T23:59:59") - new Date())/86400000);
+    return isNaN(days) ? null : days;
+  }
+  function fmtPace(n){
+    if(n>=10) return String(Math.round(n));
+    if(n>=1) return String(Math.round(n*10)/10);
+    var r=Math.round(n*100)/100; return String(r===0?0.01:r);
+  }
+  // 「あと何個(k)」と残り日数を連携させ、1日/1週間あたりのペースを返す
+  function buildPaceHtml(k){
+    var days = getQuarterDaysLeft();
+    if(days===null || k<=0) return "";
+    if(days<0) return '<span class="nps-pace">クォーターは終了済みです</span>';
+    if(days===0) return '<span class="nps-pace">本日が最終日 ・ 今日中に <strong>'+k+'</strong> 個</span>';
+    var perDay=k/days, perWeek=k/(days/7);
+    return '<span class="nps-pace">残り '+days+' 日でこのペースなら<br>'+
+      '1日あたり <strong>約 '+fmtPace(perDay)+'</strong> 件 ／ 1週間あたり <strong>約 '+fmtPace(perWeek)+'</strong> 件</span>';
+  }
+  function updateQDaysLeft(){
+    var days=getQuarterDaysLeft();
+    if(!el.qDaysLeft) return;
+    if(days===null){ el.qDaysLeft.textContent=""; }
+    else if(days>1){ el.qDaysLeft.textContent="残り約 "+days+" 日"; }
+    else if(days===1){ el.qDaysLeft.textContent="残り1日"; }
+    else if(days===0){ el.qDaysLeft.textContent="本日が最終日"; }
+    else { el.qDaysLeft.textContent="終了済み"; }
+  }
+
   function renderNps(){
     var s=cur(), c=npsCalc(s);
     var G=clamp(num(s.nps.goal)||0,-100,100);
@@ -646,7 +689,7 @@
     }
     var k=Math.ceil((G*c.total-100*c.net)/(100-G)); if(k<0)k=0;
     el.npsNeed.className="nps-need";
-    el.npsNeed.innerHTML='<span style="color:var(--sub);font-size:13px;">Goal '+G+' まで Promoter があと</span><span class="big">'+k+' 個</span><span style="color:var(--sub);font-size:12px;">（残りが全てPromoterの場合の最小数 ・ 達成後 '+(c.total+k)+' 件）</span>';
+    el.npsNeed.innerHTML='<span style="color:var(--sub);font-size:13px;">Goal '+G+' まで Promoter があと</span><span class="big">'+k+' 個</span><span style="color:var(--sub);font-size:12px;">（残りが全てPromoterの場合の最小数 ・ 達成後 '+(c.total+k)+' 件）</span>'+buildPaceHtml(k);
   }
 
   /* ---------- Store NPS（ページ2）---------- */
@@ -705,7 +748,7 @@
     }
     var k=Math.ceil((G*total-100*net)/(100-G)); if(k<0)k=0;
     el.storeNpsNeed.className="nps-need";
-    el.storeNpsNeed.innerHTML='<span style="color:var(--sub);font-size:13px;">Goal '+G+' まで Promoter があと</span><span class="big">'+k+' 個</span><span style="color:var(--sub);font-size:12px;">（残りが全てPromoterの場合の最小数 ・ 達成後 '+(total+k)+' 件）</span>';
+    el.storeNpsNeed.innerHTML='<span style="color:var(--sub);font-size:13px;">Goal '+G+' まで Promoter があと</span><span class="big">'+k+' 個</span><span style="color:var(--sub);font-size:12px;">（残りが全てPromoterの場合の最小数 ・ 達成後 '+(total+k)+' 件）</span>'+buildPaceHtml(k);
   }
 
   /* ---------- Personal Action（ページ2）---------- */
@@ -936,7 +979,7 @@
     drawChart(ctx, 0, 0, cv.width, cv.height, state.metric);
   }
 
-  function renderAll(){ renderTitle(); renderKpi(); renderNps(); renderChart(); }
+  function renderAll(){ renderTitle(); renderKpi(); renderNps(); renderChart(); updateQDaysLeft(); }
 
   function clamp(n,lo,hi){ if(isNaN(n))return 0; return Math.min(hi,Math.max(lo,n)); }
 
@@ -947,10 +990,11 @@
     el.myGoal.addEventListener("input",function(){ state.myGoal=el.myGoal.value; save(); });
     el.savePdfBtn.addEventListener("click",exportPDF);
     el.savePdfBtn2.addEventListener("click",exportPDF);
-    el.fy.addEventListener("input",function(){ state.fy=el.fy.value; renderTitle(); renderAll(); save(); });
+    el.fy.addEventListener("input",function(){ state.fy=el.fy.value; loadWeekIntoInputs(); renderTitle(); renderAll(); save(); });
     el.q.addEventListener("input",function(){ state.q=el.q.value; loadWeekIntoInputs(); renderAll(); save(); });
     el.week.addEventListener("change",function(){ state.w=parseInt(el.week.value,10)||1; loadWeekIntoInputs(); renderAll(); save(); });
     el.goal.addEventListener("input",function(){ cur().nps.goal=el.goal.value; renderNps(); renderChart(); save(); });
+    el.qend.addEventListener("change",function(){ quarter().qend=el.qend.value; renderNps(); renderStoreNps(); updateQDaysLeft(); save(); });
     el.copyPrev.addEventListener("click",copyPrev);
     el.resetWeek.addEventListener("click",resetWeek);
     el.saveImgBtn.addEventListener("click",exportImage);
