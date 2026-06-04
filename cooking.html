@@ -367,6 +367,56 @@ const PHOTO_BUCKET = 'photos';
 const $ = s=>document.querySelector(s);
 const $$ = s=>document.querySelectorAll(s);
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1700);}
+
+/* ===== 通知まわり ===== */
+/* Service Worker 登録（iPhoneのホーム画面追加＋iOS16.4+＋HTTPSで通知が有効に） */
+let _swReg=null;
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('cooking-sw.js').then(r=>{_swReg=r;}).catch(()=>{});
+}
+/* 通知許可をリクエスト（ユーザー操作＝保存タップ時に呼ぶこと） */
+async function ensureNotifyPermission(){
+  if(!('Notification' in window)) return false;
+  if(Notification.permission==='granted') return true;
+  if(Notification.permission==='denied') return false;
+  try{ return (await Notification.requestPermission())==='granted'; }
+  catch(e){ return false; }
+}
+/* OS通知バナーを表示（iOSはSW経由が必須） */
+async function showOSNotification(body){
+  if(!('Notification' in window) || Notification.permission!=='granted') return;
+  const reg = _swReg || (navigator.serviceWorker && await navigator.serviceWorker.ready.catch(()=>null));
+  const opts={ body, icon:'icons/icon-cooking.png', badge:'icons/icon-cooking.png', tag:'yuzu-diary', renotify:true };
+  try{ if(reg && reg.showNotification) await reg.showNotification('ゆずごはん日記 🍋', opts); }
+  catch(e){ /* 通知できない環境では無視 */ }
+}
+
+/* 保存成功時の通知（やわらかい合成音＋端末バイブ＋OS通知バナー） */
+let _audioCtx=null;
+function notifySaved(body){
+  // OS通知バナー（iPhone等。許可済みのときのみ）
+  showOSNotification(body || '日記を保存しました');
+  // バイブ（対応端末のみ。PC等は自動で無視される）
+  if(navigator.vibrate) navigator.vibrate([40,30,40]);
+  // 合成音「ポーン♪」
+  try{
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return;
+    _audioCtx = _audioCtx || new AC();
+    if(_audioCtx.state==='suspended') _audioCtx.resume();
+    const ctx=_audioCtx, now=ctx.currentTime;
+    [880, 1318.51].forEach((freq,i)=>{           // A5 → E6 の2音
+      const osc=ctx.createOscillator(), gain=ctx.createGain();
+      osc.type='sine'; osc.frequency.value=freq;
+      const t0=now+i*0.12;
+      gain.gain.setValueAtTime(0, t0);
+      gain.gain.linearRampToValueAtTime(0.18, t0+0.02);   // やわらかい立ち上がり
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0+0.45);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(t0); osc.stop(t0+0.5);
+    });
+  }catch(e){ /* 音が出せない環境では無視 */ }
+}
 function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 
 /* よく使うタグの候補 */
@@ -674,6 +724,7 @@ $('#tagInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefau
 $('#saveRecordBtn').onclick=async()=>{
   const name=$('#rName').value.trim();
   if(!name){ toast('料理名を入れてね'); return; }
+  ensureNotifyPermission(); // 通知許可（ユーザー操作中に。初回のみダイアログ表示）
   const btn=$('#saveRecordBtn'); btn.disabled=true; const label=btn.textContent; btn.textContent='保存中…';
   try{
     const photos=await uploadPhotos(formPhotos);
@@ -687,6 +738,7 @@ $('#saveRecordBtn').onclick=async()=>{
     await dbPut(rec);
     await loadRecords();
     hideModal('recordModal');
+    notifySaved(editingId? `「${name}」を更新しました` : `「${name}」を日記に残しました 🍋`);
     toast(editingId?'更新しました':'日記に残しました 🍋');
   }catch(e){
     console.error(e); toast('保存に失敗しました。通信環境を確認してください');
