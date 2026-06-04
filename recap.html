@@ -343,6 +343,12 @@
       <p id="teamMeta" style="font-size:12px;color:var(--sub);margin:12px 0 0;"></p>
     </div>
 
+    <div class="card" id="teamPromiseCard" style="display:none;">
+      <h2>メンバーとの約束</h2>
+      <p style="font-size:12px;color:var(--sub);margin:-4px 0 12px;">GROWノートの会話で決めた「やること」の達成状況です（同じクラウドから自動集計）。</p>
+      <div id="teamPromise"></div>
+    </div>
+
     <div class="actions">
       <button class="btn-save" id="reloadTeamBtn" style="background:#fff;border:1px solid var(--line);color:var(--text);">↻ 最新を読み込む</button>
       <button class="btn-save" id="saveImgBtn3" style="margin-left:8px;">🖼 Team Growthを16:9画像で保存</button>
@@ -1008,7 +1014,7 @@
     });
     gid("reloadTeamBtn").addEventListener("click",function(){
       gid("teamMeta").textContent="読み込み中…";
-      loadTeamData(true).then(function(){ teamLoaded=true; renderTeamChips(); renderTeamChart(); });
+      loadTeamData(true).then(function(){ teamLoaded=true; renderTeamChips(); renderTeamChart(); renderTeamPromise(); });
     });
     gid("saveImgBtn3").addEventListener("click",exportImage3);
     bindMail();
@@ -1327,11 +1333,54 @@
     meta.textContent = (goal?goal+" ・ ":"") + "現在の達成度 "+(m.progress||0)+"% ・ 記録 "+pts.length+"点";
   }
 
+  // メンバーとの約束（GROWノートの todo）の達成状況を集計して表示
+  function renderTeamPromise(){
+    var card=gid("teamPromiseCard"), box=gid("teamPromise");
+    if(!card||!box) return;
+    var members=(teamData&&teamData.members)||[];
+    var today=new Date().toISOString().slice(0,10);
+    var total=0, done=0, overdue=0, rows=[];
+    members.forEach(function(m){
+      var mt=0, md=0, mo=0;
+      (m.sessions||[]).forEach(function(s){
+        var act=s.action||{}; var dl=(act.deadline||"").trim();
+        (act.todos||[]).forEach(function(t){
+          if(!t.text||!t.text.trim()) return;
+          mt++; total++;
+          if(t.done){ md++; done++; }
+          else if(dl && dl<today){ mo++; overdue++; }
+        });
+      });
+      if(mt>0) rows.push({name:m.name||"（無名）", total:mt, done:md, overdue:mo});
+    });
+    if(total===0){ card.style.display="none"; return; }
+    card.style.display="";
+    var pct=Math.round(done/total*100);
+    rows.sort(function(a,b){ return b.overdue-a.overdue || (a.done/a.total)-(b.done/b.total); });
+    var head='<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px;">'
+      +'<span style="font-size:30px;font-weight:800;color:var(--text);">'+done+'<span style="font-size:18px;color:var(--sub);font-weight:700;">/'+total+'</span></span>'
+      +'<span style="font-size:13px;color:var(--sub);">達成（'+pct+'%）</span>'
+      +(overdue?'<span style="margin-left:auto;font-size:13px;font-weight:700;color:#ff3b30;background:#ffecea;border-radius:999px;padding:3px 11px;">⏰ 期限切れ '+overdue+'</span>':'<span style="margin-left:auto;font-size:13px;font-weight:700;color:#34c759;">✓ 期限切れなし</span>')
+      +'</div>'
+      +'<div style="height:9px;border-radius:999px;background:#ececf0;overflow:hidden;margin-bottom:16px;"><i style="display:block;height:100%;width:'+pct+'%;background:linear-gradient(90deg,#0071e3,#34c759);"></i></div>';
+    var list=rows.map(function(r){
+      var rp=Math.round(r.done/r.total*100);
+      var od=r.overdue?'<span style="font-size:11.5px;font-weight:700;color:#ff3b30;margin-left:6px;">⏰'+r.overdue+'</span>':'';
+      return '<div style="margin-bottom:11px;">'
+        +'<div style="display:flex;justify-content:space-between;align-items:baseline;font-size:13.5px;margin-bottom:4px;">'
+        +'<span style="font-weight:600;color:var(--text);">'+esc(r.name)+od+'</span>'
+        +'<span style="color:var(--sub);font-size:12.5px;">'+r.done+'/'+r.total+'</span></div>'
+        +'<div style="height:6px;border-radius:999px;background:#ececf0;overflow:hidden;"><i style="display:block;height:100%;width:'+rp+'%;background:'+(r.overdue?'#ff9f0a':'#34c759')+';"></i></div>'
+        +'</div>';
+    }).join("");
+    box.innerHTML=head+list;
+  }
+
   function renderPage3(){
     if(!teamLoaded){
       gid("teamMeta").textContent="読み込み中…";
-      loadTeamData(false).then(function(){ teamLoaded=true; renderTeamChips(); renderTeamChart(); });
-    }else{ renderTeamChips(); renderTeamChart(); }
+      loadTeamData(false).then(function(){ teamLoaded=true; renderTeamChips(); renderTeamChart(); renderTeamPromise(); });
+    }else{ renderTeamChips(); renderTeamChart(); renderTeamPromise(); }
   }
 
   // Team Growth を 1920×1080 の ctx に描画（比較モード＝重ね1枚／通常＝メンバーグリッド）
