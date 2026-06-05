@@ -272,6 +272,7 @@
         <span class="mag">🔍</span>
         <input type="text" id="search" placeholder="料理名・メモ・タグで検索" autocomplete="off">
       </div>
+      <div class="filter-row" id="cookFilterRow"></div>
       <div class="filter-row" id="filterRow"></div>
     </div>
   </div>
@@ -507,13 +508,15 @@ function rowToRec(row){
     id: row.id, name: row.name, date: row.date, note: row.note,
     tags: Array.isArray(row.tags)? row.tags : [],
     photos: Array.isArray(row.photos)? row.photos : [],
+    who: row.who || '',                     // 投稿者（こうだい / ゆずは）。空＝旧データ
     createdAt: row.created_at || 0
   };
 }
 function recToRow(rec){
   return {
     id: rec.id, name: rec.name, date: rec.date, note: rec.note,
-    tags: rec.tags || [], photos: rec.photos || [], created_at: rec.createdAt || Date.now()
+    tags: rec.tags || [], photos: rec.photos || [], who: rec.who || null,
+    created_at: rec.createdAt || Date.now()
   };
 }
 async function dbGetAll(){
@@ -584,6 +587,7 @@ async function migrateLocalIfNeeded(){
 let allRecords=[];
 let allLikes=[], allComments=[];
 let curTag='すべて';
+let curCook='すべて';   // 作った人フィルター（投稿者ベース）。'こうだい'投稿=ゆず作 / 'ゆずは'投稿=こうだい作
 let viewMode='feed';
 let calYear=null, calMonth=null;
 let openDetailId=null;
@@ -658,6 +662,17 @@ function renderFilter(){
   $('#filterRow').innerHTML = tags.map(t=>`<button class="fchip ${t===curTag?'on':''}" data-t="${esc(t)}">${esc(t)}</button>`).join('');
   $('#filterRow').querySelectorAll('.fchip').forEach(b=>b.onclick=()=>{curTag=b.dataset.t;renderFilter();renderFeed();});
 }
+/* 作った人フィルター。value は投稿者（こうだい/ゆずは）。表示は「作った人」 */
+const COOK_FILTERS=[
+  { v:'すべて',   label:'すべて' },
+  { v:'こうだい', label:'👩 ゆずちゃんの手料理' },   // こうだいが投稿＝ゆずちゃんが作った
+  { v:'ゆずは',   label:'🧑 こうだいの手料理' },     // ゆずはが投稿＝こうだいが作った
+];
+function renderCookFilter(){
+  if(!COOK_FILTERS.some(f=>f.v===curCook)) curCook='すべて';
+  $('#cookFilterRow').innerHTML = COOK_FILTERS.map(f=>`<button class="fchip ${f.v===curCook?'on':''}" data-c="${esc(f.v)}">${f.label}</button>`).join('');
+  $('#cookFilterRow').querySelectorAll('.fchip').forEach(b=>b.onclick=()=>{curCook=b.dataset.c;renderCookFilter();renderFeed();});
+}
 function updateStats(){
   $('#statTotal').textContent = allRecords.length;
   const tm = new Date().toISOString().slice(0,7);
@@ -666,6 +681,7 @@ function updateStats(){
 function renderFeed(){
   const q=$('#search').value.trim().toLowerCase();
   let list=allRecords.slice();
+  if(curCook!=='すべて') list=list.filter(r=>r.who===curCook);   // 投稿者＝作った人で絞り込み（旧データは「すべて」のみ）
   if(curTag!=='すべて') list=list.filter(r=>(r.tags||[]).includes(curTag));
   if(q) list=list.filter(r=>{
     const hay=[r.name,r.note,...(r.tags||[])].join(' ').toLowerCase();
@@ -726,7 +742,7 @@ async function loadRecords(){
   }
   loadedOnce=true;
   allRecords.sort((a,b)=> (b.date||'').localeCompare(a.date||'') || (b.createdAt||0)-(a.createdAt||0));
-  updateStats(); renderFilter(); renderCurrentView();
+  updateStats(); renderCookFilter(); renderFilter(); renderCurrentView();
   if(openDetailId) renderDetail(openDetailId);
 }
 
@@ -817,9 +833,10 @@ $('#saveRecordBtn').onclick=async()=>{
       id: editingId || ('r'+Date.now()),
       name, date:$('#rDate').value || new Date().toISOString().slice(0,10),
       note:$('#rNote').value.trim(), photos, tags:formTags,
+      who: who || '',                       // 投稿者を記録（フィルター用）
       createdAt: Date.now()
     };
-    if(editingId){ const old=allRecords.find(r=>r.id===editingId); if(old) rec.createdAt=old.createdAt||Date.now(); }
+    if(editingId){ const old=allRecords.find(r=>r.id===editingId); if(old){ rec.createdAt=old.createdAt||Date.now(); rec.who=old.who||who||''; } }
     await dbPut(rec);
     await loadRecords();
     hideModal('recordModal');
@@ -841,7 +858,7 @@ $('#deleteRecordBtn').onclick=async()=>{
     hideModal('recordModal'); toast('削除しました');
   }catch(e){ console.error(e); toast('削除に失敗しました'); }
 };
-$('#fab').onclick=()=>openRecord(null);
+$('#fab').onclick=()=>ensureWho(()=>openRecord(null));
 
 /* ============ 詳細モーダル ============ */
 function openDetail(id){
