@@ -75,21 +75,6 @@
   .chip.pos { color: var(--accent); border-color: #bcd9fb; }
   .chip.pos.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-  .home-actions { display: flex; gap: 8px; margin: 0 0 10px; }
-  .export-btn {
-    flex: 0 0 auto; background: var(--card); border: 1px solid var(--line); border-radius: 999px;
-    padding: 8px 14px; font-size: 13px; font-weight: 600; color: var(--accent); cursor: pointer; white-space: nowrap; transition: opacity .15s;
-  }
-  .export-btn:active { opacity: .6; }
-  .export-btn:disabled { color: var(--ink-2); opacity: .5; cursor: default; }
-
-  .manager-line {
-    display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2);
-    background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 9px 13px; margin: 0 0 12px; cursor: pointer;
-  }
-  .manager-line b { color: var(--ink); font-weight: 600; }
-  .manager-line .edit { margin-left: auto; color: var(--accent); font-weight: 600; }
-
   .start-date { font-size: 13px; color: var(--ink-2); margin: -4px 0 14px; }
 
   /* ---------- Modal ---------- */
@@ -108,13 +93,6 @@
   .modal-actions button { flex: 1; border: none; border-radius: 12px; padding: 13px; font-size: 15px; font-weight: 600; cursor: pointer; }
   .m-primary { background: var(--accent); color: #fff; }
   .m-ghost { background: #f0f0f3; color: var(--ink); }
-  .recap-text {
-    width: 100%; min-height: 42vh; max-height: 58vh; border: 1px solid var(--line); border-radius: 12px;
-    padding: 12px; font-size: 12.5px; font-family: ui-monospace, SFMono-Regular, monospace; line-height: 1.55;
-    white-space: pre-wrap; background: #fafafa; color: var(--ink); resize: none;
-  }
-  .modal-input { width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-size: 16px; font-family: inherit; }
-  .modal-input:focus { outline: none; border-color: var(--accent); }
   /* PC（広い画面）ではモーダルを画面中央に。iPhoneは従来どおり下からせり出す */
   @media (min-width: 768px){
     .modal-overlay{ align-items: center; padding: 24px; }
@@ -279,12 +257,6 @@
     <h1 class="page">Reflection</h1>
     <p class="sub">コンピテンシーを選んで、出来事をSTARSで残そう。</p>
 
-    <div class="manager-line" id="managerLine"></div>
-    <div class="home-actions">
-      <button class="export-btn" id="recapBtn">📋 リキャップ</button>
-      <button class="export-btn" id="exportBtn">⤓ Excel出力</button>
-    </div>
-
     <div class="chips" id="filterChips"></div>
     <div id="storyList"></div>
   </section>
@@ -438,7 +410,6 @@ const POSITIONS = [
 const ALL_CMP_IDS = (() => { const seen = new Set(), out = [];
   POSITIONS.forEach(p => p.competencyIds.forEach(id => { if (!seen.has(id)) { seen.add(id); out.push(id); } }));
   return out; })();
-function positionsFor(cmpId){ return POSITIONS.filter(p => p.competencyIds.includes(cmpId)).map(p => p.name); }
 
 /* STARS の5項目定義 */
 const STARS = [
@@ -456,11 +427,6 @@ const LS_KEY = "stars_reflection_v1";
 function loadStories(){ try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; } catch(e){ return []; } }
 function saveStories(arr){ localStorage.setItem(LS_KEY, JSON.stringify(arr)); }
 let stories = loadStories();
-
-const LS_SETTINGS = "stars_reflection_settings_v1";
-function loadSettings(){ try { return JSON.parse(localStorage.getItem(LS_SETTINGS)) || {}; } catch(e){ return {}; } }
-function saveSettings(o){ localStorage.setItem(LS_SETTINGS, JSON.stringify(o)); }
-let settings = loadSettings();
 
 function findCmp(id){ const c = COMPETENCIES[id]; return c ? { cmp: c } : null; }
 
@@ -507,84 +473,8 @@ function openModal({ title, desc, bodyHTML, actions }){
 function closeModal(){ modalEl.classList.remove("show"); }
 modalEl.addEventListener("click", e=>{ if (e.target === modalEl) closeModal(); });
 
-/* ========================= 担当マネージャー（設定） ========================= */
-function renderManagerLine(){
-  const el = document.getElementById("managerLine");
-  const name = (settings.managerName||"").trim();
-  el.innerHTML = `👤 Connection Manager：${ name ? `<b>${escapeHtml(name)}</b>` : `<span style="color:#a1a1a6">未設定</span>` }<span class="edit">✎ ${name?"変更":"設定"}</span>`;
-  el.onclick = openSettings;
-}
-function openSettings(){
-  openModal({
-    title: "設定",
-    desc: "Connection Manager（担当マネージャー）の名前。CSV出力とリキャップに反映されます。",
-    bodyHTML: `<input class="modal-input" id="mgrInput" type="text" placeholder="例：山田 太郎" value="${escapeHtml(settings.managerName||"")}">`,
-    actions: [
-      { label: "キャンセル", primary: false, onClick: closeModal },
-      { label: "保存", primary: true, onClick: ()=>{
-          settings.managerName = document.getElementById("mgrInput").value.trim();
-          saveSettings(settings); renderManagerLine(); closeModal(); toast("保存しました ✓");
-      } }
-    ]
-  });
-  setTimeout(()=>{ const i = document.getElementById("mgrInput"); if (i) i.focus(); }, 60);
-}
-
-/* ========================= リキャップ ========================= */
-function buildRecapText(){
-  const list = getFilteredStories();
-  const mgr = (settings.managerName||"").trim() || "未設定";
-  const lines = [];
-  lines.push("# Reflection リキャップ");
-  lines.push(`対象: ${filterLabel()}　/　件数: ${list.length}`);
-  lines.push(`Connection Manager: ${mgr}　/　作成日: ${fmtDate(Date.now())}`);
-  lines.push("");
-  ALL_CMP_IDS.forEach(cid=>{
-    const group = list.filter(s=> s.cmpId === cid);
-    if (!group.length) return;
-    const c = COMPETENCIES[cid];
-    lines.push(`## ${c.emoji} ${c.jp}（${c.en}）　［${positionsFor(cid).join(" / ")}］`);
-    group.forEach(s=>{
-      const stars = "★".repeat(s.rating||0) + "☆".repeat(5-(s.rating||0));
-      const life = s.lifecycle==="longterm" ? "進行中(長期)" : "当日完結";
-      lines.push("");
-      lines.push(`### ${s.title || "(無題)"}`);
-      lines.push(`${stars}（${STAR_CAPTIONS[s.rating]||"未評価"}）・ ${life} ・ 記入開始 ${fmtDate(s.createdAt)}`);
-      if (s.situation) lines.push(`- S 状況: ${s.situation}`);
-      if (s.task)      lines.push(`- T 課題・役割: ${s.task}`);
-      if (s.action)    lines.push(`- A 行動: ${s.action}`);
-      if (s.result)    lines.push(`- R 結果: ${s.result}`);
-      if (s.selfref)   lines.push(`- S 学び: ${s.selfref}`);
-      (s.updates||[]).forEach(u=> lines.push(`  ・更新[${fmtDate(u.ts)}]: ${u.text}`));
-    });
-    lines.push("");
-  });
-  return lines.join("\n");
-}
-function openRecap(){
-  const list = getFilteredStories();
-  if (!list.length){ toast("リキャップ対象がありません"); return; }
-  openModal({
-    title: "📋 リキャップ",
-    desc: `対象: ${filterLabel()}（${list.length}件）— コピーしてInterview準備に。`,
-    bodyHTML: `<textarea class="recap-text" id="recapText" readonly>${escapeHtml(buildRecapText())}</textarea>`,
-    actions: [
-      { label: "閉じる", primary: false, onClick: closeModal },
-      { label: "コピー", primary: true, onClick: copyRecap }
-    ]
-  });
-}
-function copyRecap(){
-  const ta = document.getElementById("recapText"); const text = ta.value;
-  const done = ()=> toast("コピーしました ✓");
-  if (navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(text).then(done).catch(()=>{ ta.focus(); ta.select(); document.execCommand("copy"); done(); });
-  } else { ta.focus(); ta.select(); document.execCommand("copy"); done(); }
-}
-
 /* ========================= HOME ========================= */
 function renderHome(){
-  renderManagerLine();
   // フィルタチップ
   const chips = document.getElementById("filterChips");
   let html = `<button class="chip ${activeFilter==='all'?'on':''}" data-f="all">すべて</button>`;
@@ -600,11 +490,6 @@ function renderHome(){
 
   // リスト
   const list = getFilteredStories();
-
-  // 出力ボタン（表示中の件数を反映）
-  const expBtn = document.getElementById("exportBtn");
-  expBtn.textContent = list.length ? `⤓ Excel出力（${list.length}件）` : "⤓ Excel出力";
-  expBtn.disabled = !list.length;
 
   const host = document.getElementById("storyList");
   if (!list.length){
@@ -648,46 +533,6 @@ function getFilteredStories(){
   }
   else if (activeFilter!=="all") list = list.filter(s=> s.cmpId===activeFilter);
   return list;
-}
-function filterLabel(){
-  if (activeFilter==="all") return "すべて";
-  if (activeFilter==="deck") return "Interview記録帳";
-  if (activeFilter.startsWith("pos:")){ const p = POSITIONS.find(x=>x.id===activeFilter.slice(4)); return p ? p.name : activeFilter; }
-  const f = findCmp(activeFilter); return f ? f.cmp.jp : activeFilter;
-}
-
-/* ========================= CSV(Excel)出力 ========================= */
-function csvCell(v){
-  v = (v==null ? "" : String(v));
-  return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v;
-}
-function exportCSV(){
-  const list = getFilteredStories();
-  if (!list.length){ toast("出力するストーリーがありません"); return; }
-  const headers = ["記録日","ポジション","コンピテンシー(JP)","コンピテンシー(EN)","タイトル",
-    "Situation(状況)","Task(課題・役割)","Action(行動)","Result(結果)","Self-reflection(学び)",
-    "Interview★評価","寿命","更新件数","更新履歴","最終更新日","Connection Manager"];
-  const mgr = (settings.managerName||"").trim();
-  const rows = list.map(s=>{
-    const f = findCmp(s.cmpId); const c = f?f.cmp:{};
-    const updates = (s.updates||[]).map(u=>`[${fmtDate(u.ts)}] ${u.text}`).join("\n");
-    return [
-      fmtDate(s.createdAt), positionsFor(s.cmpId).join(" / "), c.jp||"", c.en||"", s.title||"",
-      s.situation||"", s.task||"", s.action||"", s.result||"", s.selfref||"",
-      s.rating||0, (s.lifecycle==="longterm"?"長期継続":"当日完結"),
-      (s.updates||[]).length, updates, fmtDate(s.updatedAt||s.createdAt), mgr
-    ];
-  });
-  const csv = [headers, ...rows].map(r=> r.map(csvCell).join(",")).join("\r\n");
-  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" }); // BOMで日本語文字化け防止
-  const url = URL.createObjectURL(blob);
-  const d = new Date();
-  const ymd = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
-  const a = document.createElement("a");
-  a.href = url; a.download = `STARS振り返り_${filterLabel()}_${ymd}.csv`;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  setTimeout(()=>URL.revokeObjectURL(url), 1000);
-  toast(`${list.length}件を出力しました ✓`);
 }
 
 /* ========================= SELECT ========================= */
@@ -1033,8 +878,6 @@ function showImageSheet(url, blob, fname){
 }
 
 /* ========================= ナビ ========================= */
-document.getElementById("exportBtn").onclick = exportCSV;
-document.getElementById("recapBtn").onclick = openRecap;
 document.getElementById("fab").onclick = ()=>{ renderSelect(); show("select"); };
 document.getElementById("backBtn").onclick = ()=>{
   const cur = Object.keys(views).find(k=>document.getElementById(views[k]).classList.contains("active"));
