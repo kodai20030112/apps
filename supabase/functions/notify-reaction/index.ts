@@ -54,7 +54,10 @@ Deno.serve(async (req) => {
     const name = recordName || "日記";
     const msg = kind === "like"
       ? `${actor}さんが「${name}」にいいねしました ❤️`
-      : `${actor}さんが「${name}」にコメントしました 💬${body ? "：" + body : ""}`;
+      : kind === "comment"
+      ? `${actor}さんが「${name}」にコメントしました 💬${body ? "：" + body : ""}`
+      // post: クライアントが用意した文面（保存メッセージ）をそのまま使う
+      : (body || `${actor}さんが「${name}」を投稿しました 📔`);
     const payload = JSON.stringify({ title: "🍋 ゆずごはん日記", body: msg });
 
     let sent = 0;

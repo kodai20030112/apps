@@ -809,7 +809,9 @@ $('#saveRecordBtn').onclick=async()=>{
     await dbPut(rec);
     await loadRecords();
     hideModal('recordModal');
-    notifySaved(randomSaveMessage(name));
+    const saveMsg = randomSaveMessage(name);
+    notifySaved(saveMsg);                                  // 自分の端末（音＋バイブ＋バナー）
+    if(!editingId) pushNotify('post', rec.id, saveMsg);   // 新規投稿のみ、同じ文面を相手の端末へ
     toast(editingId?'更新しました':'日記に残しました 🍋');
   }catch(e){
     console.error(e); toast('保存に失敗しました。通信環境を確認してください');
