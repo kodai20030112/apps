@@ -441,7 +441,8 @@ async function pushNotify(kind, recId, body){
 }
 
 /* 保存メッセージのパターン（{name}に料理名が入る。保存のたびにランダムで1つ選ぶ） */
-const SAVE_MESSAGES = [
+/* こうだいが投稿（ゆずちゃんが作ってくれた）→ ゆずちゃん宛て */
+const SAVE_MESSAGES_YUZU = [
   'ゆずちゃん、{name}作ってくれてありがとう🍳',
   'キ゚！キ゚！ギルティな味！{name}、最高でした☄️',
   '毎日味のベストが更新している…{name}ありがとう🌟',
@@ -451,8 +452,21 @@ const SAVE_MESSAGES = [
   '{name}美味しすぎたので、老後も作ってください👴🏻',
   '{name}、最高でした。トモコレ出店確定！🥘',
 ];
+/* ゆずはが投稿（こうだいが作った）→ こうだい宛て */
+const SAVE_MESSAGES_KODAI = [
+  'こうだい、{name}作ってくれてありがとう🍳',
+  'ヤバ、{name}天才的に美味しい！ごちそうさま☄️',
+  '今日も{name}でしあわせ…ありがとう🌟',
+  '{name}、おかわりしちゃった😋',
+  'お店出せるよ、{name}。マジで🥘',
+  '{name}のおかげで元気もりもり！💪',
+  '{name}美味しすぎて、また作ってほしい🙏',
+  'プロの味…{name}、最高でした✨',
+];
 function randomSaveMessage(name){
-  const t = SAVE_MESSAGES[Math.floor(Math.random()*SAVE_MESSAGES.length)];
+  // 投稿者がゆずは→こうだい宛て、それ以外（こうだい）→ゆずちゃん宛て
+  const arr = (who==='ゆずは') ? SAVE_MESSAGES_KODAI : SAVE_MESSAGES_YUZU;
+  const t = arr[Math.floor(Math.random()*arr.length)];
   return t.replace('{name}', name);
 }
 
