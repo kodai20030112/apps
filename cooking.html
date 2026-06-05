@@ -66,6 +66,16 @@
     background:var(--chip); color:var(--sub); border:none; cursor:pointer; font-family:inherit;
   }
   .fchip.on { background: var(--text); color:#fff; }
+  .fchip .cnt { font-size:11px; opacity:.65; margin-left:5px; }
+
+  /* ===== タグページ ===== */
+  .tagview { margin-top:14px; }
+  .tagview-head { margin:4px 0 6px; }
+  .tagview-title { font-size:14px; font-weight:700; color:var(--text); margin:6px 2px 12px; }
+  .tag-cloud { display:flex; flex-wrap:wrap; gap:8px; }
+  .tag-clear { margin-top:12px; font-size:12.5px; padding:6px 13px; border-radius:999px; background:#fff; border:1px solid var(--line); color:var(--sub); cursor:pointer; font-family:inherit; }
+  .tagview-result-head { font-size:12.5px; color:var(--sub); margin:18px 4px 2px; }
+  .tagview-result-head b { color:var(--accent); }
 
   /* ===== 日記フィード ===== */
   .feed { margin-top: 8px; }
@@ -266,6 +276,7 @@
     <div class="viewseg" id="viewSeg">
       <button data-view="feed" class="on">📖 フィード</button>
       <button data-view="calendar">📅 カレンダー</button>
+      <button data-view="tags">🏷️ タグ</button>
     </div>
     <div id="feedTools">
       <div class="search-box" style="margin-top:12px">
@@ -273,11 +284,11 @@
         <input type="text" id="search" placeholder="料理名・メモ・タグで検索" autocomplete="off">
       </div>
       <div class="filter-row" id="cookFilterRow"></div>
-      <div class="filter-row" id="filterRow"></div>
     </div>
   </div>
   <div class="feed" id="feed"></div>
   <div class="cal" id="calendar" style="display:none"></div>
+  <div class="tagview" id="tagview" style="display:none"></div>
 </main>
 
 <button class="fab" id="fab" aria-label="記録を追加">＋</button>
@@ -586,7 +597,7 @@ async function migrateLocalIfNeeded(){
 /* ============ 状態 ============ */
 let allRecords=[];
 let allLikes=[], allComments=[];
-let curTag='すべて';
+let selTags=[];        // タグページで選択中のタグ（複数選択＝AND絞り込み）
 let curCook='すべて';   // 作った人フィルター（投稿者ベース）。'こうだい'投稿=ゆず作 / 'ゆずは'投稿=こうだい作
 let viewMode='feed';
 let calYear=null, calMonth=null;
@@ -648,7 +659,11 @@ function fmtDate(iso){
 function monthKey(iso){ return iso? iso.slice(0,7) : '0000-00'; }
 function fmtMonth(key){ const [y,m]=key.split('-'); return `${y}年${+m}月`; }
 function fmtWhen(ts){ if(!ts) return ''; const d=new Date(ts); const p=n=>String(n).padStart(2,'0'); return `${d.getMonth()+1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`; }
-function renderCurrentView(){ if(viewMode==='calendar') renderCalendar(); else renderFeed(); }
+function renderCurrentView(){
+  if(viewMode==='calendar') renderCalendar();
+  else if(viewMode==='tags') renderTagView();
+  else renderFeed();
+}
 
 /* ============ フィード描画 ============ */
 function allTags(){
@@ -656,45 +671,8 @@ function allTags(){
   allRecords.forEach(r=>(r.tags||[]).forEach(t=>set.add(t)));
   return [...set];
 }
-function renderFilter(){
-  const tags=['すべて',...allTags()];
-  if(!tags.includes(curTag)) curTag='すべて';
-  $('#filterRow').innerHTML = tags.map(t=>`<button class="fchip ${t===curTag?'on':''}" data-t="${esc(t)}">${esc(t)}</button>`).join('');
-  $('#filterRow').querySelectorAll('.fchip').forEach(b=>b.onclick=()=>{curTag=b.dataset.t;renderFilter();renderFeed();});
-}
-/* 作った人フィルター。value は投稿者（こうだい/ゆずは）。表示は「作った人」 */
-const COOK_FILTERS=[
-  { v:'すべて',   label:'すべて' },
-  { v:'こうだい', label:'👩 ゆずちゃんの手料理' },   // こうだいが投稿＝ゆずちゃんが作った
-  { v:'ゆずは',   label:'🧑 こうだいの手料理' },     // ゆずはが投稿＝こうだいが作った
-];
-function renderCookFilter(){
-  if(!COOK_FILTERS.some(f=>f.v===curCook)) curCook='すべて';
-  $('#cookFilterRow').innerHTML = COOK_FILTERS.map(f=>`<button class="fchip ${f.v===curCook?'on':''}" data-c="${esc(f.v)}">${f.label}</button>`).join('');
-  $('#cookFilterRow').querySelectorAll('.fchip').forEach(b=>b.onclick=()=>{curCook=b.dataset.c;renderCookFilter();renderFeed();});
-}
-function updateStats(){
-  $('#statTotal').textContent = allRecords.length;
-  const tm = new Date().toISOString().slice(0,7);
-  $('#statMonth').textContent = allRecords.filter(r=>monthKey(r.date)===tm).length;
-}
-function renderFeed(){
-  const q=$('#search').value.trim().toLowerCase();
-  let list=allRecords.slice();
-  if(curCook!=='すべて') list=list.filter(r=>r.who===curCook);   // 投稿者＝作った人で絞り込み（旧データは「すべて」のみ）
-  if(curTag!=='すべて') list=list.filter(r=>(r.tags||[]).includes(curTag));
-  if(q) list=list.filter(r=>{
-    const hay=[r.name,r.note,...(r.tags||[])].join(' ').toLowerCase();
-    return hay.includes(q);
-  });
-  const feed=$('#feed');
-  if(!list.length){
-    feed.innerHTML = allRecords.length
-      ? `<div class="empty"><span class="big">🔍</span>該当する記録がありません</div>`
-      : `<div class="empty"><span class="big">🍳</span>まだ記録がありません。<br>ゆずちゃんがごはんを作ってくれたら<br>右下の ＋ から残しましょう。</div>`;
-    return;
-  }
-  // 月ごとにグループ
+/* 記録カード（月ごとグループ）を組み立てる。フィードとタグページで共用 */
+function recordListHTML(list){
   let html='', lastMonth='';
   list.forEach(r=>{
     const mk=monthKey(r.date);
@@ -721,12 +699,82 @@ function renderFeed(){
         </div>
       </div>`;
   });
-  feed.innerHTML=html;
-  feed.querySelectorAll('.entry').forEach(e=>e.onclick=()=>openDetail(e.dataset.id));
-  feed.querySelectorAll('[data-like]').forEach(el=>el.onclick=ev=>{
+  return html;
+}
+function bindEntries(container){
+  container.querySelectorAll('.entry').forEach(e=>e.onclick=()=>openDetail(e.dataset.id));
+  container.querySelectorAll('[data-like]').forEach(el=>el.onclick=ev=>{
     ev.stopPropagation();
     ensureWho(async()=>{ await toggleLike(el.dataset.like); await loadRecords(); });
   });
+}
+/* ============ タグページ（タグで絞り込み） ============ */
+function renderTagView(){
+  const tv=$('#tagview');
+  const tags=allTags();
+  selTags=selTags.filter(t=>tags.includes(t));        // 消えたタグは選択から外す
+  if(!tags.length){
+    tv.innerHTML=`<div class="empty"><span class="big">🏷️</span>まだタグがありません。<br>記録にタグを付けると、<br>ここで絞り込めるようになります。</div>`;
+    return;
+  }
+  const count=t=>allRecords.filter(r=>(r.tags||[]).includes(t)).length;
+  const chips=tags.map(t=>`<button class="fchip ${selTags.includes(t)?'on':''}" data-t="${esc(t)}">${esc(t)}<span class="cnt">${count(t)}</span></button>`).join('');
+  // 選択タグをすべて含む記録（AND絞り込み）
+  let list=allRecords.slice();
+  if(selTags.length) list=list.filter(r=>selTags.every(t=>(r.tags||[]).includes(t)));
+  const head=selTags.length
+    ? `<div class="tagview-result-head">「${selTags.map(esc).join('」「')}」の記録 <b>${list.length}</b>件</div>`
+    : `<div class="tagview-result-head">タグを選ぶと絞り込めます（全${allRecords.length}件）</div>`;
+  const body=list.length? recordListHTML(list) : `<div class="empty"><span class="big">🔍</span>該当する記録がありません</div>`;
+  tv.innerHTML=`
+    <div class="tagview-head">
+      <div class="tagview-title">🏷️ タグで絞り込む</div>
+      <div class="tag-cloud">${chips}</div>
+      ${selTags.length?`<button class="tag-clear" id="tagClear">✕ クリア</button>`:''}
+    </div>
+    ${head}
+    ${body}`;
+  tv.querySelectorAll('.tag-cloud .fchip').forEach(b=>b.onclick=()=>{
+    const t=b.dataset.t;
+    if(selTags.includes(t)) selTags=selTags.filter(x=>x!==t); else selTags.push(t);
+    renderTagView();
+  });
+  const clr=$('#tagClear'); if(clr) clr.onclick=()=>{ selTags=[]; renderTagView(); };
+  bindEntries(tv);
+}
+/* 作った人フィルター。value は投稿者（こうだい/ゆずは）。表示は「作った人」 */
+const COOK_FILTERS=[
+  { v:'すべて',   label:'すべて' },
+  { v:'こうだい', label:'👩 ゆずちゃんの手料理' },   // こうだいが投稿＝ゆずちゃんが作った
+  { v:'ゆずは',   label:'🧑 こうだいの手料理' },     // ゆずはが投稿＝こうだいが作った
+];
+function renderCookFilter(){
+  if(!COOK_FILTERS.some(f=>f.v===curCook)) curCook='すべて';
+  $('#cookFilterRow').innerHTML = COOK_FILTERS.map(f=>`<button class="fchip ${f.v===curCook?'on':''}" data-c="${esc(f.v)}">${f.label}</button>`).join('');
+  $('#cookFilterRow').querySelectorAll('.fchip').forEach(b=>b.onclick=()=>{curCook=b.dataset.c;renderCookFilter();renderFeed();});
+}
+function updateStats(){
+  $('#statTotal').textContent = allRecords.length;
+  const tm = new Date().toISOString().slice(0,7);
+  $('#statMonth').textContent = allRecords.filter(r=>monthKey(r.date)===tm).length;
+}
+function renderFeed(){
+  const q=$('#search').value.trim().toLowerCase();
+  let list=allRecords.slice();
+  if(curCook!=='すべて') list=list.filter(r=>r.who===curCook);   // 投稿者＝作った人で絞り込み（旧データは「すべて」のみ）
+  if(q) list=list.filter(r=>{
+    const hay=[r.name,r.note,...(r.tags||[])].join(' ').toLowerCase();
+    return hay.includes(q);
+  });
+  const feed=$('#feed');
+  if(!list.length){
+    feed.innerHTML = allRecords.length
+      ? `<div class="empty"><span class="big">🔍</span>該当する記録がありません</div>`
+      : `<div class="empty"><span class="big">🍳</span>まだ記録がありません。<br>ゆずちゃんがごはんを作ってくれたら<br>右下の ＋ から残しましょう。</div>`;
+    return;
+  }
+  feed.innerHTML=recordListHTML(list);
+  bindEntries(feed);
 }
 
 let loadedOnce=false;
@@ -742,7 +790,7 @@ async function loadRecords(){
   }
   loadedOnce=true;
   allRecords.sort((a,b)=> (b.date||'').localeCompare(a.date||'') || (b.createdAt||0)-(a.createdAt||0));
-  updateStats(); renderCookFilter(); renderFilter(); renderCurrentView();
+  updateStats(); renderCookFilter(); renderCurrentView();
   if(openDetailId) renderDetail(openDetailId);
 }
 
@@ -1010,6 +1058,7 @@ $('#viewSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{
   $('#feedTools').style.display = viewMode==='feed'?'':'none';
   $('#feed').style.display = viewMode==='feed'?'':'none';
   $('#calendar').style.display = viewMode==='calendar'?'':'none';
+  $('#tagview').style.display = viewMode==='tags'?'':'none';
   renderCurrentView();
 });
 
