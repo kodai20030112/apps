@@ -396,6 +396,25 @@ const COMPETENCIES = {
       "広範囲にわたる既存の技術を試みながら、組織としての成果を拡大できる斬新なオプションも適用する。",
       "他の人に新しい技術の学習と採用を勧める。"
     ]
+  },
+  business_insight: {
+    en: "Business Insight", jp: "ビジネスの見識", emoji: "💼", color: "#f59f00",
+    desc: "ビジネスや市場に関する知識を活用して組織の目標を達成させます。",
+    bullets: [
+      "ビジネスの仕組みや、組織がどのように利益を上げているかを深く理解している。",
+      "自社だけでなく、競合や市場についても今後の方針や活動、動向について、誰よりも先に気づく。",
+      "ビジネス推進力とマーケット視の見方を適用して、常に行動の優先順位をつける。"
+    ]
+  },
+  collaborates: {
+    en: "Collaborates", jp: "コラボレーション・協働", emoji: "🙌", color: "#099268",
+    desc: "共通の目標を達成するために、周囲と信頼関係を構築し、協力して業務を遂行します。",
+    bullets: [
+      "組織全体にまたがる協働の手本となる。",
+      "多岐にわたる担当者や関係者とのオープンな対話を促進する。",
+      "他の人の関心と自分の関心のバランスをとる。",
+      "目標に対して協力して貢献することが、周囲から高く認知されるよう促す。"
+    ]
   }
 };
 
@@ -403,7 +422,9 @@ const POSITIONS = [
   { id: "specialist", name: "Specialist",
     competencyIds: ["drives_results", "nimble_learning", "self_development", "values_differences"] },
   { id: "expert", name: "Expert",
-    competencyIds: ["communicates_effectively", "drives_results", "values_differences", "customer_focus", "tech_savvy"] }
+    competencyIds: ["communicates_effectively", "drives_results", "values_differences", "customer_focus", "tech_savvy"] },
+  { id: "creative_pro", name: "Creative Pro",
+    competencyIds: ["business_insight", "collaborates", "customer_focus", "tech_savvy", "values_differences"] }
 ];
 
 /* チップ用のユニークなコンピテンシー一覧（POSITIONSで使われている順） */
