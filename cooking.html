@@ -254,6 +254,60 @@
   .who-opts button:active { background:var(--accent-soft); }
   .who-opts button .em { font-size:30px; display:block; margin-bottom:6px; }
 
+  /* ===== 思い出ボタン（ストーリーズ起動） ===== */
+  .memory-btn {
+    margin:16px auto 0; display:inline-flex; align-items:center; gap:7px;
+    border:none; border-radius:999px; padding:9px 18px; cursor:pointer;
+    font-family:inherit; font-size:14px; font-weight:700; color:#fff;
+    background:linear-gradient(120deg,#f3b07a,#e8915b 55%,#e0574d);
+    box-shadow:0 5px 16px rgba(232,145,91,.42);
+  }
+  .memory-btn:active { transform:scale(.96); }
+  .memory-btn .ring { font-size:16px; }
+
+  /* ===== ストーリーズ風「思い出」ビューア ===== */
+  .story { position:fixed; inset:0; background:#000; z-index:400; display:none; flex-direction:column; }
+  .story.show { display:flex; }
+  .st-top { display:flex; flex-direction:column; gap:9px; padding:calc(9px + env(safe-area-inset-top)) 14px 2px; }
+  .st-bars { display:flex; gap:4px; }
+  .st-bar { flex:1; height:3px; border-radius:3px; background:rgba(255,255,255,.26); }
+  .st-bar.on { background:#fff; }
+  .st-actions { display:flex; justify-content:flex-end; gap:12px; color:#fff; }
+  .st-actions span { font-size:21px; cursor:pointer; padding:2px 5px; opacity:.92; }
+  .st-track { flex:1; display:flex; overflow-x:auto; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; }
+  .st-track::-webkit-scrollbar { display:none; }
+  .st-slide { flex:none; width:100%; scroll-snap-align:center; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:16px; padding:4px 20px 0; }
+  .st-photo-wrap { width:100%; max-width:400px; aspect-ratio:1/1; border-radius:30px; overflow:hidden;
+    background:#141414; display:flex; align-items:center; justify-content:center; font-size:84px;
+    box-shadow:0 14px 46px rgba(0,0,0,.55); }
+  .st-photo { width:100%; height:100%; object-fit:cover; display:block; }
+  .st-meta { display:flex; align-items:center; gap:10px; width:100%; max-width:400px; color:#fff; }
+  .st-ava { flex:none; width:34px; height:34px; border-radius:50%; background:#2a2a2a;
+    display:flex; align-items:center; justify-content:center; font-size:18px; }
+  .st-name { font-size:15.5px; font-weight:700; line-height:1.3; }
+  .st-sub { font-size:12px; color:rgba(255,255,255,.6); margin-top:1px; }
+  .st-reactions { display:flex; flex-wrap:wrap; justify-content:center; gap:13px; }
+  .st-rx { position:relative; width:58px; height:58px; border-radius:50%; border:none;
+    background:rgba(255,255,255,.1); cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition:transform .15s ease, background .15s ease; }
+  .st-rx .em { font-size:27px; line-height:1; }
+  .st-rx.on { background:rgba(232,145,91,.3); box-shadow:0 0 0 2px var(--accent) inset; }
+  .st-rx:active { transform:scale(.85); }
+  .st-rx.pop { animation:rxpop .42s ease; }
+  @keyframes rxpop { 0%{transform:scale(1);} 38%{transform:scale(1.4);} 100%{transform:scale(1);} }
+  .st-rx .cnt { position:absolute; bottom:-2px; right:-3px; background:var(--accent); color:#fff;
+    font-size:11px; font-weight:700; min-width:18px; height:18px; border-radius:999px;
+    display:flex; align-items:center; justify-content:center; padding:0 4px; box-shadow:0 0 0 2px #000; }
+  .st-reply { padding:12px 16px calc(14px + env(safe-area-inset-bottom)); }
+  .st-reply input { width:100%; font-size:16px; padding:12px 18px; border-radius:999px;
+    border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.08); color:#fff; font-family:inherit; }
+  .st-reply input::placeholder { color:rgba(255,255,255,.5); }
+  .st-reply input:focus { outline:none; border-color:var(--accent); }
+  .st-empty { color:rgba(255,255,255,.85); text-align:center; margin:auto; padding:40px; font-size:15px; }
+  /* iOS触覚フィードバック用の隠しスイッチ（画面外。display:noneにしないこと） */
+  .haptic-switch { position:fixed; left:-9999px; top:0; width:1px; height:1px; opacity:0; }
+
   .toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);background:rgba(40,30,20,.9);color:#fff;padding:11px 20px;border-radius:999px;font-size:14px;z-index:200;opacity:0;transition:opacity .25s;pointer-events:none;}
   .toast.show{opacity:1;}
   .hidden{display:none !important;}
@@ -269,6 +323,7 @@
     <div class="stat"><div class="n" id="statTotal">0</div><div class="l">これまでの品数</div></div>
     <div class="stat"><div class="n" id="statMonth">0</div><div class="l">今月のごはん</div></div>
   </div>
+  <button class="memory-btn" id="memoryBtn"><span class="ring">🎞️</span>思い出をめくる</button>
 </header>
 
 <main class="wrap">
@@ -369,6 +424,23 @@
   <div class="lb-track" id="lbTrack"></div>
   <div class="lb-dots" id="lbDots"></div>
 </div>
+
+<!-- ===== 思い出ストーリーズ ===== -->
+<div class="story" id="story">
+  <div class="st-top">
+    <div class="st-bars" id="stBars"></div>
+    <div class="st-actions">
+      <span id="stShuffle" aria-label="シャッフル">🔀</span>
+      <span id="stClose" aria-label="閉じる">✕</span>
+    </div>
+  </div>
+  <div class="st-track" id="stTrack"></div>
+  <div class="st-reply"><input type="text" id="stReplyInput" placeholder="ひとこと返信…" autocomplete="off"></div>
+</div>
+
+<!-- iOSの触覚フィードバック用（画面外の隠しスイッチ） -->
+<input type="checkbox" id="hapticSwitch" switch class="haptic-switch" aria-hidden="true" tabindex="-1">
+<label for="hapticSwitch" id="hapticLabel" class="haptic-switch" aria-hidden="true"></label>
 
 <div class="toast" id="toast"></div>
 
@@ -596,7 +668,7 @@ async function migrateLocalIfNeeded(){
 
 /* ============ 状態 ============ */
 let allRecords=[];
-let allLikes=[], allComments=[];
+let allLikes=[], allComments=[], allReactions=[];
 let selTags=[];        // タグページで選択中のタグ（複数選択＝AND絞り込み）
 let curCook='すべて';   // 作った人フィルター（投稿者ベース）。'こうだい'投稿=ゆず作 / 'ゆずは'投稿=こうだい作
 let viewMode='feed';
@@ -648,6 +720,13 @@ async function addComment(id, body){
 async function deleteComment(cid){
   const {error}=await sb.from('comments').delete().eq('id',cid); if(error)console.error(error);
 }
+/* ===== 絵文字リアクション（思い出ストーリーズ用。2人で共有・記録される） ===== */
+async function loadReactions(){
+  const { data, error } = await sb.from('reactions').select('*');
+  if(error){ allReactions=[]; return; }   // テーブル未作成でもアプリは止めない
+  allReactions = data || [];
+}
+function reactionsFor(id){ return allReactions.filter(r=>r.record_id===id); }
 
 /* ============ 日付整形 ============ */
 const WD=['日','月','火','水','木','金','土'];
@@ -780,7 +859,7 @@ function renderFeed(){
 let loadedOnce=false;
 async function loadRecords(){
   try{
-    const [recs] = await Promise.all([ dbGetAll(), loadLikes(), loadComments() ]);
+    const [recs] = await Promise.all([ dbGetAll(), loadLikes(), loadComments(), loadReactions() ]);
     allRecords = recs;
   }catch(e){
     console.error(e);
@@ -792,6 +871,7 @@ async function loadRecords(){
   allRecords.sort((a,b)=> (b.date||'').localeCompare(a.date||'') || (b.createdAt||0)-(a.createdAt||0));
   updateStats(); renderCookFilter(); renderCurrentView();
   if(openDetailId) renderDetail(openDetailId);
+  if($('#story').classList.contains('show')) refreshStoryReactions();   // ストーリーズ表示中なら相手のリアクションを反映
 }
 
 /* ============ 写真圧縮 ============ */
@@ -1051,6 +1131,129 @@ function closeLightbox(){ $('#lightbox').classList.remove('show'); $('#lbTrack')
 $('#lbClose').onclick=closeLightbox;
 $('#lightbox').addEventListener('click',e=>{ if(e.target.id==='lightbox') closeLightbox(); });
 
+/* ============ 触覚フィードバック ============ */
+/* Android等は navigator.vibrate、iOS(17.4+)は隠しスイッチを叩く小ワザで一瞬振動させる */
+const _hapticLabel = $('#hapticLabel');
+function haptic(strong){
+  try{ if(navigator.vibrate) navigator.vibrate(strong?14:8); }catch(e){}
+  try{ if(_hapticLabel) _hapticLabel.click(); }catch(e){}
+}
+
+/* ============ 思い出ストーリーズ ============ */
+const STORY_EMOJI = ['❤️','😋','🔥','🥹','👏','✨'];
+let storyList=[], storyIdx=0, storyBound=false;
+
+function shuffle(arr){
+  const a=arr.slice();
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+function makerLabel(r){
+  if(r.who==='ゆずは') return 'こうだいの手料理';
+  if(r.who==='こうだい') return 'ゆずちゃんの手料理';
+  return '';
+}
+function reactionRowHTML(id){
+  const rx=reactionsFor(id);
+  return STORY_EMOJI.map(e=>{
+    const cnt=rx.filter(x=>x.emoji===e).length;
+    const mine=rx.some(x=>x.emoji===e && x.who===who);
+    return `<button class="st-rx ${mine?'on':''}" data-e="${e}"><span class="em">${e}</span>${cnt?`<span class="cnt">${cnt}</span>`:''}</button>`;
+  }).join('');
+}
+function storySlideHTML(r){
+  const photos=r.photos||[];
+  const photo = photos.length
+    ? `<div class="st-photo-wrap"><img class="st-photo" src="${photos[0]}"></div>`
+    : `<div class="st-photo-wrap">🍽️</div>`;
+  const sub=[makerLabel(r), fmtDate(r.date)].filter(Boolean).join('　•　');
+  return `<div class="st-slide" data-id="${r.id}">
+    ${photo}
+    <div class="st-meta">
+      <div class="st-ava">🍋</div>
+      <div><div class="st-name">${esc(r.name)}</div><div class="st-sub">${esc(sub)}</div></div>
+    </div>
+    <div class="st-reactions" data-rid="${r.id}">${reactionRowHTML(r.id)}</div>
+  </div>`;
+}
+function bindStorySlide(slide){
+  const id=slide.dataset.id;
+  slide.querySelectorAll('.st-rx').forEach(btn=>btn.onclick=()=>onReact(id, btn.dataset.e, slide));
+}
+function refreshStoryReactions(){
+  $('#stTrack').querySelectorAll('.st-slide').forEach(slide=>{
+    const row=slide.querySelector('.st-reactions');
+    if(row){ row.innerHTML=reactionRowHTML(slide.dataset.id); }
+    bindStorySlide(slide);
+  });
+}
+function updateStoryBars(){
+  $('#stBars').querySelectorAll('.st-bar').forEach((b,j)=>b.classList.toggle('on', j<=storyIdx));
+}
+function updateReplyPlaceholder(){
+  const r=storyList[storyIdx]; const inp=$('#stReplyInput');
+  if(inp && r) inp.placeholder=`「${r.name}」にひとこと…`;
+}
+async function onReact(id, emoji, slide){
+  if(!who){ ensureWho(()=>onReact(id,emoji,slide)); return; }
+  haptic(true);
+  const mine=allReactions.find(x=>x.record_id===id && x.who===who && x.emoji===emoji);
+  let popEmoji=null;
+  if(mine){
+    allReactions=allReactions.filter(x=>x!==mine);
+    sb.from('reactions').delete().eq('id',mine.id).then(({error})=>{ if(error)console.error(error); });
+  } else {
+    const newR={ id:'x'+Date.now()+Math.random().toString(36).slice(2,6), record_id:id, who, emoji, created_at:Date.now() };
+    allReactions.push(newR); popEmoji=emoji;
+    sb.from('reactions').insert(newR).then(({error})=>{ if(error)console.error(error); });
+  }
+  // この料理のリアクション行だけ即時更新（ストーリーは閉じない）
+  const row=slide.querySelector('.st-reactions');
+  row.innerHTML=reactionRowHTML(id);
+  bindStorySlide(slide);
+  if(popEmoji) row.querySelectorAll('.st-rx').forEach(b=>{ if(b.dataset.e===popEmoji) b.classList.add('pop'); });
+}
+function openStory(){
+  ensureWho(()=>{
+    let list=allRecords.filter(r=>(r.photos||[]).length);   // 写真がある料理を中心に
+    if(!list.length) list=allRecords.slice();
+    if(!list.length){ toast('まだ記録がありません'); return; }
+    storyList=shuffle(list); storyIdx=0;
+    $('#stBars').innerHTML = storyList.map(()=>`<div class="st-bar"></div>`).join('');
+    $('#stTrack').innerHTML = storyList.map(storySlideHTML).join('');
+    $('#stTrack').querySelectorAll('.st-slide').forEach(bindStorySlide);
+    updateStoryBars(); updateReplyPlaceholder();
+    $('#story').classList.add('show'); document.body.style.overflow='hidden';
+    requestAnimationFrame(()=>{ $('#stTrack').scrollLeft=0; });
+    if(!storyBound){ bindStoryControls(); storyBound=true; }
+  });
+}
+function closeStory(){ $('#story').classList.remove('show'); document.body.style.overflow=''; }
+function bindStoryControls(){
+  const track=$('#stTrack');
+  track.addEventListener('scroll', ()=>{
+    const i=Math.round(track.scrollLeft/track.clientWidth);
+    if(i!==storyIdx && i>=0 && i<storyList.length){
+      storyIdx=i; haptic();          // 次の料理へ送ったら振動
+      updateStoryBars(); updateReplyPlaceholder();
+    }
+  }, {passive:true});
+  $('#stClose').onclick=closeStory;
+  $('#stShuffle').onclick=()=>openStory();   // もう一度シャッフルして見直す
+  $('#stReplyInput').addEventListener('keydown',e=>{
+    if(e.key!=='Enter') return;
+    e.preventDefault();
+    const v=e.target.value.trim(); if(!v) return;
+    const r=storyList[storyIdx]; if(!r) return;
+    ensureWho(async()=>{
+      e.target.value=''; e.target.blur();
+      try{ await addComment(r.id, v); haptic(); toast('返信しました 🍋'); }
+      catch(err){ toast('送信に失敗しました'); }
+    });
+  });
+}
+$('#memoryBtn').onclick=openStory;
+
 /* ============ ビュー切替 ============ */
 $('#viewSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{
   viewMode=b.dataset.view;
@@ -1079,6 +1282,7 @@ function subscribeRealtime(){
     .on('postgres_changes', { event:'*', schema:'public', table:'records' }, scheduleReload)
     .on('postgres_changes', { event:'*', schema:'public', table:'likes' }, scheduleReload)
     .on('postgres_changes', { event:'*', schema:'public', table:'comments' }, scheduleReload)
+    .on('postgres_changes', { event:'*', schema:'public', table:'reactions' }, scheduleReload)
     .subscribe();
 }
 
