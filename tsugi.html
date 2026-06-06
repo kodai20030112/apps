@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="apple-touch-icon" href="icons/icon-tsugi.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="つぎいつ？">
+<meta name="theme-color" content="#f5f5f7">
+<title>つぎいつ？</title>
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --card: #ffffff;
+    --text: #1d1d1f;
+    --sub: #6e6e73;
+    --line: #e3e3e6;
+    --blue: #0071e3;
+    --blue-soft: #eaf3fe;
+    --green: #34c759;
+    --red: #ff3b30;
+    --orange: #ff9500;
+    --chip: #f0f0f2;
+    --accent: #15a892;
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 0 16px; }
+
+  /* ===== ヘッダー ===== */
+  header.app { text-align: center; padding: 22px 16px 8px; position: relative; }
+  header.app .logo { font-size: 30px; line-height: 1; }
+  header.app h1 { font-size: 22px; font-weight: 600; margin: 6px 0 2px; letter-spacing: .01em; }
+  header.app .tagline { color: var(--sub); font-size: 12.5px; }
+  .back-btn {
+    position: absolute; left: 12px; top: 22px;
+    background: none; border: none; color: var(--blue);
+    font-size: 16px; font-family: inherit; cursor: pointer; padding: 4px 6px;
+    display: inline-flex; align-items: center; gap: 2px; text-decoration: none;
+  }
+  .back-btn:active { opacity: .5; }
+  .sync { color: var(--sub); font-size: 11.5px; margin-top: 4px; min-height: 14px; }
+
+  /* ===== 通知バナー ===== */
+  .notify-banner {
+    background: var(--blue-soft); border: 1px solid #cfe4fb; border-radius: 14px;
+    padding: 12px 14px; margin: 12px 0 4px; display: flex; align-items: center; gap: 12px;
+  }
+  .notify-banner .nb-txt { flex: 1; min-width: 0; }
+  .notify-banner .nb-title { font-size: 13.5px; font-weight: 600; }
+  .notify-banner .nb-desc { font-size: 11.5px; color: var(--sub); margin-top: 1px; }
+  .notify-banner button {
+    flex: 0 0 auto; background: var(--blue); color: #fff; border: none;
+    border-radius: 999px; font-size: 13px; font-weight: 600; padding: 8px 14px;
+    font-family: inherit; cursor: pointer;
+  }
+  .notify-banner button:active { opacity: .7; }
+  .notify-banner.ok { background: #eafaf0; border-color: #c7eed6; }
+  .notify-banner.ok button { background: var(--green); }
+
+  /* ===== リスト ===== */
+  .list { margin-top: 12px; display: flex; flex-direction: column; gap: 12px; }
+  .item {
+    background: var(--card); border-radius: var(--radius); padding: 14px 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04); display: flex; align-items: center; gap: 13px;
+    cursor: pointer; border: 1px solid transparent;
+  }
+  .item:active { background: #fafafa; }
+  .item.overdue { border-color: #ffd9d6; }
+  .item .emoji {
+    flex: 0 0 auto; width: 44px; height: 44px; border-radius: 12px;
+    background: var(--bg); display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+  }
+  .item .body { flex: 1; min-width: 0; }
+  .item .name {
+    font-size: 15.5px; font-weight: 600; letter-spacing: .01em;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .item .meta { font-size: 12px; color: var(--sub); margin-top: 2px; }
+  .item .right { flex: 0 0 auto; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .item .count { font-size: 13px; font-weight: 700; letter-spacing: .01em; white-space: nowrap; }
+  .item .count.soon { color: var(--orange); }
+  .item .count.over { color: var(--red); }
+  .item .count.far { color: var(--text); }
+  .item .done-btn {
+    background: var(--chip); color: var(--text); border: none; border-radius: 999px;
+    font-size: 12px; font-weight: 600; padding: 6px 11px; font-family: inherit; cursor: pointer;
+    white-space: nowrap;
+  }
+  .item .done-btn:active { background: #e3e3e6; }
+
+  /* ===== 空状態 ===== */
+  .empty { text-align: center; color: var(--sub); padding: 48px 20px; }
+  .empty .ee { font-size: 40px; }
+  .empty p { font-size: 14px; margin-top: 12px; }
+
+  /* ===== 追加ボタン（固定） ===== */
+  .fab {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: calc(20px + env(safe-area-inset-bottom)); z-index: 20;
+    background: var(--accent); color: #fff; border: none; border-radius: 999px;
+    font-size: 15px; font-weight: 600; padding: 14px 24px; font-family: inherit; cursor: pointer;
+    box-shadow: 0 6px 20px rgba(21,168,146,.38); display: inline-flex; align-items: center; gap: 7px;
+  }
+  .fab:active { transform: translateX(-50%) scale(.97); }
+
+  /* ===== フォーム（シート） ===== */
+  .sheet-bg {
+    position: fixed; inset: 0; background: rgba(0,0,0,.32); z-index: 30;
+    display: flex; align-items: flex-end; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity .2s ease;
+  }
+  .sheet-bg.show { opacity: 1; pointer-events: auto; }
+  .sheet {
+    background: var(--card); width: 100%; max-width: 640px;
+    border-radius: 22px 22px 0 0; padding: 8px 20px calc(28px + env(safe-area-inset-bottom));
+    transform: translateY(100%); transition: transform .25s cubic-bezier(.2,.8,.2,1);
+    max-height: 92vh; overflow-y: auto;
+  }
+  .sheet-bg.show .sheet { transform: translateY(0); }
+  .sheet .grab { width: 38px; height: 5px; background: #d9d9de; border-radius: 3px; margin: 8px auto 14px; }
+  .sheet h2 { font-size: 18px; font-weight: 700; text-align: center; margin: 0 0 18px; }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 12.5px; font-weight: 600; color: var(--sub); margin-bottom: 6px; }
+  .field input[type=text], .field input[type=number], .field input[type=date], .field select {
+    width: 100%; font-size: 16px; font-family: inherit; color: var(--text);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 12px 13px;
+    -webkit-appearance: none; appearance: none;
+  }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--accent); }
+  .interval-row { display: flex; gap: 10px; }
+  .interval-row input { flex: 1; }
+  .interval-row select { flex: 1; background-image: none; }
+  .emoji-picker { display: flex; flex-wrap: wrap; gap: 8px; }
+  .emoji-picker button {
+    width: 44px; height: 44px; border-radius: 12px; border: 1.5px solid var(--line);
+    background: var(--bg); font-size: 22px; cursor: pointer; padding: 0;
+  }
+  .emoji-picker button.sel { border-color: var(--accent); background: #e7f7f3; }
+  .hint { font-size: 11.5px; color: var(--sub); margin-top: 6px; }
+  .preview-next { font-size: 13px; color: var(--accent); font-weight: 600; margin-top: 6px; min-height: 18px; }
+  .sheet-actions { display: flex; gap: 10px; margin-top: 22px; }
+  .btn {
+    flex: 1; border: none; border-radius: 13px; font-size: 15px; font-weight: 600;
+    padding: 14px; font-family: inherit; cursor: pointer;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:active { opacity: .8; }
+  .btn-primary:disabled { opacity: .4; }
+  .btn-ghost { background: var(--chip); color: var(--text); }
+  .btn-del {
+    width: 100%; margin-top: 12px; background: none; border: none; color: var(--red);
+    font-size: 14px; font-family: inherit; cursor: pointer; padding: 10px;
+  }
+</style>
+</head>
+<body>
+<a class="back-btn" href="index.html">‹ つみき</a>
+
+<div class="wrap">
+  <header class="app">
+    <div class="logo">⏰</div>
+    <h1>つぎいつ？</h1>
+    <p class="tagline">次に行く日を、忘れない</p>
+    <p class="sync" id="syncStatus"></p>
+  </header>
+
+  <div id="notifyBanner"></div>
+  <main id="app"></main>
+</div>
+
+<button class="fab" id="addBtn">＋ 新しい予定</button>
+
+<!-- 追加 / 編集シート -->
+<div class="sheet-bg" id="sheetBg">
+  <div class="sheet" id="sheet">
+    <div class="grab"></div>
+    <h2 id="sheetTitle">新しい予定</h2>
+
+    <div class="field">
+      <label>名前</label>
+      <input type="text" id="fName" placeholder="例）美容室、脱毛、歯科クリーニング" maxlength="40">
+    </div>
+
+    <div class="field">
+      <label>アイコン</label>
+      <div class="emoji-picker" id="emojiPicker"></div>
+    </div>
+
+    <div class="field">
+      <label>どのくらいの周期で？</label>
+      <div class="interval-row">
+        <input type="number" id="fValue" min="1" max="999" inputmode="numeric" placeholder="6">
+        <select id="fUnit">
+          <option value="day">日ごと</option>
+          <option value="week">週間ごと</option>
+          <option value="month">ヶ月ごと</option>
+          <option value="year">年ごと</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>最後に行った日</label>
+      <input type="date" id="fLast">
+      <div class="preview-next" id="nextPreview"></div>
+    </div>
+
+    <div class="field">
+      <label>何日前に通知する？</label>
+      <input type="number" id="fLead" min="0" max="60" inputmode="numeric" placeholder="3">
+      <div class="hint">予定日の◯日前にプッシュ通知でお知らせします（0＝当日）。</div>
+    </div>
+
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="cancelBtn">キャンセル</button>
+      <button class="btn btn-primary" id="saveBtn">保存</button>
+    </div>
+    <button class="btn-del" id="delBtn" style="display:none">この予定を削除</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+"use strict";
+
+/* ============ データ層 ============ */
+const STORE_KEY = "tsugi_app_v1";
+function load() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || { items: [] }; }
+  catch (e) { return { items: [] }; }
+}
+function saveLocal() { localStorage.setItem(STORE_KEY, JSON.stringify(DB)); }
+let DB = load();
+
+/* ---------- Supabase クラウド同期（recognition / GROW と同じプロジェクト） ---------- */
+const SUPABASE_URL = "https://okbjqtdirrathscctyvx.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rYmpxdGRpcnJhdGhzY2N0eXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMjI4NTIsImV4cCI6MjA5NTg5ODg1Mn0.T-1AOK6vCD6uGdqrVGXjPui3L6WPSNrnygS-IHyfZ6Y";
+const ROW_ID = "kodai";            // 完全に個人用なので固定の1行に丸ごと保存
+let sb = null;
+try { if (window.supabase) sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false } }); } catch (e) {}
+let pushTimer = null, pushing = false;
+function setSync(t) { const e = document.getElementById("syncStatus"); if (e) e.textContent = t; }
+
+async function pushCloud() {
+  if (!sb || pushing) return;
+  pushing = true; setSync("同期中…");
+  try {
+    const res = await sb.from("tsugi_state").upsert({ id: ROW_ID, state: DB, updated_at: new Date().toISOString() });
+    if (res.error) { console.error(res.error); setSync("⚠ 同期失敗"); }
+    else { setSync("✓ 同期済み"); }
+  } catch (e) { console.error(e); setSync("⚠ 同期失敗"); }
+  finally { pushing = false; }
+}
+function scheduleCloud() { if (!sb) return; setSync("…"); clearTimeout(pushTimer); pushTimer = setTimeout(pushCloud, 1200); }
+
+async function pullCloud() {
+  if (!sb) return false;
+  let res;
+  try { res = await sb.from("tsugi_state").select("state").eq("id", ROW_ID).maybeSingle(); }
+  catch (e) { console.error(e); return false; }
+  if (res.error) { console.error(res.error); return false; }
+  if (res.data && res.data.state && Array.isArray(res.data.state.items)) {
+    DB = res.data.state; saveLocal(); return true;
+  }
+  return false;
+}
+
+async function bootstrapCloud() {
+  if (!sb) { setSync("オフライン（この端末のみ）"); return; }
+  setSync("読込中…");
+  const has = await pullCloud();
+  if (has) { render(); setSync("✓ 同期済み"); return; }
+  if (DB.items && DB.items.length > 0) { setSync("初回アップロード中…"); await pushCloud(); }
+  else { setSync("✓ 同期済み"); }
+}
+
+// localStorage 即時保存 ＋ クラウドへデバウンス送信
+function save() { saveLocal(); scheduleCloud(); }
+
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+/* ============ 日付ユーティリティ ============ */
+const WD = ["日", "月", "火", "水", "木", "金", "土"];
+function todayMid() { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }
+function parseYMD(s) {
+  if (!s) return todayMid();
+  const [y, m, d] = s.split("-").map(Number);
+  const dt = new Date(y, (m || 1) - 1, d || 1); dt.setHours(0, 0, 0, 0); return dt;
+}
+function toYMD(d) {
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function addMonths(date, n) {
+  const d = new Date(date), day = d.getDate();
+  d.setDate(1); d.setMonth(d.getMonth() + n);
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, last)); return d;
+}
+function addInterval(date, value, unit) {
+  const d = new Date(date), v = Number(value) || 0;
+  if (unit === "day") d.setDate(d.getDate() + v);
+  else if (unit === "week") d.setDate(d.getDate() + v * 7);
+  else if (unit === "month") return addMonths(date, v);
+  else if (unit === "year") return addMonths(date, v * 12);
+  return d;
+}
+function nextDate(item) { return addInterval(parseYMD(item.lastDate), item.intervalValue, item.intervalUnit); }
+function daysUntil(item) {
+  return Math.round((nextDate(item).getTime() - todayMid().getTime()) / 86400000);
+}
+const UNIT_LABEL = { day: "日", week: "週間", month: "ヶ月", year: "年" };
+function intervalLabel(item) { return (item.intervalValue || 0) + UNIT_LABEL[item.intervalUnit] + "ごと"; }
+function fmtDate(d) { return (d.getMonth() + 1) + "/" + d.getDate() + "（" + WD[d.getDay()] + "）"; }
+
+/* ============ 描画 ============ */
+const appEl = document.getElementById("app");
+
+function render() {
+  renderNotifyBanner();
+  if (!DB.items || DB.items.length === 0) {
+    appEl.innerHTML =
+      '<div class="empty"><div class="ee">🗓️</div>' +
+      '<p>まだ予定がありません。<br>右下の「＋ 新しい予定」から、<br>美容室や脱毛などを登録しましょう。</p></div>';
+    return;
+  }
+  const sorted = DB.items.slice().sort((a, b) => daysUntil(a) - daysUntil(b));
+  appEl.innerHTML = '<div class="list">' + sorted.map(itemRow).join("") + '</div>';
+}
+
+function itemRow(item) {
+  const du = daysUntil(item);
+  let cls, label;
+  if (du < 0) { cls = "over"; label = (-du) + "日すぎてる"; }
+  else if (du === 0) { cls = "soon"; label = "今日"; }
+  else if (du <= (item.leadDays != null ? item.leadDays : 3)) { cls = "soon"; label = "あと" + du + "日"; }
+  else { cls = "far"; label = "あと" + du + "日"; }
+  const nd = nextDate(item);
+  return '<div class="item ' + (du < 0 ? "overdue" : "") + '" data-id="' + item.id + '" data-act="edit">' +
+    '<div class="emoji">' + (item.emoji || "🗓️") + '</div>' +
+    '<div class="body">' +
+      '<div class="name">' + esc(item.name) + '</div>' +
+      '<div class="meta">' + intervalLabel(item) + ' ・ 次は ' + fmtDate(nd) + '</div>' +
+    '</div>' +
+    '<div class="right">' +
+      '<div class="count ' + cls + '">' + label + '</div>' +
+      '<button class="done-btn" data-id="' + item.id + '" data-act="done">行ってきた✓</button>' +
+    '</div>' +
+  '</div>';
+}
+
+function esc(s) { return String(s || "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+/* リスト操作（イベント委譲） */
+appEl.addEventListener("click", e => {
+  const btn = e.target.closest("[data-act]");
+  if (!btn) return;
+  const id = btn.getAttribute("data-id");
+  const act = btn.getAttribute("data-act");
+  if (act === "done") { e.stopPropagation(); markDone(id); }
+  else if (act === "edit") { openSheet(id); }
+});
+
+function markDone(id) {
+  const it = DB.items.find(x => x.id === id);
+  if (!it) return;
+  it.lastDate = toYMD(todayMid());
+  it.notifiedFor = null;   // 新しい周期に入ったので通知フラグをリセット
+  save(); render();
+}
+
+/* ============ 追加 / 編集シート ============ */
+const EMOJIS = ["🗓️", "💈", "✂️", "💆", "🪒", "💅", "🦷", "🩺", "💊", "🚗", "🧹", "🐶", "🌷", "🧴", "👓", "🛏️", "💸", "📦"];
+let editingId = null;
+let pickedEmoji = EMOJIS[0];
+
+const sheetBg = document.getElementById("sheetBg");
+const fName = document.getElementById("fName");
+const fValue = document.getElementById("fValue");
+const fUnit = document.getElementById("fUnit");
+const fLast = document.getElementById("fLast");
+const fLead = document.getElementById("fLead");
+const emojiPicker = document.getElementById("emojiPicker");
+const nextPreview = document.getElementById("nextPreview");
+
+function buildEmojiPicker() {
+  emojiPicker.innerHTML = EMOJIS.map(em =>
+    '<button type="button" data-em="' + em + '" class="' + (em === pickedEmoji ? "sel" : "") + '">' + em + '</button>'
+  ).join("");
+}
+emojiPicker.addEventListener("click", e => {
+  const b = e.target.closest("[data-em]"); if (!b) return;
+  pickedEmoji = b.getAttribute("data-em");
+  buildEmojiPicker();
+});
+
+function updateNextPreview() {
+  const v = Number(fValue.value), u = fUnit.value, last = fLast.value;
+  if (!v || v < 1 || !last) { nextPreview.textContent = ""; return; }
+  const nd = addInterval(parseYMD(last), v, u);
+  const du = Math.round((nd.getTime() - todayMid().getTime()) / 86400000);
+  const rel = du < 0 ? "（" + (-du) + "日すぎ）" : du === 0 ? "（今日）" : "（あと" + du + "日）";
+  nextPreview.textContent = "次の予定日：" + fmtDate(nd) + " " + rel;
+}
+[fValue, fUnit, fLast].forEach(el => el.addEventListener("input", updateNextPreview));
+
+function openSheet(id) {
+  editingId = id || null;
+  buildEmojiPicker();
+  if (id) {
+    const it = DB.items.find(x => x.id === id);
+    document.getElementById("sheetTitle").textContent = "予定を編集";
+    fName.value = it.name || "";
+    fValue.value = it.intervalValue || "";
+    fUnit.value = it.intervalUnit || "week";
+    fLast.value = it.lastDate || toYMD(todayMid());
+    fLead.value = it.leadDays != null ? it.leadDays : 3;
+    pickedEmoji = it.emoji || EMOJIS[0];
+    document.getElementById("delBtn").style.display = "block";
+  } else {
+    document.getElementById("sheetTitle").textContent = "新しい予定";
+    fName.value = ""; fValue.value = ""; fUnit.value = "week";
+    fLast.value = toYMD(todayMid()); fLead.value = 3;
+    pickedEmoji = EMOJIS[0];
+    document.getElementById("delBtn").style.display = "none";
+  }
+  buildEmojiPicker();
+  updateNextPreview();
+  sheetBg.classList.add("show");
+}
+function closeSheet() { sheetBg.classList.remove("show"); editingId = null; }
+
+document.getElementById("addBtn").addEventListener("click", () => openSheet(null));
+document.getElementById("cancelBtn").addEventListener("click", closeSheet);
+sheetBg.addEventListener("click", e => { if (e.target === sheetBg) closeSheet(); });
+
+document.getElementById("saveBtn").addEventListener("click", () => {
+  const name = fName.value.trim();
+  const value = Number(fValue.value);
+  if (!name) { fName.focus(); return; }
+  if (!value || value < 1) { fValue.focus(); return; }
+  const data = {
+    name,
+    emoji: pickedEmoji,
+    intervalValue: value,
+    intervalUnit: fUnit.value,
+    lastDate: fLast.value || toYMD(todayMid()),
+    leadDays: Math.max(0, Number(fLead.value) || 0),
+  };
+  if (editingId) {
+    const it = DB.items.find(x => x.id === editingId);
+    const cycleChanged = it.lastDate !== data.lastDate || it.intervalValue !== data.intervalValue || it.intervalUnit !== data.intervalUnit;
+    Object.assign(it, data);
+    if (cycleChanged) it.notifiedFor = null;   // 周期が変わったら通知し直し
+  } else {
+    DB.items.push(Object.assign({ id: uid(), createdAt: Date.now(), notifiedFor: null }, data));
+  }
+  save(); render(); closeSheet();
+  ensureNotifyPermission();   // 予定を入れたら通知許可を促す
+});
+
+document.getElementById("delBtn").addEventListener("click", () => {
+  if (!editingId) return;
+  if (!confirm("この予定を削除しますか？")) return;
+  DB.items = DB.items.filter(x => x.id !== editingId);
+  save(); render(); closeSheet();
+});
+
+/* ============ 通知まわり ============ */
+let _swReg = null;
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('tsugi-sw.js').then(r => { _swReg = r; }).catch(() => {});
+}
+function notifyState() {
+  if (!('Notification' in window)) return "unsupported";
+  return Notification.permission;   // 'default' | 'granted' | 'denied'
+}
+function renderNotifyBanner() {
+  const el = document.getElementById("notifyBanner");
+  const st = notifyState();
+  if (st === "unsupported") { el.innerHTML = ""; return; }
+  if (st === "granted") {
+    el.innerHTML =
+      '<div class="notify-banner ok"><div class="nb-txt">' +
+      '<div class="nb-title">🔔 通知オン</div>' +
+      '<div class="nb-desc">予定日が近づくと、この端末にお知らせします。</div>' +
+      '</div></div>';
+    return;
+  }
+  const desc = st === "denied"
+    ? "ブラウザ設定で通知がブロックされています。設定から許可してください。"
+    : "予定日が近づいたらプッシュ通知でお知らせします。";
+  el.innerHTML =
+    '<div class="notify-banner"><div class="nb-txt">' +
+    '<div class="nb-title">🔔 通知を受け取る</div>' +
+    '<div class="nb-desc">' + desc + '</div></div>' +
+    (st === "denied" ? "" : '<button id="notifyOnBtn">オンにする</button>') +
+    '</div>';
+  const b = document.getElementById("notifyOnBtn");
+  if (b) b.addEventListener("click", ensureNotifyPermission);
+}
+
+/* 通知許可をリクエスト（ユーザー操作で呼ぶ） */
+async function ensureNotifyPermission() {
+  if (!('Notification' in window)) return false;
+  if (Notification.permission === 'denied') { renderNotifyBanner(); return false; }
+  let ok = Notification.permission === 'granted';
+  if (!ok) { try { ok = (await Notification.requestPermission()) === 'granted'; } catch (e) { ok = false; } }
+  if (ok) await ensurePushSubscription();
+  renderNotifyBanner();
+  return ok;
+}
+
+/* ===== Web Push（アプリを閉じていても、予定日のお知らせが届く） ===== */
+const VAPID_PUBLIC = 'BOp-K1Eif_TEF21_2O_oGWuE23r2ppFzl6b1hafxV0i_1VktjXRRWnTj3vAmG_GXzaVx-HcRwQsfBoljV-_lmdk';
+function urlB64ToUint8Array(base64) {
+  const pad = '='.repeat((4 - base64.length % 4) % 4);
+  const b = (base64 + pad).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(b); const arr = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+/* この端末をプッシュ購読し、tsugi_subs テーブルに登録する */
+async function ensurePushSubscription() {
+  if (!sb) return;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    const reg = _swReg || await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlB64ToUint8Array(VAPID_PUBLIC)
+      });
+    }
+    const j = sub.toJSON();
+    await sb.from('tsugi_subs').upsert({
+      endpoint: sub.endpoint, who: ROW_ID,
+      p256dh: j.keys.p256dh, auth: j.keys.auth, created_at: Date.now()
+    }, { onConflict: 'endpoint' });
+  } catch (e) { /* 非対応端末・拒否時などは無視 */ }
+}
+
+/* ============ 起動 ============ */
+render();
+bootstrapCloud();
+if (notifyState() === "granted") ensurePushSubscription();
+</script>
+</body>
+</html>
