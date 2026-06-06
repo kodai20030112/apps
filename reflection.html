@@ -386,6 +386,7 @@
       <div class="arrow">›</div>
     </div>
 
+    <div class="ps-sync" id="starsSync"></div>
     <div class="chips" id="filterChips"></div>
     <div id="storyList"></div>
   </section>
@@ -584,8 +585,23 @@ const STARS = [
 
 /* ========================= データ層 ========================= */
 const LS_KEY = "stars_reflection_v1";
-function loadStories(){ try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; } catch(e){ return []; } }
-function saveStories(arr){ localStorage.setItem(LS_KEY, JSON.stringify(arr)); }
+let starsTs = 0;   // この端末のデータの最終更新時刻（端末間同期で新しい方を採用するため）
+function loadStories(){
+  try {
+    const raw = JSON.parse(localStorage.getItem(LS_KEY));
+    if (Array.isArray(raw)) {                       // 旧形式（配列のみ）→ 新形式へ移行
+      starsTs = raw.length ? Date.now() : 0;        // 既存データは「未同期の新しいデータ」として扱い、消えないようにする
+      return raw;
+    }
+    if (raw && Array.isArray(raw.items)) { starsTs = raw._ts || 0; return raw.items; }
+  } catch(e){}
+  return [];
+}
+function saveStories(arr){
+  starsTs = Date.now();
+  localStorage.setItem(LS_KEY, JSON.stringify({ items: arr, _ts: starsTs }));
+  if (typeof starsTouch === "function") starsTouch();   // クラウドへデバウンス同期（関数は後方で定義）
+}
 let stories = loadStories();
 
 function findCmp(id){ const c = COMPETENCIES[id]; return c ? { cmp: c } : null; }
@@ -1276,6 +1292,66 @@ document.addEventListener("visibilitychange", async ()=>{
   if(cloud && psAdoptIfNewer(cloud)){ psRerender(); toast("別の端末の更新を反映しました"); }
 });
 
+/* =========================================================================
+   ★★★ STARS振り返り 端末間同期 ★★★
+   - ポジション・ストーリーと同じ grownote_state テーブルを別IDで間借り（追加SQL不要）
+   - psSb（Supabaseクライアント）を共用する
+   ========================================================================= */
+const STARS_ROW_ID = "stars_reflection_kodai";
+let starsPushTimer = null, starsPushing = false;
+function starsSetSync(t){ const e = document.getElementById("starsSync"); if(e) e.textContent = t; }
+function starsTouch(){
+  if(!psSb) return;
+  starsSetSync("…"); clearTimeout(starsPushTimer); starsPushTimer = setTimeout(starsPush, 1200);
+}
+async function starsPush(){
+  if(!psSb || starsPushing) return;
+  starsPushing = true; starsSetSync("同期中…");
+  try {
+    const state = { items: stories, _ts: starsTs };
+    const res = await psSb.from("grownote_state").upsert({ id: STARS_ROW_ID, state, updated_at: new Date().toISOString() });
+    if(res.error){ console.error(res.error); starsSetSync("⚠ 同期失敗"); } else starsSetSync("✓ 同期済み");
+  } catch(e){ console.error(e); starsSetSync("⚠ 同期失敗"); }
+  finally { starsPushing = false; }
+}
+async function starsPull(){
+  if(!psSb) return null;
+  try {
+    const res = await psSb.from("grownote_state").select("state").eq("id", STARS_ROW_ID).maybeSingle();
+    if(res.error){ console.error(res.error); return null; }
+    if(res.data && res.data.state && Array.isArray(res.data.state.items)) return res.data.state;
+  } catch(e){ console.error(e); }
+  return null;
+}
+function starsAdoptIfNewer(cloud){
+  if(cloud && (cloud._ts||0) > (starsTs||0)){
+    stories = cloud.items; starsTs = cloud._ts || Date.now();
+    localStorage.setItem(LS_KEY, JSON.stringify({ items: stories, _ts: starsTs }));
+    return true;
+  }
+  return false;
+}
+async function starsBootstrap(){
+  if(!psSb){ starsSetSync("オフライン（この端末のみ）"); return; }
+  starsSetSync("読込中…");
+  const cloud = await starsPull();
+  if(cloud){
+    if(starsAdoptIfNewer(cloud)) renderHome();
+    starsSetSync("✓ 同期済み");
+    if((starsTs||0) > (cloud._ts||0)) starsPush();   // ローカルの方が新しければ押し上げ
+  } else {
+    if(stories.length){ starsSetSync("初回アップロード中…"); await starsPush(); }
+    else starsSetSync("✓ 同期済み");
+  }
+}
+document.addEventListener("visibilitychange", async ()=>{
+  if(document.visibilityState !== "visible" || !psSb) return;
+  // 記入画面で編集中は、別端末の更新で上書きしない
+  if(document.getElementById("view-edit").classList.contains("active")) return;
+  const cloud = await starsPull();
+  if(cloud && starsAdoptIfNewer(cloud)){ renderHome(); toast("別の端末の更新を反映しました"); }
+});
+
 /* ---------- ポジション一覧 ---------- */
 function renderPositions(){
   const host = document.getElementById("posList");
@@ -1451,6 +1527,7 @@ document.getElementById("psBanner").onclick = ()=>{ renderPositions(); show("pos
 /* 起動 */
 renderHome();
 psBootstrap();
+starsBootstrap();
 </script>
 <!-- tsumiki-back-button -->
 <style>
