@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="apple-touch-icon" href="icons/icon-index.png">
+<meta name="apple-mobile-web-app-title" content="横断検索">
+<meta name="career-app" content="search">
+<title>横断検索 — Workを一括で探す</title>
+<style>
+  :root{
+    --bg:#f5f5f7; --card:#ffffff; --ink:#1d1d1f; --sub:#6e6e73;
+    --line:#e5e5ea; --accent:#0071e3; --radius:18px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Helvetica Neue",Arial,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.6;
+    padding:env(safe-area-inset-top) 16px 60px; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:720px; margin:0 auto;}
+  header{padding:34px 4px 18px; text-align:center;}
+  .logo{font-size:38px; line-height:1;}
+  h1{font-size:26px; font-weight:700; letter-spacing:-.02em; margin-top:8px;}
+  .tagline{color:var(--sub); font-size:14px; margin-top:6px;}
+  .searchbox{position:sticky; top:8px; z-index:5; margin-top:8px;}
+  .searchbox input{
+    width:100%; font-size:17px; padding:14px 16px; border:1px solid var(--line);
+    border-radius:14px; background:var(--card); color:var(--ink);
+    box-shadow:0 4px 16px rgba(0,0,0,.04);
+  }
+  .searchbox input:focus{outline:none; border-color:var(--accent);}
+  .filters{display:flex; gap:8px; flex-wrap:wrap; margin:14px 0 4px;}
+  .chip{font-size:13px; font-weight:600; color:var(--sub); background:var(--card);
+    border:1px solid var(--line); border-radius:999px; padding:6px 13px; cursor:pointer;}
+  .chip.on{background:var(--ink); color:#fff; border-color:var(--ink);}
+  .status{color:var(--sub); font-size:13px; margin:14px 4px 6px;}
+  .group{margin-top:18px;}
+  .group h2{font-size:14px; font-weight:700; color:var(--sub); padding:0 4px 8px;
+    display:flex; align-items:center; gap:7px;}
+  .group h2 .badge{margin-left:auto; font-size:11px; font-weight:600;
+    background:var(--bg); border:1px solid var(--line); border-radius:999px; padding:2px 9px;}
+  a.hit{display:block; text-decoration:none; color:var(--ink);
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:13px 15px; margin-bottom:10px; transition:transform .12s ease;}
+  a.hit:active{transform:scale(.99);}
+  .hit .ht{font-size:15px; font-weight:600; letter-spacing:-.01em;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .hit .hs{font-size:13px; color:var(--sub); margin-top:3px;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+  .hit mark{background:#fff3b0; color:var(--ink); border-radius:3px; padding:0 1px;}
+  .empty{text-align:center; color:var(--sub); padding:48px 12px; font-size:14px; line-height:1.9;}
+  .empty .big{font-size:40px;}
+  footer{text-align:center; color:var(--sub); font-size:12px; margin-top:30px; line-height:1.8;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">🔎</div>
+    <h1>横断検索</h1>
+    <p class="tagline">STARS・GROW・5Whys・Recognition をまとめて探す</p>
+  </header>
+
+  <div class="searchbox">
+    <input id="q" type="search" placeholder="キーワードで検索（例：お客様 / NPS / コラボ）" autocomplete="off" autofocus>
+  </div>
+  <div class="filters" id="filters"></div>
+  <p class="status" id="status"></p>
+  <div id="results"></div>
+
+  <footer>つみき — tsumiki-apps.github.io</footer>
+</div>
+
+<script>
+  /* ---- 各アプリの localStorage を読み、検索対象レコードに正規化 ---- */
+  function readJSON(key){ try{ return JSON.parse(localStorage.getItem(key) || "null"); }catch(e){ return null; } }
+  function clean(s){ return String(s == null ? "" : s).trim(); }
+  function join(){ return [].slice.call(arguments).map(clean).filter(Boolean).join("　"); }
+
+  function collect(){
+    const recs = [];
+
+    // STARS 振り返り
+    const refl = readJSON("stars_reflection_v1");
+    (refl && refl.items || []).forEach(it=>{
+      recs.push({
+        app:"reflection", label:"STARS 振り返り", emoji:"🪞", href:"reflection.html",
+        title: clean(it.title) || "（無題）",
+        text: join(it.situation, it.task, it.action, it.result, it.selfref)
+      });
+    });
+
+    // ポジション・ストーリー（STARS内）
+    const ps = readJSON("stars_position_story_v1");
+    if(ps && ps.positions){
+      Object.keys(ps.positions).forEach(k=>{
+        const p = ps.positions[k] || {};
+        (p.sections || []).forEach(sec=>{
+          const t = join(sec.heading, sec.body);
+          if(t) recs.push({ app:"reflection", label:"ポジション・ストーリー", emoji:"✍️",
+            href:"reflection.html", title: clean(sec.heading) || "ポジション・ストーリー", text: clean(sec.body) });
+        });
+      });
+    }
+
+    // GROW ノート
+    const grow = readJSON("grownote_v1");
+    (grow && grow.members || []).forEach(m=>{
+      if(clean(m.goal)) recs.push({ app:"grownote", label:"GROW ノート", emoji:"🌳",
+        href:"grownote.html", title: clean(m.name)+" のゴール", text: clean(m.goal) });
+      (m.sessions || []).forEach(s=>{
+        const fb = s.feedback || {};
+        const todos = ((s.action || {}).todos || []).map(t=>t && t.text).join("　");
+        const advice = (s.advice || []).map(a=>a && a.text).join("　");
+        const text = join(s.goal, s.reality, fb.keep, fb.more, s.insight, advice, todos);
+        if(text) recs.push({ app:"grownote", label:"GROW ノート", emoji:"🌳", href:"grownote.html",
+          title: clean(m.name)+" の1on1"+(s.date?"（"+s.date+"）":""), text });
+      });
+    });
+
+    // 5Whys ノート
+    const fw = readJSON("team5whys_v1");
+    (fw && fw.members || []).forEach(m=>{
+      if(clean(m.goal)) recs.push({ app:"team5whys", label:"5Whys ノート", emoji:"🔍",
+        href:"team5whys.html", title: clean(m.name)+" の叶えたいこと", text: clean(m.goal) });
+      (m.sessions || []).forEach(s=>{
+        const whys = (s.whys || []).join("　");
+        const sm = s.smart || {};
+        const smTxt = join(sm.goal, sm.specific, sm.measurable, sm.achievable, sm.relevant, sm.timebound);
+        const text = join(s.problem, whys, s.interim, smTxt);
+        if(text) recs.push({ app:"team5whys", label:"5Whys ノート", emoji:"🔍", href:"team5whys.html",
+          title: clean(m.name)+" の深掘り"+(s.date?"（"+s.date+"）":""), text });
+      });
+    });
+
+    // Recognition
+    const reco = readJSON("recognition_app_v1");
+    (reco && reco.members || []).forEach(m=>{
+      (m.recognitions || []).forEach(r=>{
+        const text = join(r.jp, r.en);
+        if(text) recs.push({ app:"recognition", label:"Recognition", emoji:"🌟", href:"recognition.html",
+          title: clean(m.name)+" さんへの称賛"+(r.date?"（"+r.date+"）":""), text });
+      });
+    });
+
+    return recs;
+  }
+
+  /* ---- 検索＆ハイライト ---- */
+  const ALL = collect();
+  const APPS = [
+    {key:"all", label:"すべて"},
+    {key:"reflection", label:"🪞 STARS"},
+    {key:"grownote", label:"🌳 GROW"},
+    {key:"team5whys", label:"🔍 5Whys"},
+    {key:"recognition", label:"🌟 Recognition"},
+  ];
+  let activeApp = "all";
+
+  function esc(s){ return String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+  function reEsc(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+
+  function snippet(text, q){
+    const idx = text.toLowerCase().indexOf(q.toLowerCase());
+    let body = text;
+    if(idx > 40) body = "…" + text.slice(idx - 30);
+    const safe = esc(body);
+    const re = new RegExp(reEsc(esc(q)), "gi");
+    return safe.replace(re, m=>"<mark>"+m+"</mark>");
+  }
+
+  function renderFilters(){
+    document.getElementById("filters").innerHTML = APPS.map(a=>
+      '<span class="chip'+(a.key===activeApp?" on":"")+'" data-k="'+a.key+'">'+a.label+'</span>'
+    ).join("");
+    document.querySelectorAll(".chip").forEach(ch=>{
+      ch.onclick = ()=>{ activeApp = ch.dataset.k; renderFilters(); run(); };
+    });
+  }
+
+  function run(){
+    const q = clean(document.getElementById("q").value);
+    const status = document.getElementById("status");
+    const out = document.getElementById("results");
+
+    if(!ALL.length){
+      status.textContent = "";
+      out.innerHTML = '<div class="empty"><div class="big">🗂️</div>この端末にはまだ記録がありません。<br>STARS・GROW・5Whys・Recognition を使うと、ここから横断検索できます。</div>';
+      return;
+    }
+    if(!q){
+      status.textContent = "検索できる記録：" + ALL.length + " 件";
+      out.innerHTML = '<div class="empty"><div class="big">🔎</div>キーワードを入力すると、<br>4つのアプリの記録をまとめて検索します。</div>';
+      return;
+    }
+
+    const ql = q.toLowerCase();
+    let hits = ALL.filter(r => (r.title + "　" + r.text).toLowerCase().indexOf(ql) >= 0);
+    if(activeApp !== "all") hits = hits.filter(r => r.app === activeApp);
+
+    status.textContent = hits.length + " 件ヒット";
+    if(!hits.length){
+      out.innerHTML = '<div class="empty"><div class="big">🤔</div>「'+esc(q)+'」に一致する記録は見つかりませんでした。</div>';
+      return;
+    }
+
+    // アプリごとにグループ化
+    const groups = {};
+    hits.forEach(h=>{ (groups[h.label] = groups[h.label] || []).push(h); });
+    out.innerHTML = Object.keys(groups).map(label=>{
+      const arr = groups[label];
+      const rows = arr.map(h=>
+        '<a class="hit" href="'+h.href+'">'+
+          '<div class="ht">'+snippet(h.title, q)+'</div>'+
+          '<div class="hs">'+snippet(h.text, q)+'</div>'+
+        '</a>'
+      ).join("");
+      return '<div class="group"><h2><span>'+arr[0].emoji+'</span>'+esc(label)+
+        '<span class="badge">'+arr.length+'</span></h2>'+rows+'</div>';
+    }).join("");
+  }
+
+  renderFilters();
+  let timer = null;
+  document.getElementById("q").addEventListener("input", ()=>{ clearTimeout(timer); timer = setTimeout(run, 120); });
+  run();
+</script>
+<script src="career.js"></script>
+</body>
+</html>

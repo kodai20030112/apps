@@ -57,7 +57,7 @@
   .days { font-size: 13px; color: var(--sub); margin-top: 6px; min-height: 18px; }
 
   /* tally rows */
-  .tally { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .tally { display: flex; align-items: center; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--line); }
   .tally:last-child { border-bottom: none; }
   .tally .score { width: 96px; flex-shrink: 0; }
   .tally .score .num { font-size: 22px; font-weight: 600; }
@@ -79,7 +79,7 @@
     border: 1px solid var(--line); border-radius: 10px; font-family: inherit;
   }
   .tally input.count:focus { outline: none; border-color: var(--blue); }
-  .tally .pts { margin-left: auto; font-size: 13px; color: var(--sub); width: 64px; text-align: right; }
+  .tally .pts { margin-left: auto; font-size: 12px; color: var(--sub); width: 46px; text-align: right; flex-shrink: 0; }
   .total-line { text-align: right; font-size: 14px; color: var(--sub); margin-top: 14px; }
 
   /* result */
@@ -266,8 +266,7 @@
         '<span class="tag">' + s.tag + '</span></div>' +
         '<button class="btn-step" data-act="dec" data-v="' + s.key + '" aria-label="減らす">−</button>' +
         '<input class="count" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" data-v="' + s.key + '" value="0">' +
-        '<button class="btn-step" data-act="inc" data-v="' + s.key + '" aria-label="増やす">+</button>' +
-        '<span class="pts">' + (s.pts > 0 ? "+" : "") + s.pts + ' 点</span>';
+        '<button class="btn-step" data-act="inc" data-v="' + s.key + '" aria-label="増やす">+</button>';
       el.tallies.appendChild(row);
     });
 

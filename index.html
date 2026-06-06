@@ -49,6 +49,27 @@
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .arrow{margin-left:auto; color:#c7c7cc; font-size:20px; flex:0 0 auto;}
   footer{text-align:center; color:var(--sub); font-size:12px; margin-top:36px; line-height:1.8;}
+  /* 今週のWork ダッシュボード */
+  .dash{margin-top:22px; background:var(--card); border:1px solid var(--line);
+    border-radius:var(--radius); padding:18px 18px 8px;}
+  .dash h2{font-size:17px; font-weight:700; letter-spacing:-.01em;
+    display:flex; align-items:center; gap:8px;}
+  .dash .ds{color:var(--sub); font-size:13px; margin-top:3px;}
+  .dstats{display:flex; gap:10px; margin:14px 0 4px;}
+  .dstat{flex:1; background:var(--bg); border-radius:14px; padding:12px 14px;}
+  .dstat b{font-size:25px; font-weight:700; display:block; letter-spacing:-.02em; line-height:1.1;}
+  .dstat span{font-size:12px; color:var(--sub);}
+  .feed-title{font-size:12px; color:var(--sub); font-weight:600; margin:16px 4px 4px;}
+  a.fitem{display:flex; align-items:center; gap:11px; padding:11px 6px;
+    text-decoration:none; color:var(--ink); border-top:1px solid var(--line);}
+  a.fitem:first-of-type{border-top:none;}
+  a.fitem:active{background:var(--bg);}
+  .fitem .fe{font-size:20px; width:30px; text-align:center; flex:0 0 auto;}
+  .fitem .ft{min-width:0; flex:1;}
+  .fitem .fs{display:block; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .fitem .fm{display:block; font-size:11px; color:var(--sub); margin-top:1px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .fitem .fa{margin-left:auto; color:#c7c7cc; font-size:18px; flex:0 0 auto;}
 </style>
 </head>
 <body>
@@ -60,6 +81,8 @@
     <p class="count" id="count"></p>
   </header>
 
+  <section id="dash" class="dash" hidden></section>
+
   <main id="app"></main>
 
   <footer>
@@ -68,9 +91,11 @@
   </footer>
 </div>
 
+<script src="career.js"></script>
 <script>
   const categories = [
     {key:"work", emoji:"💼", label:"Work", apps:[
+      {emoji:"🔎", title:"横断検索", desc:"STARS・GROW・5Whys・Recognitionを一括検索", href:"search.html"},
       {emoji:"📊", title:"NPS 目標達成 計算ツール", desc:"NPS目標から必要Promoter数を逆算", href:"nps.html"},
       {emoji:"📈", title:"Weekly Recap", desc:"週次リキャップ画像を作成", href:"recap.html"},
       {emoji:"🌟", title:"Recognition", desc:"承認・称賛を記録", href:"recognition.html"},
@@ -113,6 +138,64 @@
     app.appendChild(sec);
   });
   document.getElementById("count").textContent = total + " 個のアプリ";
+
+  /* ===== 今週のWork ダッシュボード ===== */
+  const APP_HREF = {
+    nps:"nps.html", recap:"recap.html", recognition:"recognition.html",
+    grownote:"grownote.html", team5whys:"team5whys.html", reflection:"reflection.html",
+    vault:"vault.html", osusowake:"osusowake.html", schedule:"schedule.html",
+  };
+  function relTime(ts){
+    const diff = Date.now() - ts, m=60000, h=3600000, d=86400000;
+    if(diff < m) return "たった今";
+    if(diff < h) return Math.floor(diff/m) + "分前";
+    if(diff < d) return Math.floor(diff/h) + "時間前";
+    if(diff < 7*d) return Math.floor(diff/d) + "日前";
+    const dt = new Date(ts); return (dt.getMonth()+1) + "/" + dt.getDate();
+  }
+  function startOfWeek(){
+    const n = new Date(); n.setHours(0,0,0,0);
+    n.setDate(n.getDate() - ((n.getDay()+6)%7));   // 月曜始まり
+    return n.getTime();
+  }
+  function esc(s){ return String(s||"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+  (async function(){
+    if(!window.Career || !Career.getAll) return;
+    let res; try{ res = await Career.getAll(); }catch(e){ return; }
+    const items = (res && res.items) || [];
+    if(!items.length) return;
+
+    const sow = startOfWeek();
+    const week = items.filter(e => (e.ts||0) >= sow);
+    const achThisWeek = week.filter(e => e.action !== "visit").length;
+    const activeDays = new Set(week.map(e => new Date(e.ts).toDateString())).size;
+
+    let recent = items.filter(e => e.action !== "visit").slice(0,5);
+    if(!recent.length) recent = items.slice(0,5);
+
+    const apps = (Career.APPS) || {};
+    const rows = recent.map(e=>{
+      const meta = apps[e.app] || {};
+      const href = APP_HREF[e.app] || (e.app + ".html");
+      return '<a class="fitem" href="'+href+'">'+
+        '<span class="fe">'+(meta.emoji||"•")+'</span>'+
+        '<span class="ft"><span class="fs">'+esc(e.summary || (meta.label||e.app))+'</span>'+
+        '<span class="fm">'+esc(meta.label||e.app)+' ・ '+relTime(e.ts)+'</span></span>'+
+        '<span class="fa">›</span></a>';
+    }).join("");
+
+    const dash = document.getElementById("dash");
+    dash.innerHTML =
+      '<h2>📊 今週のWork</h2>'+
+      '<p class="ds">'+(res.connected ? "クラウド同期中" : "この端末の記録")+'</p>'+
+      '<div class="dstats">'+
+        '<div class="dstat"><b>'+achThisWeek+'</b><span>今週の実績</span></div>'+
+        '<div class="dstat"><b>'+activeDays+'<small style="font-size:15px">日</small></b><span>活動した日</span></div>'+
+      '</div>'+
+      '<p class="feed-title">最近の足跡</p>'+ rows;
+    dash.hidden = false;
+  })();
 </script>
 </body>
 </html>

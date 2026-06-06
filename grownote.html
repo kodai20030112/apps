@@ -79,7 +79,7 @@
   .chev{position:absolute;right:16px;top:18px;color:#c4c4c9;font-size:20px}
 
   /* data transfer entry */
-  .xfer{padding:14px 16px;margin-top:18px;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;font-size:14px;font-weight:600}
+  .xfer{padding:14px 16px;margin-top:18px;display:flex;flex-direction:column;align-items:flex-start;gap:3px;cursor:pointer;font-size:14px;font-weight:600}
   .xfer:active{background:#fafafa}
   .xfer .muted{font-weight:400;font-size:12px}
   .bk-actions{display:flex;gap:10px;margin-top:10px}
@@ -752,6 +752,7 @@ function renderEditor(){
     <div class="editor-actions">
       <button class="btn" id="saveBtn">${s?"更新する":"保存する"}</button>
       <button class="btn line" id="imgBtn">🖼 この会話を画像で書き出す</button>
+      <button class="btn line" id="starsBtn">🪞 STARSの素材にする</button>
       ${s?'<button class="btn danger" id="delBtn">この会話を削除</button>':''}
     </div>
   `;
@@ -864,6 +865,22 @@ function renderEditor(){
     const rec=buildRec();
     if(!sessHasContent(rec)){toast("先に内容を入力してね");return;}
     exportSessionImage(rec,m);
+  };
+  $("#starsBtn").onclick=()=>{
+    const rec=buildRec();
+    if(!sessHasContent(rec)){toast("先に内容を入力してね");return;}
+    const fb=rec.feedback||{};
+    const todoTxt=((rec.action||{}).todos||[]).map(t=>"・"+t.text).join("\n");
+    const lines=[
+      rec.goal?("【ゴール】"+rec.goal):"",
+      rec.reality?("【現状】"+rec.reality):"",
+      fb.keep?("【良い点】"+fb.keep):"",
+      fb.more?("【伸びしろ】"+fb.more):"",
+      rec.insight?("【今日から】"+rec.insight):"",
+      todoTxt?("【約束】\n"+todoTxt):""
+    ].filter(Boolean);
+    const payload={title:(m.name||"メンバー")+"さんとの1on1（"+rec.date+"）",body:lines.join("\n"),source:"GROWノート"};
+    location.href="reflection.html#stars="+encodeURIComponent(JSON.stringify(payload));
   };
   const del=$("#delBtn");
   if(del)del.onclick=()=>confirmSheet("この会話を削除しますか？","削除した記録は元に戻せません。",()=>{

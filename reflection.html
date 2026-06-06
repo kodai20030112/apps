@@ -618,6 +618,19 @@ function findCmp(id){ const c = COMPETENCIES[id]; return c ? { cmp: c } : null; 
 let draft = null;       // 編集中ストーリー
 let activeFilter = "all";
 
+/* 他アプリ（Recognition / GROWなど）からの取り込み。
+   reflection.html#stars=<encodeURIComponent(JSON)> で起動すると
+   コンピテンシーを選んだ瞬間にSTARフォームへ転記する。 */
+let pendingPrefill = (function(){
+  try{
+    const m = (location.hash||"").match(/stars=([^&]+)/);
+    if(!m) return null;
+    const obj = JSON.parse(decodeURIComponent(m[1]));
+    history.replaceState(null, "", location.pathname + location.search);
+    return obj && (obj.title || obj.body) ? obj : null;
+  }catch(e){ return null; }
+})();
+
 const views = { home:"view-home", select:"view-select", edit:"view-edit", detail:"view-detail", positions:"view-positions", posedit:"view-posedit" };
 function show(view){
   Object.values(views).forEach(id=>document.getElementById(id).classList.remove("active"));
@@ -744,6 +757,13 @@ function startDraft(cmpId, posId){
     createdAt: Date.now(), updatedAt: Date.now(), updates: [],
     isNew: true
   };
+  if(pendingPrefill){
+    // タイトルは保存時に situation の1行目から自動生成されるため、
+    // 見出し→本文の順で situation に流し込む。
+    draft.situation = [pendingPrefill.title, pendingPrefill.body]
+      .map(s=>(s||"").trim()).filter(Boolean).join("\n");
+    pendingPrefill = null;
+  }
   renderEdit();
   show("edit");
 }
@@ -1572,6 +1592,13 @@ document.getElementById("psBanner").onclick = ()=>{ renderPositions(); show("pos
 renderHome();
 psBootstrap();
 starsBootstrap();
+
+/* 他アプリからの取り込み：コンピテンシーを選ぶ画面へ誘導 */
+if(pendingPrefill){
+  renderSelect();
+  show("select");
+  toast((pendingPrefill.source || "他のアプリ") + "から取り込み中。コンピテンシーを選んでください ✍️");
+}
 </script>
 <!-- tsumiki-back-button -->
 <style>

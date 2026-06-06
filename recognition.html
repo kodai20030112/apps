@@ -147,6 +147,21 @@
     font-size: 14px; opacity: 0; pointer-events: none; transition: all .25s; z-index: 50;
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  /* 入力モーダル（promptの代替） */
+  .ovl { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 100;
+    display: flex; align-items: flex-end; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .ovl.show { opacity: 1; pointer-events: auto; }
+  .sheet { background: var(--card); width: 100%; max-width: 520px;
+    border-radius: 20px 20px 0 0; padding: 22px 20px calc(20px + env(safe-area-inset-bottom));
+    transform: translateY(24px); transition: transform .2s; }
+  .ovl.show .sheet { transform: translateY(0); }
+  .sheet h3 { font-size: 17px; font-weight: 700; margin: 0 0 14px; }
+  .sheet input { width: 100%; padding: 13px 14px; border: 1px solid var(--line);
+    border-radius: 12px; font-size: 16px; font-family: inherit; background: var(--bg); color: var(--text); }
+  .sheet input:focus { outline: none; border-color: var(--blue); }
+  .sheet-acts { display: flex; gap: 10px; margin-top: 16px; }
+  .sheet-acts .btn { flex: 1; width: auto; }
 </style>
 <script src="career.js"></script>
 </head>
@@ -236,11 +251,11 @@ function avatarHTML(m, size) {
 }
 
 function addMember() {
-  const name = prompt("チームメンバーの名前を入力してください");
-  if (!name || !name.trim()) return;
-  const m = { id: uid(), name: name.trim(), photo: "", recognitions: [] };
-  DB.members.push(m); save();
-  openMember(m.id);
+  inputSheet({ title: "チームメンバーを追加", placeholder: "名前を入力", ok: "追加" }, name => {
+    const m = { id: uid(), name: name, photo: "", recognitions: [] };
+    DB.members.push(m); save();
+    openMember(m.id);
+  });
 }
 
 /* ============ ② メンバー詳細 ============ */
@@ -294,9 +309,9 @@ function renderMember() {
 
 function renameMember(id) {
   const m = getMember(id); if (!m) return;
-  const name = prompt("名前を編集", m.name);
-  if (!name || !name.trim()) return;
-  m.name = name.trim(); save(); render();
+  inputSheet({ title: "名前を編集", value: m.name, placeholder: "名前", ok: "保存" }, name => {
+    m.name = name; save(); render();
+  });
 }
 function deleteMember(id) {
   const m = getMember(id); if (!m) return;
@@ -367,6 +382,8 @@ function renderCompose() {
     <button class="btn" onclick="exportImage()">⬇︎ 画像として保存</button>
     <div style="height:10px"></div>
     <button class="btn secondary" onclick="saveReco()">${composeState.recoId ? "変更を保存" : "記録に保存"}</button>
+    <div style="height:10px"></div>
+    <button class="btn ghost" onclick="toStars()">🪞 STARSの素材にする</button>
     ${composeState.recoId ? `<div style="height:10px"></div><button class="btn danger" onclick="deleteReco()">この記録を削除</button>` : ""}
   `;
 
@@ -582,6 +599,15 @@ function drawImageCover(ctx, img, dx, dy, dw, dh) {
   ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
 }
 
+/* この称賛をSTARS振り返りの素材として開く（自分の経験として深掘り） */
+function toStars() {
+  const m = getMember(composeState.memberId);
+  const body = (composeState.jp || "").trim();
+  if (!body) { toast("先に称賛の内容を入力してください"); return; }
+  const payload = { title: (m.name || "メンバー") + "さんへの称賛", body: body, source: "Recognition" };
+  location.href = "reflection.html#stars=" + encodeURIComponent(JSON.stringify(payload));
+}
+
 /* ===== 保存系 ===== */
 function saveReco() {
   if (!composeState.jp.trim()) { toast("日本語の内容を入力してください"); return; }
@@ -687,6 +713,35 @@ function toast(msg) {
   t.textContent = msg; t.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), 2000);
+}
+
+/* テキスト1行入力モーダル（window.prompt の代替・他アプリと統一したUI） */
+function inputSheet(opts, onOk) {
+  opts = opts || {};
+  const ovl = document.createElement("div");
+  ovl.className = "ovl";
+  ovl.innerHTML =
+    '<div class="sheet" role="dialog" aria-modal="true">' +
+      '<h3></h3>' +
+      '<input type="text" autocomplete="off">' +
+      '<div class="sheet-acts">' +
+        '<button class="btn secondary" data-act="cancel">キャンセル</button>' +
+        '<button class="btn" data-act="ok"></button>' +
+      '</div>' +
+    '</div>';
+  ovl.querySelector("h3").textContent = opts.title || "";
+  const input = ovl.querySelector("input");
+  input.placeholder = opts.placeholder || "";
+  input.value = opts.value || "";
+  ovl.querySelector('[data-act="ok"]').textContent = opts.ok || "保存";
+  document.body.appendChild(ovl);
+  function close() { ovl.classList.remove("show"); setTimeout(() => ovl.remove(), 200); }
+  function submit() { const v = input.value.trim(); if (!v) { input.focus(); return; } close(); onOk(v); }
+  ovl.querySelector('[data-act="cancel"]').onclick = close;
+  ovl.querySelector('[data-act="ok"]').onclick = submit;
+  ovl.addEventListener("click", e => { if (e.target === ovl) close(); });
+  input.addEventListener("keydown", e => { if (e.key === "Enter") submit(); });
+  requestAnimationFrame(() => { ovl.classList.add("show"); input.focus(); });
 }
 
 /* 起動 */
