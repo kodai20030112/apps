@@ -148,7 +148,15 @@
   .pinned-head { display: flex; align-items: center; gap: 8px; cursor: pointer; }
   .pinned-jp { font-size: 16px; font-weight: 700; }
   .pinned-en { font-size: 11px; color: var(--ink-2); font-weight: 600; }
-  .pinned-toggle { margin-left: auto; color: var(--accent); font-size: 13px; font-weight: 600; }
+  .pinned-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .pinned-change { border: 1px solid var(--cmp, var(--accent)); color: var(--cmp, var(--accent)); background: transparent;
+    border-radius: 999px; padding: 4px 11px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+  .pinned-change:active { transform: scale(.96); }
+  .pinned-toggle { color: var(--accent); font-size: 13px; font-weight: 600; }
+  .cmp-card.current { outline: 2px solid var(--cmp); outline-offset: 1px; }
+  .cmp-card .cmp-current-tag { position: absolute; top: 8px; right: 8px; background: var(--cmp); color: #fff;
+    font-size: 10px; font-weight: 700; border-radius: 999px; padding: 2px 8px; }
+  .cmp-card { position: relative; }
   .pinned-body { margin-top: 10px; font-size: 14px; color: var(--ink-2); display: none; }
   .pinned-body.open { display: block; }
   .pinned-body ul { margin: 8px 0 0; padding-left: 18px; }
@@ -759,7 +767,10 @@ function renderEdit(){
       <div class="pinned-head" id="pinnedHead">
         <span style="font-size:20px">${c.emoji}</span>
         <span><span class="pinned-jp">${c.jp}</span> <span class="pinned-en">${c.en}</span></span>
-        <span class="pinned-toggle" id="pinnedToggle">解説 ▾</span>
+        <span class="pinned-actions">
+          <button type="button" class="pinned-change" id="pinnedChange">コンピテンシー変更</button>
+          <span class="pinned-toggle" id="pinnedToggle">解説 ▾</span>
+        </span>
       </div>
       <div class="pinned-body" id="pinnedBody">
         <div>${c.desc}</div>
@@ -771,6 +782,7 @@ function renderEdit(){
   const body = document.getElementById("pinnedBody");
   const tog = document.getElementById("pinnedToggle");
   head.onclick = ()=>{ const open = body.classList.toggle("open"); tog.textContent = open ? "解説 ▴" : "解説 ▾"; };
+  document.getElementById("pinnedChange").onclick = (e)=>{ e.stopPropagation(); openChangeCmp(); };
 
   // 記入開始日（自動取得・表示のみ）
   document.getElementById("startDateLine").textContent = `📅 記入開始日：${fmtDate(draft.createdAt)}（自動）`;
@@ -799,6 +811,38 @@ function renderEdit(){
   });
 
   document.getElementById("deleteBtn").style.display = draft.isNew ? "none" : "block";
+}
+
+/* 記入の途中でコンピテンシーを選び直す（書いた内容はそのまま引き継ぐ） */
+function openChangeCmp(){
+  const bodyHTML = POSITIONS.map(p=>`
+    <div class="pos-head">${p.name}</div>
+    <div class="card-grid">
+      ${p.competencyIds.map(id=>{ const c = COMPETENCIES[id]; const cur = id===draft.cmpId; return `
+        <div class="cmp-card ${cur?'current':''}" data-id="${id}" data-pos="${p.id}" style="--cmp:${c.color}">
+          ${cur?'<span class="cmp-current-tag">いま選択中</span>':''}
+          <div class="cmp-emoji">${c.emoji}</div>
+          <div class="cmp-jp">${c.jp}</div>
+          <div class="cmp-en">${c.en}</div>
+          <div class="cmp-desc">${c.desc}</div>
+        </div>`; }).join("")}
+    </div>`).join("");
+  openModal({
+    title: "コンピテンシーを選び直す",
+    desc: "書いた内容（STARSやアイデア出し）はそのまま引き継がれます。",
+    bodyHTML,
+    actions: [{ label: "閉じる", onClick: closeModal }]
+  });
+  document.querySelectorAll("#modalBody .cmp-card").forEach(el=> el.onclick = ()=> changeCmp(el.dataset.id, el.dataset.pos));
+}
+function changeCmp(cmpId, posId){
+  if(cmpId === draft.cmpId){ closeModal(); return; }
+  const c = findCmp(cmpId).cmp;
+  draft.cmpId = cmpId;
+  draft.posId = posId || null;
+  closeModal();
+  renderEdit();
+  toast(`「${c.jp}」に変更しました ✓`);
 }
 
 /* ========================= アイデア出し（樹形図） =========================
