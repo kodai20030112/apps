@@ -237,8 +237,87 @@
   /* ---------- Image export sheet ---------- */
   .imgwrap { max-height: 56vh; overflow: auto; border-radius: 14px; border: 1px solid var(--line); background: #f5f5f7; -webkit-overflow-scrolling: touch; }
   .imgwrap img { width: 100%; display: block; }
+
+  /* ---------- Position Story ---------- */
+  .ps-banner {
+    display: flex; align-items: center; gap: 13px; cursor: pointer;
+    background: linear-gradient(120deg, #faf5ff, #f0f6ff);
+    border: 1px solid #e9ddfb; border-radius: var(--radius);
+    padding: 14px 16px; margin: 0 0 16px; transition: transform .14s, box-shadow .14s;
+  }
+  .ps-banner:active { transform: scale(.99); }
+  @media(hover:hover){ .ps-banner:hover{ box-shadow: 0 8px 24px rgba(123,92,255,.14); } }
+  .ps-banner .ic { font-size: 22px; width: 44px; height: 44px; flex: 0 0 auto; border-radius: 13px;
+    display: flex; align-items: center; justify-content: center; background: #fff; box-shadow: var(--shadow); }
+  .ps-banner .t { font-size: 15px; font-weight: 700; }
+  .ps-banner .d { font-size: 12px; color: var(--ink-2); margin-top: 1px; }
+  .ps-banner .arrow { margin-left: auto; color: #b9a6e8; font-size: 20px; }
+
+  .ps-sync { font-size: 12px; color: var(--ink-2); font-weight: 600; margin: -6px 0 16px; min-height: 16px; }
+
+  .pos-card {
+    background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 18px; margin-bottom: 14px; cursor: pointer; transition: transform .14s, box-shadow .14s;
+    border-left: 5px solid var(--pos); position: relative; overflow: hidden;
+  }
+  .pos-card:active { transform: scale(.99); }
+  @media(hover:hover){ .pos-card:hover{ box-shadow: 0 10px 30px rgba(0,0,0,.09); } }
+  .pos-top { display: flex; align-items: center; gap: 12px; }
+  .pos-emoji { font-size: 26px; width: 48px; height: 48px; flex: 0 0 auto; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center; background: var(--pos-bg); }
+  .pos-jp { font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+  .pos-en { font-size: 12px; color: var(--ink-2); font-weight: 600; letter-spacing: .03em; }
+  .pos-role { font-size: 13px; color: var(--ink-2); margin-top: 10px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .pos-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+  .pos-stat { font-size: 12px; color: var(--pos); font-weight: 700; }
+  .pos-date { font-size: 12px; color: var(--ink-2); }
+  .pos-arrow { position: absolute; right: 16px; top: 22px; color: #c7c7cc; font-size: 20px; }
+
+  .desc-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 16px; margin-bottom: 18px; border-top: 5px solid var(--pos); }
+  .desc-head { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .desc-emoji { font-size: 22px; width: 42px; height: 42px; flex: 0 0 auto; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; background: var(--pos-bg); }
+  .desc-jp { font-size: 17px; font-weight: 700; }
+  .desc-en { font-size: 11px; color: var(--ink-2); font-weight: 600; letter-spacing: .03em; }
+  .desc-toggle { margin-left: auto; color: var(--pos); font-size: 13px; font-weight: 600; flex: 0 0 auto; }
+  .desc-body { margin-top: 12px; display: none; }
+  .desc-body.open { display: block; }
+  .desc-body .lead { font-size: 14px; color: var(--ink); white-space: pre-wrap; }
+  .desc-body .common { font-size: 13px; color: var(--ink-2); white-space: pre-wrap;
+    margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
+  .desc-body .tag { display: inline-block; font-size: 11px; font-weight: 700; color: var(--pos);
+    background: var(--pos-bg); border-radius: 6px; padding: 2px 8px; margin-bottom: 6px; }
+
+  .ps-story-head { font-size: 13px; font-weight: 700; color: var(--ink-2); text-transform: uppercase;
+    letter-spacing: .06em; margin: 4px 0 10px; }
+  .sec { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 14px 14px 12px; margin-bottom: 14px; border-left: 4px solid var(--pos); }
+  .sec-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .sec-no { width: 22px; height: 22px; flex: 0 0 auto; border-radius: 7px; background: var(--pos);
+    color: #fff; font-weight: 800; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+  .sec-tools { margin-left: auto; display: flex; gap: 2px; }
+  .sec-tools button { background: none; border: none; color: var(--ink-2); font-size: 17px; cursor: pointer;
+    padding: 4px 7px; border-radius: 8px; line-height: 1; }
+  .sec-tools button:active { background: #f0f0f3; }
+  .sec-tools button.del { color: #ff3b30; }
+  .sec-tools button:disabled { opacity: .25; cursor: default; }
+  input.sec-h { width: 100%; border: none; border-bottom: 1px solid var(--line); padding: 4px 2px 8px;
+    font-size: 16px; font-weight: 700; font-family: inherit; color: var(--ink); background: none; margin-bottom: 8px; }
+  input.sec-h:focus { outline: none; border-color: var(--pos); }
+  input.sec-h::placeholder { color: #b8b8bd; font-weight: 600; }
+  textarea.sec-b { resize: none; min-height: 70px; overflow: hidden; line-height: 1.65; }
+  textarea.sec-b:focus { border-color: var(--pos); }
+  .add-sec { width: 100%; background: var(--card); color: var(--pos); border: 1px dashed var(--pos);
+    border-radius: 14px; padding: 14px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 2px; transition: .15s; }
+  .add-sec:active { background: var(--pos-bg); }
+  .ps-export { width: 100%; background: var(--pos); color: #fff; border: none; border-radius: 14px;
+    padding: 15px; font-size: 17px; font-weight: 600; cursor: pointer; transition: opacity .15s; margin-top: 18px; }
+  .ps-export:active { opacity: .85; }
 </style>
 <script src="career.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -257,8 +336,35 @@
     <h1 class="page">Reflection</h1>
     <p class="sub">コンピテンシーを選んで、出来事をSTARSで残そう。</p>
 
+    <div class="ps-banner" id="psBanner">
+      <div class="ic">✍️</div>
+      <div>
+        <div class="t">ポジション・ストーリー</div>
+        <div class="d">役割に沿って自分の物語を綴る・端末間で引き継ぎ</div>
+      </div>
+      <div class="arrow">›</div>
+    </div>
+
     <div class="chips" id="filterChips"></div>
     <div id="storyList"></div>
+  </section>
+
+  <!-- ===== POSITION STORY: 一覧 ===== -->
+  <section class="view" id="view-positions">
+    <h1 class="page">Position Story</h1>
+    <p class="sub">Apple Retailの役割に沿って、自分のストーリーを綴ろう。MacでもiPhoneでも、書きかけはそのまま引き継げます。</p>
+    <div class="ps-sync" id="psSync"></div>
+    <div id="posList"></div>
+  </section>
+
+  <!-- ===== POSITION STORY: 編集 ===== -->
+  <section class="view" id="view-posedit">
+    <div class="ps-sync" id="psSyncEdit"></div>
+    <div id="descHost"></div>
+    <div class="ps-story-head">あなたのストーリー</div>
+    <div id="secList"></div>
+    <button class="add-sec" id="addSec">＋ セクションを追加</button>
+    <button class="ps-export" id="psExportBtn">🖼 画像で書き出し</button>
   </section>
 
   <!-- ===== SELECT COMPETENCY ===== -->
@@ -455,7 +561,7 @@ function findCmp(id){ const c = COMPETENCIES[id]; return c ? { cmp: c } : null; 
 let draft = null;       // 編集中ストーリー
 let activeFilter = "all";
 
-const views = { home:"view-home", select:"view-select", edit:"view-edit", detail:"view-detail" };
+const views = { home:"view-home", select:"view-select", edit:"view-edit", detail:"view-detail", positions:"view-positions", posedit:"view-posedit" };
 function show(view){
   Object.values(views).forEach(id=>document.getElementById(id).classList.remove("active"));
   document.getElementById(views[view]).classList.add("active");
@@ -466,7 +572,8 @@ function show(view){
   back.style.visibility = (view==="home") ? "hidden" : "visible";
   act.style.visibility = "hidden";
   document.getElementById("fab").style.display = (view==="home") ? "flex" : "none";
-  title.textContent = ({home:"STARS 振り返り", select:"コンピテンシー選択", edit:"STARSメモ", detail:"ストーリー"})[view];
+  title.textContent = ({home:"STARS 振り返り", select:"コンピテンシー選択", edit:"STARSメモ", detail:"ストーリー",
+    positions:"ポジション・ストーリー", posedit: (curPos ? PS_BY_ID[curPos].jp : "ポジション・ストーリー")})[view];
 }
 
 function fmtDate(ts){
@@ -905,13 +1012,272 @@ document.getElementById("backBtn").onclick = ()=>{
   if (cur==="select") { show("home"); }
   else if (cur==="edit") { draft && !draft.isNew ? openDetail(draft.id) : show("home"); }
   else if (cur==="detail") { show("home"); }
+  else if (cur==="posedit") { renderPositions(); show("positions"); }
+  else if (cur==="positions") { renderHome(); show("home"); }
   else show("home");
 };
 document.getElementById("saveBtn").onclick = saveDraft;
 document.getElementById("deleteBtn").onclick = deleteDraft;
 
+/* =========================================================================
+   ★★★ ポジション・ストーリー（役割に沿って自分の物語を綴る）★★★
+   - PS_POSITIONS: 各ポジションの公式説明文（★編集すれば更新できます★）
+   - 端末間同期: grownote と同じ grownote_state テーブルを別IDで間借り（追加SQL不要）
+   ========================================================================= */
+const PS_COMMON_INTRO =
+  "Apple Retailは、Appleが提供する最高の製品やサービスが集結する場所です。私たちは専門的スキルを発揮しながら、お客様が大好きなことを追求できるようサポートし、Appleならではのエクスペリエンスを提供します。Appleでは、インクルージョンは全員が果たすべき共通の責任であると考えているため、誰もが帰属意識を持ち、最高の仕事がしたいという意欲をかき立てられるようなカルチャーを協力して育みます。";
+const PS_POSITIONS = [
+  { id:"creative_pro", jp:"クリエイティブプロ", en:"Creative Pro", emoji:"🎨", color:"#af52de", bg:"#f6edfc",
+    role:"クリエイティブプロは、お客様、ストアチーム、そして地域コミュニティ全体にAppleのエコシステムを推進します。ストアチームやお客様の学びを促進することで、Appleのテクノロジーが生み出す可能性を誰もが理解できるようにサポートし、お客様がAppleの製品のことを知り、オーナーになり、大好きになるきっかけを作り出します。" },
+  { id:"expert", jp:"エキスパート", en:"Expert", emoji:"🎓", color:"#0071e3", bg:"#eef4ff",
+    role:"エキスパートは、Appleのエコシステム全体の製品やサービスについて深く理解し、製品の販売、Appleの各種サービスの提案、卓越したカスタマーエクスペリエンスの提供に優れた能力を発揮します。また、優れた接客とはどういうものかを体現し、成果を上げるための方法について同僚のメンターとしての役割を担います。" },
+  { id:"specialist", jp:"スペシャリスト", en:"Specialist", emoji:"🧭", color:"#ff9500", bg:"#fff4e6",
+    role:"スペシャリストは、ブランドロイヤルティを構築し、Appleの製品やサービスのオーナーを創出します。そして、ほかに類を見ないカスタマーサービスを販売、提供することに力を尽くします。スペシャリストには好奇心が必要です。お客様のニーズを知るために質問し、お客様の人生を豊かにする製品やサービスを一人ひとりに合わせて提案します。" }
+];
+const PS_BY_ID = Object.fromEntries(PS_POSITIONS.map(p=>[p.id,p]));
+const esc = escapeHtml;   // 既存の escapeHtml を流用
+
+const PS_LS_KEY = "stars_position_story_v1";
+const PS_SB_URL = "https://okbjqtdirrathscctyvx.supabase.co";
+const PS_SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rYmpxdGRpcnJhdGhzY2N0eXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMjI4NTIsImV4cCI6MjA5NTg5ODg1Mn0.T-1AOK6vCD6uGdqrVGXjPui3L6WPSNrnygS-IHyfZ6Y";
+const PS_ROW_ID = "position_story_kodai";
+
+let PSDB = psLoadLocal();
+let curPos = null;
+let psSb = null;
+try { if (window.supabase) psSb = window.supabase.createClient(PS_SB_URL, PS_SB_ANON, { auth:{persistSession:false} }); } catch(e){}
+let psPushTimer = null, psPushing = false;
+
+function psEmpty(){ return { positions:{}, _ts:0 }; }
+function psLoadLocal(){ try { const d = JSON.parse(localStorage.getItem(PS_LS_KEY)); return (d && d.positions) ? d : psEmpty(); } catch(e){ return psEmpty(); } }
+function psSaveLocal(){ localStorage.setItem(PS_LS_KEY, JSON.stringify(PSDB)); }
+function psGet(id){ if(!PSDB.positions[id]) PSDB.positions[id] = { sections:[], updatedAt:0 }; return PSDB.positions[id]; }
+function psChars(p){ return (p.sections||[]).reduce((a,s)=> a + (s.heading||"").length + (s.body||"").length, 0); }
+function psSetSync(t){ ["psSync","psSyncEdit"].forEach(id=>{ const e=document.getElementById(id); if(e) e.textContent=t; }); }
+
+function psTouch(){
+  PSDB._ts = Date.now(); psSaveLocal();
+  if(!psSb) return;
+  psSetSync("…"); clearTimeout(psPushTimer); psPushTimer = setTimeout(psPush, 1200);
+}
+async function psPush(){
+  if(!psSb || psPushing) return;
+  psPushing = true; psSetSync("同期中…");
+  try {
+    const res = await psSb.from("grownote_state").upsert({ id: PS_ROW_ID, state: PSDB, updated_at: new Date().toISOString() });
+    if(res.error){ console.error(res.error); psSetSync("⚠ 同期失敗"); } else psSetSync("✓ 同期済み");
+  } catch(e){ console.error(e); psSetSync("⚠ 同期失敗"); }
+  finally { psPushing = false; }
+}
+async function psPull(){
+  if(!psSb) return null;
+  try {
+    const res = await psSb.from("grownote_state").select("state").eq("id", PS_ROW_ID).maybeSingle();
+    if(res.error){ console.error(res.error); return null; }
+    if(res.data && res.data.state && res.data.state.positions) return res.data.state;
+  } catch(e){ console.error(e); }
+  return null;
+}
+function psAdoptIfNewer(cloud){ if(cloud && (cloud._ts||0) > (PSDB._ts||0)){ PSDB = cloud; psSaveLocal(); return true; } return false; }
+function psIsEditing(){ const a = document.activeElement; return a && (a.tagName==="TEXTAREA" || (a.tagName==="INPUT" && a.classList.contains("sec-h"))); }
+function psRerender(){
+  if(document.getElementById("view-posedit").classList.contains("active") && curPos) renderPosEdit(curPos);
+  else if(document.getElementById("view-positions").classList.contains("active")) renderPositions();
+}
+async function psBootstrap(){
+  if(!psSb){ psSetSync("オフライン（この端末のみ）"); return; }
+  psSetSync("読込中…");
+  const cloud = await psPull();
+  if(cloud){
+    if(psAdoptIfNewer(cloud)) psRerender();
+    psSetSync("✓ 同期済み");
+    if((PSDB._ts||0) > (cloud._ts||0)) psPush();
+  } else {
+    if(Object.keys(PSDB.positions).length){ psSetSync("初回アップロード中…"); await psPush(); }
+    else psSetSync("✓ 同期済み");
+  }
+}
+document.addEventListener("visibilitychange", async ()=>{
+  if(document.visibilityState !== "visible" || !psSb) return;
+  if(psIsEditing()) return;
+  const cloud = await psPull();
+  if(cloud && psAdoptIfNewer(cloud)){ psRerender(); toast("別の端末の更新を反映しました"); }
+});
+
+/* ---------- ポジション一覧 ---------- */
+function renderPositions(){
+  const host = document.getElementById("posList");
+  host.innerHTML = PS_POSITIONS.map(p=>{
+    const d = PSDB.positions[p.id];
+    const n = d ? psChars(d) : 0;
+    const stat = n>0 ? `✍️ ${n.toLocaleString()}文字` : "まだ書いていません";
+    const date = (n>0 && d && d.updatedAt) ? `更新 ${fmtDate(d.updatedAt)}` : "";
+    return `<div class="pos-card" data-id="${p.id}" style="--pos:${p.color};--pos-bg:${p.bg}">
+      <span class="pos-arrow">›</span>
+      <div class="pos-top">
+        <div class="pos-emoji">${p.emoji}</div>
+        <div><div class="pos-jp">${p.jp}</div><div class="pos-en">${p.en}</div></div>
+      </div>
+      <div class="pos-role">${esc(p.role)}</div>
+      <div class="pos-foot"><span class="pos-stat">${stat}</span><span class="pos-date">${date}</span></div>
+    </div>`;
+  }).join("");
+  host.querySelectorAll(".pos-card").forEach(el=>{ el.onclick = ()=> openPosEdit(el.dataset.id); });
+}
+
+/* ---------- 編集（説明＋セクション） ---------- */
+function openPosEdit(id){ curPos = id; renderPosEdit(id); show("posedit"); }
+function renderPosEdit(id){
+  const p = PS_BY_ID[id];
+  document.documentElement.style.setProperty("--pos", p.color);
+  document.documentElement.style.setProperty("--pos-bg", p.bg);
+  const pos = psGet(id);
+  if(!pos.sections.length) pos.sections.push({ heading:"", body:"" });
+  document.getElementById("descHost").innerHTML = `
+    <div class="desc-card">
+      <div class="desc-head" id="descHead">
+        <div class="desc-emoji">${p.emoji}</div>
+        <div><div class="desc-jp">${p.jp}</div><div class="desc-en">${p.en} ・ Apple Retail</div></div>
+        <div class="desc-toggle" id="descToggle">説明 ▾</div>
+      </div>
+      <div class="desc-body" id="descBody">
+        <span class="tag">この役割</span>
+        <div class="lead">${esc(p.role)}</div>
+        <div class="common">${esc(PS_COMMON_INTRO)}</div>
+      </div>
+    </div>`;
+  const body = document.getElementById("descBody"), tg = document.getElementById("descToggle");
+  document.getElementById("descHead").onclick = ()=>{ const open = body.classList.toggle("open"); tg.textContent = open ? "説明 ▴" : "説明 ▾"; };
+  document.getElementById("topTitle").textContent = p.jp;
+  renderSections(id);
+}
+function renderSections(id){
+  const pos = psGet(id);
+  const host = document.getElementById("secList");
+  host.innerHTML = pos.sections.map((s,i)=>`
+    <div class="sec" data-i="${i}">
+      <div class="sec-bar">
+        <div class="sec-no">${i+1}</div>
+        <div class="sec-tools">
+          <button class="up" title="上へ" ${i===0?"disabled":""}>↑</button>
+          <button class="down" title="下へ" ${i===pos.sections.length-1?"disabled":""}>↓</button>
+          <button class="del" title="削除">🗑</button>
+        </div>
+      </div>
+      <input class="sec-h" type="text" placeholder="見出し（任意）— 例：私が大切にしていること" value="${esc(s.heading)}">
+      <textarea class="sec-b" placeholder="ここに自由に綴ってください。文量はいくらでもOK。">${esc(s.body)}</textarea>
+    </div>`).join("");
+  host.querySelectorAll(".sec").forEach(secEl=>{
+    const i = +secEl.dataset.i, ta = secEl.querySelector(".sec-b");
+    psAutoGrow(ta);
+    secEl.querySelector(".sec-h").addEventListener("input", e=>{ pos.sections[i].heading = e.target.value; pos.updatedAt = Date.now(); psTouch(); });
+    ta.addEventListener("input", e=>{ pos.sections[i].body = e.target.value; psAutoGrow(ta); pos.updatedAt = Date.now(); psTouch(); });
+    secEl.querySelector(".up").onclick   = ()=> psMove(id, i, -1);
+    secEl.querySelector(".down").onclick = ()=> psMove(id, i, 1);
+    secEl.querySelector(".del").onclick  = ()=> psDelete(id, i);
+  });
+}
+function psMove(id, i, dir){
+  const pos = psGet(id), j = i + dir;
+  if(j < 0 || j >= pos.sections.length) return;
+  [pos.sections[i], pos.sections[j]] = [pos.sections[j], pos.sections[i]];
+  pos.updatedAt = Date.now(); psTouch(); renderSections(id);
+}
+function psDelete(id, i){
+  const pos = psGet(id), s = pos.sections[i];
+  const empty = !(s.heading||"").trim() && !(s.body||"").trim();
+  const doDel = ()=>{ pos.sections.splice(i,1); if(!pos.sections.length) pos.sections.push({ heading:"", body:"" });
+    pos.updatedAt = Date.now(); psTouch(); renderSections(id); };
+  if(empty){ doDel(); return; }
+  openModal({ title:"セクションを削除", desc:"このセクションの内容を削除します。元に戻せません。",
+    actions:[ { label:"キャンセル", primary:false, onClick: closeModal },
+              { label:"削除する", primary:true, onClick: ()=>{ closeModal(); doDel(); } } ] });
+}
+function psAutoGrow(ta){ ta.style.height = "auto"; ta.style.height = Math.max(ta.scrollHeight, 70) + "px"; }
+document.getElementById("addSec").onclick = ()=>{
+  const pos = psGet(curPos);
+  pos.sections.push({ heading:"", body:"" });
+  pos.updatedAt = Date.now(); psTouch(); renderSections(curPos);
+  const last = document.getElementById("secList").lastElementChild;
+  if(last){ last.querySelector(".sec-h").focus(); last.scrollIntoView({behavior:"smooth", block:"center"}); }
+};
+
+/* ---------- 画像で書き出し（既存の wrapPara / IMG_FONT / showImageSheet を流用） ---------- */
+function psExport(id){
+  const p = PS_BY_ID[id], pos = psGet(id), accent = p.color;
+  const W = 560, PAD = 22, CARDW = W - PAD*2, IN = 18, GAP = 12, BAR = 4, maxTextW = CARDW - IN*2;
+  const mc = document.createElement("canvas").getContext("2d");
+  const secs = pos.sections.filter(s => (s.heading||"").trim() || (s.body||"").trim());
+  const cards = [];
+  cards.push({ tag:"この役割", blocks:[{ text:p.role, font:IMG_FONT(500,17), color:"#1d1d1f", lineH:27 }] });
+  secs.forEach((s,i)=>{
+    const blocks = [];
+    if((s.heading||"").trim()) blocks.push({ text:s.heading.trim(), font:IMG_FONT(800,17), color:accent, lineH:26, gap:4 });
+    if((s.body||"").trim())    blocks.push({ text:s.body.trim(), font:IMG_FONT(500,16), color:"#1d1d1f", lineH:26 });
+    if(blocks.length) cards.push({ no:i+1, blocks });
+  });
+  mc.font = IMG_FONT(700,24);
+  const titleLines = wrapPara(mc, p.jp, CARDW - 56);
+  const headBottom = 30 + 56 + Math.max(0,(titleLines.length-1))*32 + 14;
+  cards.forEach(c=>{
+    let h = IN + (c.tag ? 22 : 0);
+    c._wrapped = c.blocks.map(b=>{ mc.font = b.font; const wl = wrapPara(mc, b.text, maxTextW); h += wl.length*b.lineH + (b.gap||0); return wl; });
+    h += IN; c._h = h;
+  });
+  const totalH = Math.ceil(headBottom + 6 + cards.reduce((a,x)=>a+x._h+GAP,0) + 38);
+  const scale = 2, cv = document.createElement("canvas");
+  cv.width = W*scale; cv.height = totalH*scale;
+  const ctx = cv.getContext("2d"); ctx.scale(scale,scale); ctx.textBaseline = "top";
+  ctx.fillStyle = "#f5f5f7"; ctx.fillRect(0,0,W,totalH);
+  function rr(x,yy,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,yy); ctx.arcTo(x+w,yy,x+w,yy+h,r); ctx.arcTo(x+w,yy+h,x,yy+h,r); ctx.arcTo(x,yy+h,x,yy,r); ctx.arcTo(x,yy,x+w,yy,r); ctx.closePath(); }
+  let y = 30;
+  ctx.fillStyle = p.bg; rr(PAD, y, 46, 46, 13); ctx.fill();
+  ctx.font = IMG_FONT(400,26); ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.fillText(p.emoji, PAD+23, y+25); ctx.textAlign="left"; ctx.textBaseline="top";
+  let ty = y + (titleLines.length>1 ? 2 : 6);
+  ctx.fillStyle = "#1d1d1f"; ctx.font = IMG_FONT(700,24);
+  titleLines.forEach(l=>{ ctx.fillText(l, PAD+58, ty); ty += 32; });
+  ctx.fillStyle = accent; ctx.font = IMG_FONT(700,12);
+  ctx.fillText(p.en.toUpperCase() + " ・ APPLE RETAIL", PAD+58, ty);
+  y = headBottom + 6;
+  cards.forEach(c=>{
+    const cardY = y;
+    ctx.fillStyle = "#ffffff"; rr(PAD, cardY, CARDW, c._h, 14); ctx.fill();
+    ctx.strokeStyle = "#ececf0"; ctx.lineWidth = 1; rr(PAD+.5, cardY+.5, CARDW-1, c._h-1, 14); ctx.stroke();
+    ctx.fillStyle = accent; rr(PAD, cardY+12, BAR, c._h-24, 2); ctx.fill();
+    const cx = PAD + IN; let cy = cardY + IN;
+    if(c.tag){
+      ctx.font = IMG_FONT(700,11); const tw = ctx.measureText(c.tag).width;
+      ctx.fillStyle = p.bg; rr(cx, cy, tw+16, 18, 6); ctx.fill();
+      ctx.fillStyle = accent; ctx.fillText(c.tag, cx+8, cy+3); cy += 22;
+    } else if(c.no){
+      ctx.fillStyle = accent; rr(cx, cy+1, 18, 18, 6); ctx.fill();
+      ctx.fillStyle = "#fff"; ctx.font = IMG_FONT(800,11); ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillText(String(c.no), cx+9, cy+11); ctx.textAlign="left"; ctx.textBaseline="top";
+    }
+    const tx = c.no ? cx + 26 : cx;
+    if(c.no) cy = cardY + IN - 1;
+    c.blocks.forEach((b,bi)=>{ ctx.font = b.font; ctx.fillStyle = b.color; c._wrapped[bi].forEach(l=>{ ctx.fillText(l, tx, cy); cy += b.lineH; }); cy += (b.gap||0); });
+    y = cardY + c._h + GAP;
+  });
+  ctx.fillStyle = "#9a9aa0"; ctx.font = IMG_FONT(500,12);
+  ctx.fillText(`Position Story ・ ${p.en} ・ ${psChars(pos).toLocaleString()}文字`, PAD, y+4);
+  const ymd = (()=>{ const d=new Date(); return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`; })();
+  const fname = `PositionStory_${p.en.replace(/\s/g,"")}_${ymd}.png`;
+  cv.toBlob(b=>{ if(!b){ toast("画像化に失敗しました"); return; } showImageSheet(URL.createObjectURL(b), b, fname); }, "image/png");
+}
+document.getElementById("psExportBtn").onclick = ()=>{
+  const pos = psGet(curPos);
+  if(!pos.sections.some(s => (s.heading||"").trim() || (s.body||"").trim())){ toast("まずはストーリーを書いてみましょう ✍️"); return; }
+  psExport(curPos);
+};
+
+/* ホームのバナーから一覧へ */
+document.getElementById("psBanner").onclick = ()=>{ renderPositions(); show("positions"); };
+
 /* 起動 */
 renderHome();
+psBootstrap();
 </script>
 <!-- tsumiki-back-button -->
 <style>
