@@ -29,6 +29,7 @@
     padding:calc(env(safe-area-inset-top) + 10px) 16px 10px;border-bottom:1px solid var(--line);
   }
   .app-row{max-width:680px;margin:0 auto;display:flex;align-items:center;gap:10px}
+  .syncbar{max-width:680px;margin:4px auto 0;padding:0 4px;font-size:12px;color:var(--sub)}
   .back{font-size:16px;color:var(--accent);background:none;border:0;padding:6px 2px;cursor:pointer;font-weight:500;display:none}
   .back.show{display:inline-block}
   .title{font-size:20px;font-weight:700;letter-spacing:.2px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -197,6 +198,8 @@
   </div>
 </header>
 
+<div class="syncbar">☁️ <span id="syncStatus">…</span></div>
+
 <div class="wrap">
   <!-- HOME -->
   <section class="view active" id="homeView">
@@ -223,6 +226,7 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 "use strict";
 const KEY="team5whys_v1";
@@ -241,8 +245,56 @@ function load(){
     r.members.forEach(m=>{if(typeof m.progress!=="number")m.progress=0;});return r;}}catch(e){}
   return {members:[]};
 }
-function save(){localStorage.setItem(KEY,JSON.stringify(DB));}
+function saveLocal(){localStorage.setItem(KEY,JSON.stringify(DB));}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+
+/* ---------- Supabase クラウド同期（grownote / recap と同じプロジェクト） ---------- */
+const SUPABASE_URL="https://okbjqtdirrathscctyvx.supabase.co";
+const SUPABASE_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rYmpxdGRpcnJhdGhzY2N0eXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMjI4NTIsImV4cCI6MjA5NTg5ODg1Mn0.T-1AOK6vCD6uGdqrVGXjPui3L6WPSNrnygS-IHyfZ6Y";
+const ROW_ID="kodai";            // 完全に個人用なので固定の1行に丸ごと保存
+let sb=null;
+try{ if(window.supabase) sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON,{auth:{persistSession:false}}); }catch(e){}
+let pushTimer=null, pushing=false;
+function setSync(t){const e=document.getElementById("syncStatus");if(e)e.textContent=t;}
+
+async function pushCloud(){
+  if(!sb||pushing)return;
+  pushing=true;setSync("同期中…");
+  try{
+    const res=await sb.from("team5whys_state").upsert({id:ROW_ID,state:DB,updated_at:new Date().toISOString()});
+    if(res.error){console.error(res.error);setSync("⚠ 同期失敗");}
+    else{setSync("✓ 同期済み");}
+  }catch(e){console.error(e);setSync("⚠ 同期失敗");}
+  finally{pushing=false;}
+}
+function scheduleCloud(){ if(!sb)return; setSync("…");clearTimeout(pushTimer);pushTimer=setTimeout(pushCloud,1200); }
+
+async function pullCloud(){
+  if(!sb)return false;
+  let res;
+  try{res=await sb.from("team5whys_state").select("state").eq("id",ROW_ID).maybeSingle();}
+  catch(e){console.error(e);return false;}
+  if(res.error){console.error(res.error);return false;}
+  if(res.data&&res.data.state&&Array.isArray(res.data.state.members)){
+    DB=res.data.state;
+    DB.members.forEach(m=>{if(typeof m.progress!=="number")m.progress=0;});
+    saveLocal();
+    return true;
+  }
+  return false;
+}
+
+async function bootstrapCloud(){
+  if(!sb){setSync("オフライン（この端末のみ）");return;}
+  setSync("読込中…");
+  const has=await pullCloud();
+  if(has){render();setSync("✓ 同期済み");return;}
+  if(DB.members&&DB.members.length>0){setSync("初回アップロード中…");await pushCloud();}
+  else{setSync("✓ 同期済み");}
+}
+
+// localStorage 即時保存 ＋ クラウドへデバウンス送信
+function save(){saveLocal();scheduleCloud();}
 function memberById(id){return DB.members.find(m=>m.id===id);}
 
 /* ---------- helpers ---------- */
@@ -768,6 +820,11 @@ function exportCSV(){
 
 window.go=go;window.closeSheet=closeSheet;window.editGoalSheet=editGoalSheet;
 render();
+bootstrapCloud();
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState!=="visible"||!sb)return;
+  pullCloud().then(changed=>{ if(changed){render();setSync("✓ 同期済み");} });
+});
 </script>
 <!-- tsumiki-back-button -->
 <style>
