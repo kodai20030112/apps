@@ -184,6 +184,46 @@
   .star-pick span.on { color: var(--gold); }
   .star-caption { font-size: 13px; color: var(--ink-2); margin-top: 6px; min-height: 18px; }
 
+  /* ---------- Brainstorm tree (アイデア出し / 樹形図) ---------- */
+  .bs-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 16px; margin-bottom: 16px; border-left: 4px solid var(--cmp, var(--accent)); }
+  .bs-head { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .bs-root-emoji { font-size: 20px; }
+  .bs-title { font-size: 15px; font-weight: 700; }
+  .bs-title .en { font-size: 12px; color: var(--ink-2); font-weight: 600; }
+  .bs-toggle { margin-left: auto; color: var(--cmp, var(--accent)); font-size: 13px; font-weight: 600; flex: 0 0 auto; }
+  .bs-sub { font-size: 12px; color: var(--ink-2); margin: 4px 0 0; }
+  .bs-body { margin-top: 12px; display: none; }
+  .bs-body.open { display: block; }
+  .bs-branch { position: relative; margin-left: 7px; padding: 4px 0 14px 18px; border-left: 2px solid var(--line); }
+  .bs-branch:last-child { padding-bottom: 2px; }
+  .bs-branch::before { content: ""; position: absolute; left: -7px; top: 6px; width: 12px; height: 12px;
+    border-radius: 50%; background: var(--cmp, var(--accent)); border: 2px solid var(--card); }
+  .bs-q { font-size: 14px; line-height: 1.5; }
+  .bs-q .quote { font-weight: 600; color: var(--ink); }
+  .bs-q .ask { color: var(--cmp, var(--accent)); font-weight: 700; margin-left: 2px; }
+  .bs-leaves { margin-top: 6px; }
+  .bs-leaf { position: relative; margin-left: 4px; padding: 6px 0 6px 16px; border-left: 2px dashed var(--line);
+    display: flex; align-items: flex-start; gap: 8px; }
+  .bs-leaf::before { content: ""; position: absolute; left: -5px; top: 13px; width: 8px; height: 8px;
+    border-radius: 50%; background: #c7c7cc; }
+  .bs-leaf-main { flex: 1; min-width: 0; }
+  .bs-leaf-text { font-size: 14px; white-space: pre-wrap; word-break: break-word; }
+  .bs-send { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+  .bs-send-btn { border: 1px solid var(--line); background: var(--card); border-radius: 7px; padding: 3px 9px;
+    font-size: 11px; font-weight: 700; color: var(--ink-2); cursor: pointer; transition: .12s; }
+  .bs-send-btn:active { background: var(--cmp, var(--accent)); color: #fff; border-color: var(--cmp, var(--accent)); }
+  .bs-leaf-del { flex: 0 0 auto; background: none; border: none; color: #c7c7cc; font-size: 14px;
+    cursor: pointer; padding: 4px 6px; line-height: 1; }
+  .bs-leaf-del:active { color: #ff3b30; }
+  .bs-add { display: flex; gap: 6px; margin-top: 8px; margin-left: 4px; padding-left: 16px; }
+  .bs-add input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 10px; padding: 8px 11px;
+    font-size: 14px; font-family: inherit; background: var(--card); color: var(--ink); }
+  .bs-add input:focus { outline: none; border-color: var(--cmp, var(--accent)); }
+  .bs-add button { flex: 0 0 auto; border: none; background: var(--cmp, var(--accent)); color: #fff;
+    border-radius: 10px; padding: 0 15px; font-size: 16px; font-weight: 700; cursor: pointer; }
+  .bs-add button:active { opacity: .85; }
+
   /* ---------- Lifecycle toggle ---------- */
   .seg { display: flex; gap: 8px; }
   .seg-btn {
@@ -378,6 +418,8 @@
   <section class="view" id="view-edit">
     <div id="pinnedHost"></div>
     <div class="start-date" id="startDateLine"></div>
+
+    <div id="bsHost"></div>
 
     <div id="starsFields"></div>
 
@@ -687,7 +729,7 @@ function startDraft(cmpId, posId){
   draft = {
     id: newId(), cmpId, posId: posId || null,
     title:"", situation:"", task:"", action:"", result:"", selfref:"",
-    rating: 0, lifecycle: "oneday",
+    rating: 0, lifecycle: "oneday", brainstorm: {},
     createdAt: Date.now(), updatedAt: Date.now(), updates: [],
     isNew: true
   };
@@ -730,6 +772,9 @@ function renderEdit(){
   // 記入開始日（自動取得・表示のみ）
   document.getElementById("startDateLine").textContent = `📅 記入開始日：${fmtDate(draft.createdAt)}（自動）`;
 
+  // アイデア出し（樹形図）
+  renderBrainstorm(c);
+
   // STARS フィールド
   document.getElementById("starsFields").innerHTML = STARS.map(fld=>`
     <div class="field">
@@ -764,6 +809,104 @@ function paintStars(v){
   document.getElementById("starCaption").textContent = STAR_CAPTIONS[v] || "タップで評価";
 }
 
+/* ========================= アイデア出し（樹形図） =========================
+   コンピテンシーの「優れたスキルレベル」を疑問形に変換して問いかけ、
+   思いついたメモ（葉）をSTARSの各欄へ流し込めるようにする。
+   draft.brainstorm = { [bulletIndex]: ["メモ1","メモ2", ...] } として保存。 */
+const SEND_LABEL = { situation:"状況", task:"課題", action:"行動", result:"結果", selfref:"学び" };
+const Q_SUFFIX = [
+  "こんな場面、ありましたか？",
+  "思い当たる出来事は？",
+  "最近、こういう動きをした？",
+  "どんな時に発揮できた？",
+  "ピンとくる瞬間は？"
+];
+function bsQuestion(stem, i){ return { quote: (stem||"").replace(/[。.\s]+$/,""), ask: Q_SUFFIX[i % Q_SUFFIX.length] }; }
+
+function renderBrainstorm(c){
+  draft.brainstorm = draft.brainstorm || {};
+  const open = draft._bsOpen !== false;   // 既定は開いた状態（問いを見ながら考えてもらう）
+  const sendBtns = (i,j)=> STARS.map(f=>
+    `<button class="bs-send-btn" data-act="send" data-key="${f.key}" data-i="${i}" data-j="${j}">${SEND_LABEL[f.key]}</button>`
+  ).join("");
+
+  const branches = c.bullets.map((b,i)=>{
+    const q = bsQuestion(b,i);
+    const ideas = draft.brainstorm[i] || [];
+    const leaves = ideas.map((tx,j)=>`
+      <div class="bs-leaf">
+        <div class="bs-leaf-main">
+          <div class="bs-leaf-text">${escapeHtml(tx)}</div>
+          <div class="bs-send">${sendBtns(i,j)}</div>
+        </div>
+        <button class="bs-leaf-del" data-act="del" data-i="${i}" data-j="${j}" title="削除">✕</button>
+      </div>`).join("");
+    return `<div class="bs-branch">
+      <div class="bs-q"><span class="quote">「${escapeHtml(q.quote)}」</span><span class="ask">${q.ask}</span></div>
+      <div class="bs-leaves">${leaves}</div>
+      <div class="bs-add">
+        <input type="text" data-i="${i}" placeholder="思いついたことをメモ…">
+        <button data-act="add" data-i="${i}">＋</button>
+      </div>
+    </div>`;
+  }).join("");
+
+  document.getElementById("bsHost").innerHTML = `
+    <div class="bs-card" style="--cmp:${c.color}">
+      <div class="bs-head" id="bsHead">
+        <span class="bs-root-emoji">${c.emoji}</span>
+        <span class="bs-title">${c.jp} のアイデア出し <span class="en">${c.en}</span></span>
+        <span class="bs-toggle" id="bsToggle">${open?"閉じる ▴":"ひらく ▾"}</span>
+      </div>
+      <p class="bs-sub">「優れたスキルレベル」を問いに変えました。思い当たる出来事をメモして、STARSへ流し込もう。</p>
+      <div class="bs-body ${open?'open':''}" id="bsBody">${branches}</div>
+    </div>`;
+
+  const bodyEl = document.getElementById("bsBody");
+  document.getElementById("bsHead").onclick = ()=>{
+    const isOpen = bodyEl.classList.toggle("open");
+    draft._bsOpen = isOpen;
+    document.getElementById("bsToggle").textContent = isOpen ? "閉じる ▴" : "ひらく ▾";
+  };
+  bodyEl.querySelectorAll("[data-act='add']").forEach(btn=>{
+    btn.onclick = ()=>{ const i=+btn.dataset.i; const inp=bodyEl.querySelector(`.bs-add input[data-i="${i}"]`); bsAddIdea(i, inp.value); };
+  });
+  bodyEl.querySelectorAll(".bs-add input").forEach(inp=>{
+    inp.onkeydown = (e)=>{ if(e.key==="Enter"){ e.preventDefault(); bsAddIdea(+inp.dataset.i, inp.value); } };
+  });
+  bodyEl.querySelectorAll("[data-act='del']").forEach(btn=>{
+    btn.onclick = ()=> bsDelIdea(+btn.dataset.i, +btn.dataset.j);
+  });
+  bodyEl.querySelectorAll("[data-act='send']").forEach(btn=>{
+    btn.onclick = ()=> bsFlow(btn.dataset.key, +btn.dataset.i, +btn.dataset.j);
+  });
+}
+
+function bsAddIdea(i, text){
+  text = (text||"").trim(); if(!text) return;
+  draft.brainstorm[i] = draft.brainstorm[i] || [];
+  draft.brainstorm[i].push(text);
+  draft._bsOpen = true;
+  renderBrainstorm(findCmp(draft.cmpId).cmp);
+  const inp = document.querySelector(`#bsBody .bs-add input[data-i="${i}"]`);
+  if(inp) inp.focus();
+}
+function bsDelIdea(i, j){
+  if(!draft.brainstorm[i]) return;
+  draft.brainstorm[i].splice(j,1);
+  if(!draft.brainstorm[i].length) delete draft.brainstorm[i];
+  renderBrainstorm(findCmp(draft.cmpId).cmp);
+}
+function bsFlow(key, i, j){
+  const text = ((draft.brainstorm[i]||[])[j] || "").trim();
+  if(!text) return;
+  const cur = (draft[key]||"").trim();
+  draft[key] = cur ? cur + "\n" + text : text;
+  const ta = document.querySelector(`#starsFields textarea[data-key="${key}"]`);
+  if(ta) ta.value = draft[key];
+  toast(`${SEND_LABEL[key]} に入れました ✓`);
+}
+
 function deriveTitle(d){
   const base = (d.situation || d.task || d.action || "").trim().split(/\n/)[0];
   if (base) return base.length > 40 ? base.slice(0,40)+"…" : base;
@@ -776,7 +919,7 @@ function saveDraft(){
   draft.title = deriveTitle(draft);
   draft.updatedAt = Date.now();
   const idx = stories.findIndex(s=>s.id===draft.id);
-  const clean = {...draft}; delete clean.isNew;
+  const clean = {...draft}; delete clean.isNew; delete clean._bsOpen;
   if (idx>=0) stories[idx] = clean; else stories.unshift(clean);
   saveStories(stories);
   if (window.Career) Career.log({ action: "reflection", summary: (idx>=0 ? "STAR経験を更新：" : "STAR経験を記録：") + (draft.title || "無題") });
@@ -1126,7 +1269,7 @@ function renderPositions(){
 }
 
 /* ---------- 編集（説明＋セクション） ---------- */
-function openPosEdit(id){ curPos = id; renderPosEdit(id); show("posedit"); }
+function openPosEdit(id){ curPos = id; show("posedit"); renderPosEdit(id); }  // 先に可視化してから描画（psAutoGrowが高さを正しく計測できるように）
 function renderPosEdit(id){
   const p = PS_BY_ID[id];
   document.documentElement.style.setProperty("--pos", p.color);
@@ -1217,11 +1360,12 @@ function psExport(id){
     if(blocks.length) cards.push({ no:i+1, blocks });
   });
   mc.font = IMG_FONT(700,24);
-  const titleLines = wrapPara(mc, p.jp, CARDW - 56);
+  const titleLines = wrapPara(mc, p.jp, CARDW - 58);
   const headBottom = 30 + 56 + Math.max(0,(titleLines.length-1))*32 + 14;
   cards.forEach(c=>{
     let h = IN + (c.tag ? 22 : 0);
-    c._wrapped = c.blocks.map(b=>{ mc.font = b.font; const wl = wrapPara(mc, b.text, maxTextW); h += wl.length*b.lineH + (b.gap||0); return wl; });
+    const tw = maxTextW - (c.no ? 26 : 0);   // 番号バッジ分のインデントを折り返し幅から差し引く
+    c._wrapped = c.blocks.map(b=>{ mc.font = b.font; const wl = wrapPara(mc, b.text, tw); h += wl.length*b.lineH + (b.gap||0); return wl; });
     h += IN; c._h = h;
   });
   const totalH = Math.ceil(headBottom + 6 + cards.reduce((a,x)=>a+x._h+GAP,0) + 38);
@@ -1281,22 +1425,6 @@ psBootstrap();
 </script>
 <!-- tsumiki-back-button -->
 <style>
-  #tsumikiBack{
-    position:fixed; top:calc(env(safe-area-inset-top) + 8px); left:12px; z-index:1000;
-    display:none; align-items:center; gap:2px;
-    background:rgba(255,255,255,.72);
-    -webkit-backdrop-filter:saturate(180%) blur(14px); backdrop-filter:saturate(180%) blur(14px);
-    border:1px solid rgba(0,0,0,.06); border-radius:999px;
-    padding:6px 12px 6px 9px; font-size:13px; font-weight:600;
-    color:#0071e3; text-decoration:none; line-height:1;
-    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Helvetica Neue",Arial,sans-serif;
-    box-shadow:0 2px 10px rgba(0,0,0,.10); -webkit-tap-highlight-color:transparent;
-    transition:transform .28s cubic-bezier(.22,.61,.36,1), opacity .28s ease;
-    will-change:transform,opacity;
-  }
-  #tsumikiBack.show{display:inline-flex;}
-  #tsumikiBack.hide{transform:translateX(-130%); opacity:0; pointer-events:none;}
-  #tsumikiBack:active{transform:scale(.95);}
   #tsumikiEdge{position:fixed; top:0; bottom:0; left:0; width:22px; z-index:999;}
   #tsumikiPeek{
     position:fixed; top:50%; left:0; z-index:1001; margin-top:-23px;
@@ -1310,7 +1438,6 @@ psBootstrap();
     transform:translateX(-70px) scale(.8); opacity:0; pointer-events:none;
   }
 </style>
-<a id="tsumikiBack" href="index.html">‹ つみき</a>
 <div id="tsumikiEdge"></div>
 <div id="tsumikiPeek">‹</div>
 <script>
@@ -1326,25 +1453,10 @@ psBootstrap();
     }catch(e){}
     if(!(standalone && fromTsumiki)) return;
 
-    var pill = document.getElementById('tsumikiBack');
     var peek = document.getElementById('tsumikiPeek');
     var edge = document.getElementById('tsumikiEdge');
-    pill.classList.add('show');
 
     function goBack(){ location.href = 'index.html'; }
-
-    /* --- ピルをスクロールで自動的に出し入れ（iOSツールバー流） --- */
-    var lastY = window.scrollY || 0, ticking = false;
-    function onScroll(){
-      var y = window.scrollY || 0;
-      if(y <= 4){ pill.classList.remove('hide'); }
-      else if(y > lastY + 6){ pill.classList.add('hide'); }
-      else if(y < lastY - 6){ pill.classList.remove('hide'); }
-      lastY = y; ticking = false;
-    }
-    window.addEventListener('scroll', function(){
-      if(!ticking){ window.requestAnimationFrame(onScroll); ticking = true; }
-    }, {passive:true});
 
     /* --- 左端エッジスワイプで戻る（iOS純正の戻る操作） --- */
     var sx=0, sy=0, prog=0, dragging=false, W=window.innerWidth;
