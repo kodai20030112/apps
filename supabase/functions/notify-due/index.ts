@@ -62,6 +62,8 @@ type Item = {
   id: string; name: string; emoji?: string;
   intervalValue: number; intervalUnit: string;
   lastDate: string; leadDays?: number; notifiedFor?: string | null;
+  needsBooking?: boolean; bookLeadDays?: number | null;
+  booked?: boolean; bookNotifiedFor?: string | null;
 };
 function nextDate(it: Item): Date { return addInterval(parseYMD(it.lastDate), it.intervalValue, it.intervalUnit); }
 function daysUntil(it: Item): number {
@@ -91,30 +93,47 @@ Deno.serve(async (req) => {
     const items: Item[] = (row?.state?.items as Item[]) || [];
     if (!items.length) return json({ ok: true, due: 0, note: "項目なし" });
 
-    // 「予定日が近い／過ぎた」かつ「この周期でまだ通知していない」項目を抽出
-    const due: { it: Item; du: number; cycle: string }[] = [];
+    // 抽出（いずれも「この周期でまだ通知していない」もののみ）:
+    //  visitDue … 予定日が近い／過ぎた
+    //  bookDue  … 予約が必要で未予約、かつ予約催促日数に入った
+    const visitDue: { it: Item; du: number; cycle: string }[] = [];
+    const bookDue: { it: Item; du: number; cycle: string }[] = [];
     for (const it of items) {
       if (!it.intervalValue || !it.lastDate) continue;
-      const lead = it.leadDays != null ? it.leadDays : 3;
       const du = daysUntil(it);
       const cycle = toYMD(nextDate(it));   // この周期の識別子
-      if (du <= lead && it.notifiedFor !== cycle) {
-        due.push({ it, du, cycle });
+      const lead = it.leadDays != null ? it.leadDays : 3;
+      if (du <= lead && it.notifiedFor !== cycle) visitDue.push({ it, du, cycle });
+
+      const bookLead = it.bookLeadDays != null ? it.bookLeadDays : 30;
+      if (it.needsBooking && !it.booked && du <= bookLead && it.bookNotifiedFor !== cycle) {
+        bookDue.push({ it, du, cycle });
       }
     }
-    if (!due.length) return json({ ok: true, due: 0, note: "通知対象なし" });
+    if (!visitDue.length && !bookDue.length) return json({ ok: true, due: 0, note: "通知対象なし" });
 
     // 購読端末
     const { data: subs, error: e2 } = await sb
       .from("tsugi_subs").select("*").eq("who", ROW_ID);
     if (e2) return json({ error: e2.message }, 500);
 
-    // 文面を組み立て
-    const lines = due.map(({ it, du }) => {
-      const when = du < 0 ? (-du) + "日すぎ" : du === 0 ? "今日" : "あと" + du + "日";
-      return "・" + (it.emoji || "🗓️") + (it.name) + "（" + when + "）";
-    });
-    const body = (due.length === 1 ? "そろそろ予定日です\n" : "予定日が近づいています\n") + lines.join("\n");
+    // 文面を組み立て（予約催促 → 予定日 の順）
+    const sections: string[] = [];
+    if (bookDue.length) {
+      const lines = bookDue.map(({ it, du }) => {
+        const when = du > 0 ? "予定日まであと" + du + "日" : "予定日が近いです";
+        return "・" + (it.emoji || "🗓️") + (it.name) + "（" + when + "）";
+      });
+      sections.push("📅 そろそろ予約を取ろう\n" + lines.join("\n"));
+    }
+    if (visitDue.length) {
+      const lines = visitDue.map(({ it, du }) => {
+        const when = du < 0 ? (-du) + "日すぎ" : du === 0 ? "今日" : "あと" + du + "日";
+        return "・" + (it.emoji || "🗓️") + (it.name) + "（" + when + "）";
+      });
+      sections.push("⏰ そろそろ予定日です\n" + lines.join("\n"));
+    }
+    const body = sections.join("\n\n");
     const payload = JSON.stringify({ title: "⏰ つぎいつ？", body });
 
     let sent = 0;
@@ -137,13 +156,17 @@ Deno.serve(async (req) => {
 
     // 通知済みフラグを立てて保存（次の周期まで再通知しない）
     if (sent > 0) {
-      const marks = new Map(due.map(d => [d.it.id, d.cycle]));
-      for (const it of items) { if (marks.has(it.id)) it.notifiedFor = marks.get(it.id)!; }
+      const visitMarks = new Map(visitDue.map(d => [d.it.id, d.cycle]));
+      const bookMarks = new Map(bookDue.map(d => [d.it.id, d.cycle]));
+      for (const it of items) {
+        if (visitMarks.has(it.id)) it.notifiedFor = visitMarks.get(it.id)!;
+        if (bookMarks.has(it.id)) it.bookNotifiedFor = bookMarks.get(it.id)!;
+      }
       const newState = { ...(row?.state || {}), items };
       await sb.from("tsugi_state").upsert({ id: ROW_ID, state: newState, updated_at: new Date().toISOString() });
     }
 
-    return json({ ok: true, due: due.length, sent });
+    return json({ ok: true, visitDue: visitDue.length, bookDue: bookDue.length, sent });
   } catch (e) {
     return json({ error: (e as Error)?.message || String(e) }, 500);
   }

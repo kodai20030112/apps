@@ -92,6 +92,12 @@
     white-space: nowrap;
   }
   .item .done-btn:active { background: #e3e3e6; }
+  .item.booking { border-color: #b9e7df; background: #f4fcfa; }
+  .item .book-note { font-size: 12px; color: var(--accent); font-weight: 600; margin-top: 3px; }
+  .item .booked-chip { display: inline-block; font-size: 11px; font-weight: 600; color: var(--accent);
+    background: #e7f7f3; border-radius: 999px; padding: 2px 8px; margin-top: 3px; }
+  .item .book-btn { background: var(--accent); color: #fff; }
+  .item .book-btn:active { background: #128a78; }
 
   /* ===== 空状態 ===== */
   .empty { text-align: center; color: var(--sub); padding: 48px 20px; }
@@ -143,6 +149,15 @@
   .emoji-picker button.sel { border-color: var(--accent); background: #e7f7f3; }
   .hint { font-size: 11.5px; color: var(--sub); margin-top: 6px; }
   .preview-next { font-size: 13px; color: var(--accent); font-weight: 600; margin-top: 6px; min-height: 18px; }
+  /* 予約トグル（iOS風スイッチ） */
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .toggle-row span.tl { font-size: 14px; font-weight: 600; color: var(--text); }
+  .switch { position: relative; width: 46px; height: 28px; flex: 0 0 auto; }
+  .switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .switch .track { position: absolute; inset: 0; background: #e3e3e6; border-radius: 999px; transition: background .2s; }
+  .switch .track::before { content: ""; position: absolute; left: 2px; top: 2px; width: 24px; height: 24px; background: #fff; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: transform .2s; }
+  .switch input:checked + .track { background: var(--green); }
+  .switch input:checked + .track::before { transform: translateX(18px); }
   .sheet-actions { display: flex; gap: 10px; margin-top: 22px; }
   .btn {
     flex: 1; border: none; border-radius: 13px; font-size: 15px; font-weight: 600;
@@ -212,6 +227,20 @@
       <label>何日前に通知する？</label>
       <input type="number" id="fLead" min="0" max="60" inputmode="numeric" placeholder="3">
       <div class="hint">予定日の◯日前にプッシュ通知でお知らせします（0＝当日）。</div>
+    </div>
+
+    <div class="field">
+      <label class="toggle-row" for="fNeedsBooking">
+        <span class="tl">📅 予約が必要</span>
+        <span class="switch"><input type="checkbox" id="fNeedsBooking"><span class="track"></span></span>
+      </label>
+      <div class="hint">病院など、事前に予約を取る必要がある予定。予定日より早めに「そろそろ予約を」と促します。</div>
+    </div>
+
+    <div class="field" id="bookLeadField" style="display:none">
+      <label>予約は予定日の何日前から促す？</label>
+      <input type="number" id="fBookLead" min="1" max="180" inputmode="numeric" placeholder="30">
+      <div class="hint">シフトが分かる頃に合わせて。例：30日前から「📅 そろそろ予約を」とお知らせ。</div>
     </div>
 
     <div class="sheet-actions">
@@ -338,15 +367,29 @@ function itemRow(item) {
   else if (du <= (item.leadDays != null ? item.leadDays : 3)) { cls = "soon"; label = "あと" + du + "日"; }
   else { cls = "far"; label = "あと" + du + "日"; }
   const nd = nextDate(item);
-  return '<div class="item ' + (du < 0 ? "overdue" : "") + '" data-id="' + item.id + '" data-act="edit">' +
+
+  const bookLead = item.bookLeadDays != null ? item.bookLeadDays : 30;
+  const inBooking = item.needsBooking && !item.booked && du <= bookLead;
+  let extra = "";
+  if (inBooking) {
+    extra = '<div class="book-note">📅 ' + (du > 0 ? "そろそろ予約を（予定日まであと" + du + "日）" : "予約がまだです") + '</div>';
+  } else if (item.needsBooking && item.booked) {
+    extra = '<div class="booked-chip">✅ 予約済み</div>';
+  }
+  const btn = inBooking
+    ? '<button class="done-btn book-btn" data-id="' + item.id + '" data-act="book">予約した✓</button>'
+    : '<button class="done-btn" data-id="' + item.id + '" data-act="done">行ってきた✓</button>';
+
+  return '<div class="item ' + (du < 0 ? "overdue " : "") + (inBooking ? "booking" : "") + '" data-id="' + item.id + '" data-act="edit">' +
     '<div class="emoji">' + (item.emoji || "🗓️") + '</div>' +
     '<div class="body">' +
       '<div class="name">' + esc(item.name) + '</div>' +
       '<div class="meta">' + intervalLabel(item) + ' ・ 次は ' + fmtDate(nd) + '</div>' +
+      extra +
     '</div>' +
     '<div class="right">' +
       '<div class="count ' + cls + '">' + label + '</div>' +
-      '<button class="done-btn" data-id="' + item.id + '" data-act="done">行ってきた✓</button>' +
+      btn +
     '</div>' +
   '</div>';
 }
@@ -360,6 +403,7 @@ appEl.addEventListener("click", e => {
   const id = btn.getAttribute("data-id");
   const act = btn.getAttribute("data-act");
   if (act === "done") { e.stopPropagation(); markDone(id); }
+  else if (act === "book") { e.stopPropagation(); markBooked(id); }
   else if (act === "edit") { openSheet(id); }
 });
 
@@ -367,7 +411,16 @@ function markDone(id) {
   const it = DB.items.find(x => x.id === id);
   if (!it) return;
   it.lastDate = toYMD(todayMid());
-  it.notifiedFor = null;   // 新しい周期に入ったので通知フラグをリセット
+  it.notifiedFor = null;       // 新しい周期に入ったので通知フラグをリセット
+  it.booked = false;           // 予約も次の周期分はまだ
+  it.bookNotifiedFor = null;
+  save(); render();
+}
+
+function markBooked(id) {
+  const it = DB.items.find(x => x.id === id);
+  if (!it) return;
+  it.booked = true;            // この周期は予約済み → 催促を止める
   save(); render();
 }
 
@@ -382,8 +435,15 @@ const fValue = document.getElementById("fValue");
 const fUnit = document.getElementById("fUnit");
 const fLast = document.getElementById("fLast");
 const fLead = document.getElementById("fLead");
+const fNeedsBooking = document.getElementById("fNeedsBooking");
+const fBookLead = document.getElementById("fBookLead");
+const bookLeadField = document.getElementById("bookLeadField");
 const emojiPicker = document.getElementById("emojiPicker");
 const nextPreview = document.getElementById("nextPreview");
+
+fNeedsBooking.addEventListener("change", () => {
+  bookLeadField.style.display = fNeedsBooking.checked ? "block" : "none";
+});
 
 function buildEmojiPicker() {
   emojiPicker.innerHTML = EMOJIS.map(em =>
@@ -417,15 +477,19 @@ function openSheet(id) {
     fUnit.value = it.intervalUnit || "week";
     fLast.value = it.lastDate || toYMD(todayMid());
     fLead.value = it.leadDays != null ? it.leadDays : 3;
+    fNeedsBooking.checked = !!it.needsBooking;
+    fBookLead.value = it.bookLeadDays != null ? it.bookLeadDays : 30;
     pickedEmoji = it.emoji || EMOJIS[0];
     document.getElementById("delBtn").style.display = "block";
   } else {
     document.getElementById("sheetTitle").textContent = "新しい予定";
     fName.value = ""; fValue.value = ""; fUnit.value = "week";
     fLast.value = toYMD(todayMid()); fLead.value = 3;
+    fNeedsBooking.checked = false; fBookLead.value = 30;
     pickedEmoji = EMOJIS[0];
     document.getElementById("delBtn").style.display = "none";
   }
+  bookLeadField.style.display = fNeedsBooking.checked ? "block" : "none";
   buildEmojiPicker();
   updateNextPreview();
   sheetBg.classList.add("show");
@@ -441,6 +505,7 @@ document.getElementById("saveBtn").addEventListener("click", () => {
   const value = Number(fValue.value);
   if (!name) { fName.focus(); return; }
   if (!value || value < 1) { fValue.focus(); return; }
+  const needsBooking = fNeedsBooking.checked;
   const data = {
     name,
     emoji: pickedEmoji,
@@ -448,14 +513,17 @@ document.getElementById("saveBtn").addEventListener("click", () => {
     intervalUnit: fUnit.value,
     lastDate: fLast.value || toYMD(todayMid()),
     leadDays: Math.max(0, Number(fLead.value) || 0),
+    needsBooking,
+    bookLeadDays: needsBooking ? Math.max(1, Number(fBookLead.value) || 30) : null,
   };
   if (editingId) {
     const it = DB.items.find(x => x.id === editingId);
     const cycleChanged = it.lastDate !== data.lastDate || it.intervalValue !== data.intervalValue || it.intervalUnit !== data.intervalUnit;
     Object.assign(it, data);
-    if (cycleChanged) it.notifiedFor = null;   // 周期が変わったら通知し直し
+    if (cycleChanged) { it.notifiedFor = null; it.booked = false; it.bookNotifiedFor = null; }   // 周期が変わったら通知し直し
+    if (!needsBooking) { it.booked = false; it.bookNotifiedFor = null; }
   } else {
-    DB.items.push(Object.assign({ id: uid(), createdAt: Date.now(), notifiedFor: null }, data));
+    DB.items.push(Object.assign({ id: uid(), createdAt: Date.now(), notifiedFor: null, booked: false, bookNotifiedFor: null }, data));
   }
   save(); render(); closeSheet();
   ensureNotifyPermission();   // 予定を入れたら通知許可を促す
