@@ -147,12 +147,12 @@
   }
   .pinned-head { display: flex; align-items: center; gap: 8px; cursor: pointer; }
   .pinned-jp { font-size: 16px; font-weight: 700; }
-  .pinned-en { font-size: 11px; color: var(--ink-2); font-weight: 600; }
-  .pinned-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .pinned-en { font-size: 11px; color: var(--ink-2); font-weight: 600; white-space: nowrap; }
+  .pinned-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
   .pinned-change { border: 1px solid var(--cmp, var(--accent)); color: var(--cmp, var(--accent)); background: transparent;
     border-radius: 999px; padding: 4px 11px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
   .pinned-change:active { transform: scale(.96); }
-  .pinned-toggle { color: var(--accent); font-size: 13px; font-weight: 600; }
+  .pinned-toggle { color: var(--accent); font-size: 13px; font-weight: 600; white-space: nowrap; }
   .cmp-card.current { outline: 2px solid var(--cmp); outline-offset: 1px; }
   .cmp-card .cmp-current-tag { position: absolute; top: 8px; right: 8px; background: var(--cmp); color: #fff;
     font-size: 10px; font-weight: 700; border-radius: 999px; padding: 2px 8px; }
@@ -869,7 +869,7 @@ function changeCmp(cmpId, posId){
    コンピテンシーの「優れたスキルレベル」を疑問形に変換して問いかけ、
    思いついたメモ（葉）をSTARSの各欄へ流し込めるようにする。
    draft.brainstorm = { [bulletIndex]: ["メモ1","メモ2", ...] } として保存。 */
-const SEND_LABEL = { situation:"状況", task:"課題", action:"行動", result:"結果", selfref:"学び" };
+const SEND_LABEL = { situation:"Situation", task:"Task", action:"Action", result:"Result", selfref:"Self-reflection" };
 const Q_SUFFIX = [
   "こんな場面、ありましたか？",
   "思い当たる出来事は？",

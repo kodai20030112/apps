@@ -95,7 +95,8 @@
   .item.booking { border-color: #b9e7df; background: #f4fcfa; }
   .item .book-note { font-size: 12px; color: var(--accent); font-weight: 600; margin-top: 3px; }
   .item .booked-chip { display: inline-block; font-size: 11px; font-weight: 600; color: var(--accent);
-    background: #e7f7f3; border-radius: 999px; padding: 2px 8px; margin-top: 3px; }
+    background: #e7f7f3; border-radius: 999px; padding: 2px 8px; margin-top: 3px; cursor: pointer; }
+  .item .booked-chip:active { background: #d5f0e9; }
   .item .book-btn { background: var(--accent); color: #fff; }
   .item .book-btn:active { background: #128a78; }
 
@@ -141,6 +142,12 @@
   .interval-row { display: flex; gap: 10px; }
   .interval-row input { flex: 1; }
   .interval-row select { flex: 1; background-image: none; }
+  .seg { display: flex; gap: 6px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 4px; }
+  .seg button {
+    flex: 1; border: none; background: transparent; border-radius: 9px; padding: 9px;
+    font-size: 14px; font-weight: 600; font-family: inherit; color: var(--sub); cursor: pointer;
+  }
+  .seg button.sel { background: var(--card); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
   .emoji-picker { display: flex; flex-wrap: wrap; gap: 8px; }
   .emoji-picker button {
     width: 44px; height: 44px; border-radius: 12px; border: 1.5px solid var(--line);
@@ -214,6 +221,14 @@
     </div>
 
     <div class="field">
+      <label>繰り返し方</label>
+      <div class="seg" id="modeSeg">
+        <button type="button" data-mode="interval" class="sel">周期で</button>
+        <button type="button" data-mode="fixed">曜日・日付で</button>
+      </div>
+    </div>
+
+    <div class="field" id="intervalBlock">
       <label>どのくらいの周期で？</label>
       <div class="interval-row">
         <input type="number" id="fValue" min="1" max="999" inputmode="numeric" placeholder="6">
@@ -224,6 +239,27 @@
           <option value="year">年ごと</option>
         </select>
       </div>
+    </div>
+
+    <div class="field" id="fixedBlock" style="display:none">
+      <label>いつ繰り返す？</label>
+      <div class="interval-row">
+        <select id="fFixedType">
+          <option value="weekly">毎週</option>
+          <option value="monthly">毎月</option>
+        </select>
+        <select id="fWeekday">
+          <option value="0">日曜</option>
+          <option value="1">月曜</option>
+          <option value="2">火曜</option>
+          <option value="3">水曜</option>
+          <option value="4">木曜</option>
+          <option value="5">金曜</option>
+          <option value="6">土曜</option>
+        </select>
+        <input type="number" id="fMonthDay" min="1" max="31" inputmode="numeric" placeholder="15" style="display:none">
+      </div>
+      <div class="hint">毎週○曜、または毎月○日にくり返します。「最後に行った日」より後の最初の該当日が次回になります。</div>
     </div>
 
     <div class="field">
@@ -345,12 +381,44 @@ function addInterval(date, value, unit) {
   else if (unit === "year") return addMonths(date, v * 12);
   return d;
 }
-function nextDate(item) { return addInterval(parseYMD(item.lastDate), item.intervalValue, item.intervalUnit); }
+function makeMonthDay(year, month, day) {
+  const first = new Date(year, month, 1);
+  const y = first.getFullYear(), m = first.getMonth();
+  const last = new Date(y, m + 1, 0).getDate();
+  const d = new Date(y, m, Math.min(day, last)); d.setHours(0, 0, 0, 0); return d;
+}
+function nextWeekly(base, weekday, everyN) {
+  const d = new Date(base); d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 1);
+  while (d.getDay() !== weekday) d.setDate(d.getDate() + 1);
+  if (everyN > 1) d.setDate(d.getDate() + (everyN - 1) * 7);
+  return d;
+}
+function nextMonthly(base, monthDay, everyN) {
+  const y = base.getFullYear(); let m = base.getMonth();
+  let cand = makeMonthDay(y, m, monthDay);
+  while (cand.getTime() <= base.getTime()) { m += (everyN || 1); cand = makeMonthDay(y, m, monthDay); }
+  return cand;
+}
+function nextDate(item) {
+  const base = parseYMD(item.lastDate);
+  if (item.mode === "fixed") {
+    if (item.fixedType === "monthly") return nextMonthly(base, item.monthDay || 1, item.everyN || 1);
+    return nextWeekly(base, item.weekday || 0, item.everyN || 1);
+  }
+  return addInterval(base, item.intervalValue, item.intervalUnit);
+}
 function daysUntil(item) {
   return Math.round((nextDate(item).getTime() - todayMid().getTime()) / 86400000);
 }
 const UNIT_LABEL = { day: "日", week: "週間", month: "ヶ月", year: "年" };
-function intervalLabel(item) { return (item.intervalValue || 0) + UNIT_LABEL[item.intervalUnit] + "ごと"; }
+function intervalLabel(item) {
+  if (item.mode === "fixed") {
+    if (item.fixedType === "monthly") return "毎月" + (item.monthDay || 1) + "日";
+    return "毎週" + WD[item.weekday || 0] + "曜";
+  }
+  return (item.intervalValue || 0) + UNIT_LABEL[item.intervalUnit] + "ごと";
+}
 function fmtDate(d) { return (d.getMonth() + 1) + "/" + d.getDate() + "（" + WD[d.getDay()] + "）"; }
 
 /* ============ 描画 ============ */
@@ -383,7 +451,7 @@ function itemRow(item) {
   if (inBooking) {
     extra = '<div class="book-note">📅 ' + (du > 0 ? "そろそろ予約を（予定日まであと" + du + "日）" : "予約がまだです") + '</div>';
   } else if (item.needsBooking && item.booked) {
-    extra = '<div class="booked-chip">✅ 予約済み</div>';
+    extra = '<div class="booked-chip" data-id="' + item.id + '" data-act="cal">✅ 予約済み ・ 📅 カレンダーに追加</div>';
   }
   const btn = inBooking
     ? '<button class="done-btn book-btn" data-id="' + item.id + '" data-act="book">予約した✓</button>'
@@ -413,6 +481,7 @@ appEl.addEventListener("click", e => {
   const act = btn.getAttribute("data-act");
   if (act === "done") { e.stopPropagation(); markDone(id); }
   else if (act === "book") { e.stopPropagation(); markBooked(id); }
+  else if (act === "cal") { e.stopPropagation(); addToCalendar(id); }
   else if (act === "edit") { openSheet(id); }
 });
 
@@ -431,6 +500,41 @@ function markBooked(id) {
   if (!it) return;
   it.booked = true;            // この周期は予約済み → 催促を止める
   save(); render();
+  addToCalendar(id);           // 予約したらそのままiPhoneカレンダーへ追加を促す
+}
+
+/* ============ iPhoneカレンダーに追加（.ics） ============ */
+function icsEsc(s) { return String(s).replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n"); }
+function icsDay(d) { return d.getFullYear() + String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0"); }
+function buildICS(item) {
+  const nd = nextDate(item);
+  const start = icsDay(nd);
+  const endD = new Date(nd); endD.setDate(endD.getDate() + 1);
+  const n = new Date();
+  const stamp = n.getUTCFullYear() + String(n.getUTCMonth() + 1).padStart(2, "0") + String(n.getUTCDate()).padStart(2, "0")
+    + "T" + String(n.getUTCHours()).padStart(2, "0") + String(n.getUTCMinutes()).padStart(2, "0") + String(n.getUTCSeconds()).padStart(2, "0") + "Z";
+  const title = (item.emoji || "🗓️") + " " + item.name;
+  return [
+    "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//tsugi//tsugiitsu//JP", "CALSCALE:GREGORIAN",
+    "BEGIN:VEVENT",
+    "UID:" + item.id + "-" + start + "@tsugiitsu",
+    "DTSTAMP:" + stamp,
+    "DTSTART;VALUE=DATE:" + start,
+    "DTEND;VALUE=DATE:" + icsDay(endD),
+    "SUMMARY:" + icsEsc(title),
+    "BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:" + icsEsc(title), "TRIGGER:PT9H", "END:VALARM",
+    "END:VEVENT", "END:VCALENDAR"
+  ].join("\r\n");
+}
+function addToCalendar(id) {
+  const it = DB.items.find(x => x.id === id);
+  if (!it) return;
+  const blob = new Blob([buildICS(it)], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = (it.name || "yotei") + ".ics";
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1500);
 }
 
 /* ============ 追加 / 編集シート ============ */
@@ -449,6 +553,33 @@ const fBookLead = document.getElementById("fBookLead");
 const bookLeadField = document.getElementById("bookLeadField");
 const emojiPicker = document.getElementById("emojiPicker");
 const nextPreview = document.getElementById("nextPreview");
+const modeSeg = document.getElementById("modeSeg");
+const intervalBlock = document.getElementById("intervalBlock");
+const fixedBlock = document.getElementById("fixedBlock");
+const fFixedType = document.getElementById("fFixedType");
+const fWeekday = document.getElementById("fWeekday");
+const fMonthDay = document.getElementById("fMonthDay");
+let pickedMode = "interval";
+
+function setMode(mode) {
+  pickedMode = mode;
+  modeSeg.querySelectorAll("[data-mode]").forEach(b => b.classList.toggle("sel", b.getAttribute("data-mode") === mode));
+  intervalBlock.style.display = mode === "interval" ? "block" : "none";
+  fixedBlock.style.display = mode === "fixed" ? "block" : "none";
+  updateNextPreview();
+}
+modeSeg.addEventListener("click", e => {
+  const b = e.target.closest("[data-mode]"); if (!b) return;
+  setMode(b.getAttribute("data-mode"));
+});
+function syncFixedInputs() {
+  const t = fFixedType.value;
+  fWeekday.style.display = t === "weekly" ? "block" : "none";
+  fMonthDay.style.display = t === "monthly" ? "block" : "none";
+  updateNextPreview();
+}
+fFixedType.addEventListener("change", syncFixedInputs);
+[fWeekday, fMonthDay].forEach(el => el.addEventListener("input", updateNextPreview));
 
 fNeedsBooking.addEventListener("change", () => {
   bookLeadField.style.display = fNeedsBooking.checked ? "block" : "none";
@@ -465,10 +596,23 @@ emojiPicker.addEventListener("click", e => {
   buildEmojiPicker();
 });
 
+function formNextDate() {
+  const last = fLast.value;
+  if (!last) return null;
+  const base = parseYMD(last);
+  if (pickedMode === "fixed") {
+    if (fFixedType.value === "monthly") {
+      const md = Number(fMonthDay.value); if (!md) return null;
+      return nextMonthly(base, md, 1);
+    }
+    return nextWeekly(base, Number(fWeekday.value), 1);
+  }
+  const v = Number(fValue.value); if (!v || v < 1) return null;
+  return addInterval(base, v, fUnit.value);
+}
 function updateNextPreview() {
-  const v = Number(fValue.value), u = fUnit.value, last = fLast.value;
-  if (!v || v < 1 || !last) { nextPreview.textContent = ""; return; }
-  const nd = addInterval(parseYMD(last), v, u);
+  const nd = formNextDate();
+  if (!nd) { nextPreview.textContent = ""; return; }
   const du = Math.round((nd.getTime() - todayMid().getTime()) / 86400000);
   const rel = du < 0 ? "（" + (-du) + "日すぎ）" : du === 0 ? "（今日）" : "（あと" + du + "日）";
   nextPreview.textContent = "次の予定日：" + fmtDate(nd) + " " + rel;
@@ -489,6 +633,10 @@ function openSheet(id) {
     fNeedsBooking.checked = !!it.needsBooking;
     fBookLead.value = it.bookLeadDays != null ? it.bookLeadDays : 30;
     pickedEmoji = it.emoji || EMOJIS[0];
+    pickedMode = it.mode === "fixed" ? "fixed" : "interval";
+    fFixedType.value = it.fixedType || "weekly";
+    fWeekday.value = it.weekday != null ? it.weekday : 1;
+    fMonthDay.value = it.monthDay != null ? it.monthDay : 15;
     document.getElementById("delBtn").style.display = "block";
   } else {
     document.getElementById("sheetTitle").textContent = "新しい予定";
@@ -496,11 +644,13 @@ function openSheet(id) {
     fLast.value = toYMD(todayMid()); fLead.value = 3;
     fNeedsBooking.checked = false; fBookLead.value = 30;
     pickedEmoji = EMOJIS[0];
+    pickedMode = "interval"; fFixedType.value = "weekly"; fWeekday.value = 1; fMonthDay.value = 15;
     document.getElementById("delBtn").style.display = "none";
   }
   bookLeadField.style.display = fNeedsBooking.checked ? "block" : "none";
   buildEmojiPicker();
-  updateNextPreview();
+  syncFixedInputs();
+  setMode(pickedMode);
   sheetBg.classList.add("show");
 }
 function closeSheet() { sheetBg.classList.remove("show"); editingId = null; }
@@ -511,15 +661,23 @@ sheetBg.addEventListener("click", e => { if (e.target === sheetBg) closeSheet();
 
 document.getElementById("saveBtn").addEventListener("click", () => {
   const name = fName.value.trim();
-  const value = Number(fValue.value);
   if (!name) { fName.focus(); return; }
-  if (!value || value < 1) { fValue.focus(); return; }
+  const value = Number(fValue.value);
+  if (pickedMode === "interval") {
+    if (!value || value < 1) { fValue.focus(); return; }
+  } else if (pickedMode === "fixed" && fFixedType.value === "monthly") {
+    if (!Number(fMonthDay.value)) { fMonthDay.focus(); return; }
+  }
   const needsBooking = fNeedsBooking.checked;
   const data = {
     name,
     emoji: pickedEmoji,
-    intervalValue: value,
+    mode: pickedMode,
+    intervalValue: value || null,
     intervalUnit: fUnit.value,
+    fixedType: fFixedType.value,
+    weekday: Number(fWeekday.value),
+    monthDay: Math.max(1, Number(fMonthDay.value) || 1),
     lastDate: fLast.value || toYMD(todayMid()),
     leadDays: Math.max(0, Number(fLead.value) || 0),
     needsBooking,
@@ -527,7 +685,9 @@ document.getElementById("saveBtn").addEventListener("click", () => {
   };
   if (editingId) {
     const it = DB.items.find(x => x.id === editingId);
-    const cycleChanged = it.lastDate !== data.lastDate || it.intervalValue !== data.intervalValue || it.intervalUnit !== data.intervalUnit;
+    const cycleChanged = it.lastDate !== data.lastDate || it.mode !== data.mode
+      || it.intervalValue !== data.intervalValue || it.intervalUnit !== data.intervalUnit
+      || it.fixedType !== data.fixedType || it.weekday !== data.weekday || it.monthDay !== data.monthDay;
     Object.assign(it, data);
     if (cycleChanged) { it.notifiedFor = null; it.booked = false; it.bookNotifiedFor = null; }   // 周期が変わったら通知し直し
     if (!needsBooking) { it.booked = false; it.bookNotifiedFor = null; }
