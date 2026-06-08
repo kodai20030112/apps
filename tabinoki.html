@@ -105,6 +105,7 @@
   .ev{position:relative; display:flex; gap:12px; padding:0;}
   .ev .rail{flex:0 0 auto; width:46px; display:flex; flex-direction:column; align-items:flex-end; gap:5px; padding-top:1px;}
   .ev .time{font-size:13px; font-weight:700; color:var(--ink); white-space:nowrap;}
+  .ev .time-end{font-size:11.5px; font-weight:600; color:var(--sub); white-space:nowrap; margin-top:-2px;}
   .grip{touch-action:none; cursor:grab; color:#cdd8d6; font-size:15px; line-height:1; padding:3px 1px;
     user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;}
   .grip:active{cursor:grabbing; color:var(--accent);}
@@ -540,8 +541,9 @@ function renderPlan(t){
     dayItems.forEach((it,k)=>{
       let gap='';
       if(k>0){
-        const a=timeToMin(dayItems[k-1].time), b=timeToMin(it.time);
-        if(a!=null && b!=null && b-a>0) gap=`<div class="gap">⏱ ${fmtDur(b-a)}</div>`;
+        const prev=dayItems[k-1];
+        const a=timeToMin(prev.endTime||prev.time), b=timeToMin(it.time);
+        if(a!=null && b!=null && b-a>0) gap=`<div class="gap">⏱ あき ${fmtDur(b-a)}</div>`;
       }
       evs += evHtml(t, it, date, gap);
     });
@@ -556,6 +558,9 @@ function renderPlan(t){
 function evHtml(t,i,date,gap){
   const ty = TYPES[i.type]||TYPES.other;
   const tags=[];
+  const dur = (i.endTime && timeToMin(i.time)!=null && timeToMin(i.endTime)!=null && timeToMin(i.endTime)-timeToMin(i.time)>0)
+    ? (timeToMin(i.endTime)-timeToMin(i.time)) : 0;
+  if(dur) tags.push(`<span class="tag">⏱ 所要 ${fmtDur(dur)}</span>`);
   if(i.url) tags.push(`<a class="tag link" href="${esc(i.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 リンク</a>`);
   if(i.cost) tags.push(`<span class="tag">${yen(i.cost)}${i.payer?'・'+esc(i.payer):''}</span>`);
   const comments = (i.comments||[]);
@@ -565,7 +570,7 @@ function evHtml(t,i,date,gap){
       <button class="c-del" data-delc="${i.id}|${c.id}" onclick="event.stopPropagation()">×</button>
     </div>`).join('');
   return `<div class="ev" data-id="${i.id}" data-day="${esc(date)}">
-    <div class="rail"><span class="time">${esc(i.time||'')}</span><span class="grip" title="ドラッグで並べ替え">⠿</span></div>
+    <div class="rail"><span class="time">${esc(i.time||'')}</span>${i.endTime?`<span class="time-end">▾${esc(i.endTime)}</span>`:''}<span class="grip" title="ドラッグで並べ替え">⠿</span></div>
     <div class="col">${gap||''}
       <div class="body" data-edit="${i.id}">
         <div class="e-line"><span class="e-emoji">${ty.emoji}</span><span class="e-title">${esc(i.title||ty.label)}</span></div>
@@ -765,7 +770,7 @@ function openTripForm(trip){
 /* 予定の作成・編集 */
 function openItemForm(t, item, presetDate){
   const isNew=!item;
-  item = item || { id:uid(), date:presetDate||t.startDate||'', time:'', type:'spot', title:'', place:'', transport:'', url:'', cost:'', payer:'', note:'', comments:[] };
+  item = item || { id:uid(), date:presetDate||t.startDate||'', time:'', endTime:'', type:'spot', title:'', place:'', transport:'', url:'', cost:'', payer:'', note:'', comments:[] };
   const dayOpts = rangeDates(t.startDate,t.endDate);
   const dateField = dayOpts.length
     ? `<select id="i-date">${dayOpts.map((d,idx)=>`<option value="${d}" ${d===item.date?'selected':''}>Day${idx+1}・${fmtDate(d)}(${fmtDow(d)})</option>`).join('')}
@@ -776,9 +781,10 @@ function openItemForm(t, item, presetDate){
   openSheet(`
     <h3>${isNew?'予定を追加':'予定を編集'}</h3>
     <div class="field"><label>種類</label><div class="type-grid" id="i-type">${typeBtns}</div></div>
+    <div class="field"><label>日</label>${dateField}</div>
     <div class="field-2">
-      <div class="field"><label>日</label>${dateField}</div>
-      <div class="field"><label>時刻</label><input type="time" id="i-time" value="${esc(item.time)}"></div>
+      <div class="field"><label>出発・開始</label><input type="time" id="i-time" value="${esc(item.time)}"></div>
+      <div class="field"><label>到着・終了（任意）</label><input type="time" id="i-end" value="${esc(item.endTime||'')}"></div>
     </div>
     <div class="field"><label>タイトル</label><input type="text" id="i-title" value="${esc(item.title)}" placeholder="例: 清水寺を散策"></div>
     <div class="field"><label>場所</label><input type="text" id="i-place" value="${esc(item.place)}" placeholder="例: 清水寺"></div>
@@ -807,7 +813,7 @@ function openItemForm(t, item, presetDate){
     // 時刻を変えたら手動並べ替えは解除して時刻順に戻す
     if(newTime!==item.time) delete item.order;
     Object.assign(item,{
-      date:$('#i-date').value, time:newTime, type:pickedType,
+      date:$('#i-date').value, time:newTime, endTime:$('#i-end').value, type:pickedType,
       title:$('#i-title').value.trim(), place:$('#i-place').value.trim(),
       transport:$('#i-trans').value.trim(), url:$('#i-url').value.trim(),
       cost: costRaw===''?0:Number(costRaw), payer:$('#i-payer').value, note:$('#i-note').value.trim()
