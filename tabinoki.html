@@ -199,11 +199,12 @@
   .sheet h3{font-size:19px; font-weight:800; letter-spacing:-.01em; margin-bottom:14px;}
   .field{margin-bottom:13px;}
   .field label{display:block; font-size:13px; font-weight:600; color:var(--sub); margin-bottom:5px;}
-  .field input, .field textarea, .field select{width:100%; border:1px solid var(--line);
+  .field input, .field textarea, .field select{width:100%; min-width:0; border:1px solid var(--line);
     border-radius:12px; padding:12px 13px; background:#fafcfc;}
+  .field input[type=time], .field input[type=date]{-webkit-appearance:none; appearance:none; padding:12px 11px;}
   .field textarea{min-height:74px; resize:vertical; line-height:1.5;}
   .field .hint{font-size:11.5px; color:var(--sub); margin-top:4px; line-height:1.45;}
-  .field-2{display:flex; gap:10px;} .field-2 .field{flex:1;}
+  .field-2{display:flex; gap:10px;} .field-2 .field{flex:1 1 0; min-width:0;}
   .autosave{font-size:13px; color:var(--accent-ink); font-weight:700; text-align:center;
     padding:10px; display:flex; align-items:center; justify-content:center; gap:6px;}
   .autosave.flash{animation:savepulse .5s ease;}
