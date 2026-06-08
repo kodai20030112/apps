@@ -94,19 +94,27 @@
 
   /* しおり（タイムライン） */
   .day-block{margin-bottom:22px;}
-  .day-head{display:flex; align-items:baseline; gap:9px; padding:0 2px 8px;}
+  .day-head{display:flex; align-items:center; gap:9px; padding:0 2px 8px;}
   .day-num{font-size:15px; font-weight:800; color:var(--accent-ink);
     background:var(--accent-soft); border-radius:8px; padding:2px 9px;}
   .day-date{font-size:14px; font-weight:600;}
   .day-dow{font-size:13px; color:var(--sub);}
+  .day-wx{margin-left:auto; font-size:13px; font-weight:700; color:var(--sub); white-space:nowrap;}
 
   .tl{position:relative; padding-left:2px;}
-  .ev{position:relative; display:flex; gap:12px; padding:0 0 4px;}
-  .ev .rail{position:relative; flex:0 0 auto; width:46px; text-align:right;}
+  .ev{position:relative; display:flex; gap:12px; padding:0;}
+  .ev .rail{flex:0 0 auto; width:46px; display:flex; flex-direction:column; align-items:flex-end; gap:5px; padding-top:1px;}
   .ev .time{font-size:13px; font-weight:700; color:var(--ink); white-space:nowrap;}
-  .ev .body{flex:1; min-width:0; background:var(--card); border:1px solid var(--line);
+  .grip{touch-action:none; cursor:grab; color:#cdd8d6; font-size:15px; line-height:1; padding:3px 1px;
+    user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;}
+  .grip:active{cursor:grabbing; color:var(--accent);}
+  .ev .col{flex:1; min-width:0; display:flex; flex-direction:column;}
+  .gap{font-size:11.5px; color:var(--sub); margin:0 0 8px 2px; display:flex; align-items:center; gap:5px;}
+  .ev .body{background:var(--card); border:1px solid var(--line);
     border-radius:14px; padding:12px 13px; margin-bottom:11px; position:relative;}
   .ev .body:active{background:#fafcfc;}
+  .ev.dragging{opacity:.92;}
+  .ev.dragging .body{box-shadow:0 14px 30px rgba(0,0,0,.16); border-color:var(--accent);}
   .ev .e-line{display:flex; align-items:center; gap:8px;}
   .ev .e-emoji{font-size:18px; flex:0 0 auto;}
   .ev .e-title{font-size:15.5px; font-weight:700; line-height:1.3; min-width:0; flex:1;}
@@ -267,6 +275,84 @@ function rangeDates(start,end){ // YYYY-MM-DD 配列（含む両端）
   return out;
 }
 function yen(n){ return '¥'+Number(n||0).toLocaleString('ja-JP'); }
+function timeToMin(t){ if(!t) return null; const [h,m]=t.split(':').map(Number); return h*60+m; }
+function fmtDur(min){ const h=Math.floor(min/60), m=min%60; return (h?h+'時間':'')+(m?m+'分':'')||'0分'; }
+/* 並べ替えキー：手動order優先、無ければ時刻（分）。時刻なしは末尾へ */
+function effOrder(i){ if(typeof i.order==='number') return i.order; const m=timeToMin(i.time); return m==null?100000:m; }
+
+/* ===== 天気（Open-Meteo・APIキー不要） ===== */
+const wxCache = {};
+function wxEmoji(c){
+  if(c===0) return '☀️'; if(c<=2) return '🌤'; if(c===3) return '☁️';
+  if(c<=48) return '🌫'; if(c<=57) return '🌦'; if(c<=67) return '🌧';
+  if(c<=77) return '🌨'; if(c<=82) return '🌦'; if(c<=86) return '🌨'; return '⛈';
+}
+/* 主要な日本の地名→緯度経度（Open-Meteoは漢字を解決できないため内蔵辞書で対応） */
+const JP_GEO = {
+  '札幌':[43.06,141.35],'函館':[41.77,140.73],'小樽':[43.19,140.99],'北海道':[43.06,141.35],
+  '青森':[40.82,140.74],'弘前':[40.60,140.46],'仙台':[38.27,140.87],'宮城':[38.27,140.87],
+  '秋田':[39.72,140.10],'山形':[38.24,140.36],'盛岡':[39.70,141.15],'岩手':[39.70,141.15],'福島':[37.75,140.47],
+  '東京':[35.68,139.77],'浅草':[35.71,139.80],'お台場':[35.63,139.78],'横浜':[35.44,139.64],'神奈川':[35.44,139.64],
+  '鎌倉':[35.32,139.55],'箱根':[35.23,139.10],'江ノ島':[35.30,139.48],'千葉':[35.61,140.12],
+  'ディズニー':[35.63,139.88],'舞浜':[35.63,139.88],'埼玉':[35.86,139.65],'日光':[36.75,139.62],
+  '宇都宮':[36.56,139.88],'栃木':[36.56,139.88],'群馬':[36.39,139.06],'草津':[36.62,138.60],'茨城':[36.37,140.47],
+  '新潟':[37.90,139.02],'富山':[36.70,137.21],'金沢':[36.56,136.66],'石川':[36.56,136.66],'福井':[36.06,136.22],
+  '甲府':[35.66,138.57],'山梨':[35.66,138.57],'河口湖':[35.51,138.76],'富士':[35.36,138.73],
+  '長野':[36.65,138.18],'軽井沢':[36.35,138.60],'松本':[36.24,137.97],'岐阜':[35.39,136.72],'高山':[36.14,137.25],'白川郷':[36.26,136.91],
+  '静岡':[34.98,138.38],'熱海':[35.10,139.07],'伊豆':[34.90,138.95],'名古屋':[35.18,136.91],'愛知':[35.18,136.91],
+  '三重':[34.73,136.51],'伊勢':[34.49,136.71],'滋賀':[35.00,135.87],'琵琶湖':[35.20,136.10],
+  '京都':[35.02,135.76],'嵐山':[35.01,135.67],'宇治':[34.88,135.80],'大阪':[34.69,135.50],'なんば':[34.67,135.50],'ユニバ':[34.67,135.43],'USJ':[34.67,135.43],
+  '神戸':[34.69,135.20],'兵庫':[34.69,135.20],'姫路':[34.82,134.69],'奈良':[34.69,135.83],'和歌山':[34.23,135.17],'高野山':[34.21,135.58],
+  '鳥取':[35.50,134.24],'松江':[35.47,133.05],'島根':[35.47,133.05],'出雲':[35.37,132.69],'岡山':[34.66,133.92],'倉敷':[34.59,133.77],
+  '広島':[34.39,132.46],'宮島':[34.30,132.32],'尾道':[34.41,133.20],'山口':[34.19,131.47],
+  '徳島':[34.07,134.55],'高松':[34.34,134.04],'香川':[34.34,134.04],'松山':[33.84,132.77],'愛媛':[33.84,132.77],'道後':[33.85,132.79],'高知':[33.56,133.53],
+  '福岡':[33.59,130.40],'博多':[33.59,130.42],'佐賀':[33.25,130.30],'長崎':[32.75,129.88],'ハウステンボス':[33.09,129.79],
+  '熊本':[32.80,130.71],'大分':[33.24,131.61],'別府':[33.28,131.49],'湯布院':[33.26,131.36],'由布院':[33.26,131.36],
+  '宮崎':[31.91,131.42],'鹿児島':[31.60,130.56],'屋久島':[30.36,130.55],
+  '沖縄':[26.21,127.68],'那覇':[26.21,127.68],'石垣':[24.34,124.16],'宮古':[24.81,125.28]
+};
+function jpGeo(dest){
+  const keys = Object.keys(JP_GEO).sort((a,b)=>b.length-a.length); // 長い（具体的な）地名を優先
+  for(const k of keys){ if(dest.includes(k)) return JP_GEO[k]; }
+  return null;
+}
+async function loadWeather(t){
+  if(!t.destination || !t.startDate) return;
+  const end = t.endDate || t.startDate;
+  // 予報が取れる範囲（今日の少し前〜16日先）だけ問い合わせる
+  if(daysBetween(todayYmd(), t.startDate) > 16) return;
+  if(daysBetween(todayYmd(), end) < -1) return;
+  const place = t.destination.split(/[・、,／/\s〜~]/)[0].trim();
+  if(!place) return;
+  const key = t.destination+'|'+t.startDate+'|'+end;
+  let data = wxCache[key];
+  if(!data){
+    try{
+      let lat, lon;
+      const hit = jpGeo(t.destination);            // まず内蔵辞書（漢字対応）
+      if(hit){ lat=hit[0]; lon=hit[1]; }
+      else {                                        // 未知の地名はAPIへ（ローマ字など）
+        const g = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(place)}&count=1&language=ja`).then(r=>r.json());
+        const loc = g.results && g.results[0];
+        if(!loc){ wxCache[key]={}; return; }
+        lat=loc.latitude; lon=loc.longitude;
+      }
+      const f = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo&start_date=${t.startDate}&end_date=${end}`).then(r=>r.json());
+      data={};
+      if(f.daily && f.daily.time){
+        f.daily.time.forEach((d,idx)=>{ data[d]={ code:f.daily.weather_code[idx],
+          max:Math.round(f.daily.temperature_2m_max[idx]), min:Math.round(f.daily.temperature_2m_min[idx]) }; });
+      }
+      wxCache[key]=data;
+    }catch(e){ return; }
+  }
+  // 描画後のDOMが今もこの旅なら反映
+  if(route.name!=='trip' || route.tripId!==t.id || route.tab!=='plan') return;
+  document.querySelectorAll('.day-wx').forEach(span=>{
+    const w=data[span.dataset.wxdate];
+    if(w) span.innerHTML = `${wxEmoji(w.code)} ${w.max}°/${w.min}°`;
+  });
+}
 
 const TYPES = {
   move:  {emoji:'🚃', label:'移動'},
@@ -431,6 +517,7 @@ function renderTrip(){
   $('#editTrip').onclick = ()=>openTripForm(t);
   v.querySelectorAll('.tabs button').forEach(b=> b.onclick=()=>{ route.tab=b.dataset.tab; render(); });
   bindPlan(t); bindPack(t); bindCost(t);
+  if(route.tab==='plan') loadWeather(t);
 }
 
 /* ----- しおり（タイムライン） ----- */
@@ -445,19 +532,28 @@ function renderPlan(t){
   let html='';
   useDays.forEach((date, idx)=>{
     const dayItems = items.filter(i=> (i.date||t.startDate||'__none__')===date)
-      .sort((a,b)=> (a.time||'99:99').localeCompare(b.time||'99:99'));
+      .sort((a,b)=> effOrder(a)-effOrder(b));
     const dnum = date==='__none__'? '' : `<span class="day-num">Day ${idx+1}</span>`;
     const dlabel = date==='__none__'? '<span class="day-date">予定</span>'
-      : `<span class="day-date">${fmtDate(date)}</span><span class="day-dow">(${fmtDow(date)})</span>`;
+      : `<span class="day-date">${fmtDate(date)}</span><span class="day-dow">(${fmtDow(date)})</span><span class="day-wx" data-wxdate="${date}"></span>`;
+    let evs='';
+    dayItems.forEach((it,k)=>{
+      let gap='';
+      if(k>0){
+        const a=timeToMin(dayItems[k-1].time), b=timeToMin(it.time);
+        if(a!=null && b!=null && b-a>0) gap=`<div class="gap">⏱ ${fmtDur(b-a)}</div>`;
+      }
+      evs += evHtml(t, it, date, gap);
+    });
     html += `<div class="day-block">
       <div class="day-head">${dnum}${dlabel}</div>
-      <div class="tl">${dayItems.map(i=>evHtml(t,i)).join('') || '<div style="color:var(--sub);font-size:13px;padding:4px 0 8px 58px;">まだ予定なし</div>'}
+      <div class="tl">${evs || '<div style="color:var(--sub);font-size:13px;padding:4px 0 8px 58px;">まだ予定なし</div>'}
         <div class="add-ev" data-add="${date}">＋ 予定を追加</div>
       </div></div>`;
   });
   return html;
 }
-function evHtml(t,i){
+function evHtml(t,i,date,gap){
   const ty = TYPES[i.type]||TYPES.other;
   const tags=[];
   if(i.url) tags.push(`<a class="tag link" href="${esc(i.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 リンク</a>`);
@@ -468,18 +564,21 @@ function evHtml(t,i){
       <span class="c-body">${esc(c.body)}</span>
       <button class="c-del" data-delc="${i.id}|${c.id}" onclick="event.stopPropagation()">×</button>
     </div>`).join('');
-  return `<div class="ev"><div class="rail"><span class="time">${esc(i.time||'')}</span></div>
-    <div class="body" data-edit="${i.id}">
-      <div class="e-line"><span class="e-emoji">${ty.emoji}</span><span class="e-title">${esc(i.title||ty.label)}</span></div>
-      ${i.place?`<div class="e-place">📍 ${esc(i.place)}</div>`:''}
-      ${i.transport?`<div class="e-trans">🚃 ${esc(i.transport)}</div>`:''}
-      ${i.note?`<div class="e-note">${esc(i.note)}</div>`:''}
-      ${tags.length?`<div class="e-row">${tags.join('')}</div>`:''}
-      <div class="cmts" onclick="event.stopPropagation()">
-        ${cmtHtml}
-        <div class="cmt-add">
-          <input type="text" placeholder="ひとことメモ…" data-cmt="${i.id}">
-          <button data-cmtbtn="${i.id}">送信</button>
+  return `<div class="ev" data-id="${i.id}" data-day="${esc(date)}">
+    <div class="rail"><span class="time">${esc(i.time||'')}</span><span class="grip" title="ドラッグで並べ替え">⠿</span></div>
+    <div class="col">${gap||''}
+      <div class="body" data-edit="${i.id}">
+        <div class="e-line"><span class="e-emoji">${ty.emoji}</span><span class="e-title">${esc(i.title||ty.label)}</span></div>
+        ${i.place?`<div class="e-place">📍 ${esc(i.place)}</div>`:''}
+        ${i.transport?`<div class="e-trans">🚃 ${esc(i.transport)}</div>`:''}
+        ${i.note?`<div class="e-note">${esc(i.note)}</div>`:''}
+        ${tags.length?`<div class="e-row">${tags.join('')}</div>`:''}
+        <div class="cmts" onclick="event.stopPropagation()">
+          ${cmtHtml}
+          <div class="cmt-add">
+            <input type="text" placeholder="ひとことメモ…" data-cmt="${i.id}">
+            <button data-cmtbtn="${i.id}">送信</button>
+          </div>
         </div>
       </div>
     </div></div>`;
@@ -504,6 +603,54 @@ function bindPlan(t){
     const it=(t.items||[]).find(x=>x.id===iid); if(!it) return;
     it.comments=(it.comments||[]).filter(c=>c.id!==cid); save(); render();
   });
+  enableDragSort(t);
+}
+
+/* ===== ドラッグ並べ替え（Pointer Events・iPhoneタッチ対応） ===== */
+function enableDragSort(t){
+  $('#view').querySelectorAll('.grip').forEach(grip=>{
+    grip.addEventListener('pointerdown', e=>{
+      e.preventDefault();
+      const ev = grip.closest('.ev');
+      const tl = ev.parentElement;            // .tl（その日の枠）
+      let moved=false;
+      ev.classList.add('dragging');
+      try{ grip.setPointerCapture(e.pointerId); }catch(_){}
+      const move = me=>{
+        moved=true;
+        const others=[...tl.querySelectorAll('.ev:not(.dragging)')];
+        let target=null;
+        for(const o of others){ const r=o.getBoundingClientRect(); if(me.clientY < r.top+r.height/2){ target=o; break; } }
+        if(target) tl.insertBefore(ev, target);
+        else tl.insertBefore(ev, tl.querySelector('.add-ev'));
+      };
+      const up = ()=>{
+        grip.removeEventListener('pointermove', move);
+        grip.removeEventListener('pointerup', up);
+        grip.removeEventListener('pointercancel', up);
+        ev.classList.remove('dragging');
+        if(moved) commitDragOrder(t, tl, ev.dataset.id);
+      };
+      grip.addEventListener('pointermove', move);
+      grip.addEventListener('pointerup', up);
+      grip.addEventListener('pointercancel', up);
+    });
+  });
+}
+/* ドロップ後：動かした予定だけ、前後の予定の中間にorderを差し込む（時刻スケールを維持） */
+function commitDragOrder(t, tl, draggedId){
+  const ids=[...tl.querySelectorAll('.ev')].map(e=>e.dataset.id);
+  const pos=ids.indexOf(draggedId);
+  const it=(t.items||[]).find(x=>x.id===draggedId); if(!it) return;
+  const ord = id=>{ const x=(t.items||[]).find(y=>y.id===id); return x?effOrder(x):0; };
+  const prev = pos>0 ? ord(ids[pos-1]) : null;
+  const next = pos<ids.length-1 ? ord(ids[pos+1]) : null;
+  if(prev==null && next==null) it.order = 0;
+  else if(prev==null) it.order = next - 30;
+  else if(next==null) it.order = prev + 30;
+  else it.order = (prev+next)/2;
+  save(); render();
+  toast('並べ替えました');
 }
 
 /* ----- 持ち物 ----- */
@@ -656,8 +803,11 @@ function openItemForm(t, item, presetDate){
   $('#i-cancel').onclick=closeSheet;
   $('#i-save').onclick=()=>{
     const costRaw=$('#i-cost').value;
+    const newTime=$('#i-time').value;
+    // 時刻を変えたら手動並べ替えは解除して時刻順に戻す
+    if(newTime!==item.time) delete item.order;
     Object.assign(item,{
-      date:$('#i-date').value, time:$('#i-time').value, type:pickedType,
+      date:$('#i-date').value, time:newTime, type:pickedType,
       title:$('#i-title').value.trim(), place:$('#i-place').value.trim(),
       transport:$('#i-trans').value.trim(), url:$('#i-url').value.trim(),
       cost: costRaw===''?0:Number(costRaw), payer:$('#i-payer').value, note:$('#i-note').value.trim()
