@@ -202,7 +202,12 @@
   .field input, .field textarea, .field select{width:100%; border:1px solid var(--line);
     border-radius:12px; padding:12px 13px; background:#fafcfc;}
   .field textarea{min-height:74px; resize:vertical; line-height:1.5;}
+  .field .hint{font-size:11.5px; color:var(--sub); margin-top:4px; line-height:1.45;}
   .field-2{display:flex; gap:10px;} .field-2 .field{flex:1;}
+  .autosave{font-size:13px; color:var(--accent-ink); font-weight:700; text-align:center;
+    padding:10px; display:flex; align-items:center; justify-content:center; gap:6px;}
+  .autosave.flash{animation:savepulse .5s ease;}
+  @keyframes savepulse{0%{transform:scale(1)}40%{transform:scale(1.08)}100%{transform:scale(1)}}
   .type-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
   .type-grid button{display:flex; flex-direction:column; align-items:center; gap:3px;
     border:1.5px solid var(--line); border-radius:12px; padding:10px 4px; font-size:12px; color:var(--sub);}
@@ -821,8 +826,9 @@ function geoCacheKey(t, place){
 
 /* ============ シート（フォーム） ============ */
 const overlay = $('#overlay'), sheet = $('#sheet');
+let _onSheetClose=null;
 function openSheet(html){ sheet.innerHTML = `<div class="grab"></div>`+html; overlay.classList.add('on'); }
-function closeSheet(){ overlay.classList.remove('on'); }
+function closeSheet(){ overlay.classList.remove('on'); const f=_onSheetClose; _onSheetClose=null; if(f) f(); }
 overlay.onclick = e=>{ if(e.target===overlay) closeSheet(); };
 
 /* 旅の作成・編集 */
@@ -870,10 +876,15 @@ function openTripForm(trip){
   };
 }
 
-/* 予定の作成・編集 */
+/* 予定の作成・編集（打ち込んだそばから自動保存） */
+function itemIsEmpty(i){
+  return !i.title && !i.place && !i.time && !i.endTime && !i.transport && !i.url
+    && !i.cost && !i.note && (!i.comments || !i.comments.length);
+}
 function openItemForm(t, item, presetDate){
-  const isNew=!item;
+  const wasNew = !item;
   item = item || { id:uid(), date:presetDate||t.startDate||'', time:'', endTime:'', type:'spot', title:'', place:'', transport:'', url:'', cost:'', payer:'', note:'', comments:[] };
+  if(wasNew){ t.items=t.items||[]; t.items.push(item); }   // 先に登録して、入力＝即反映・即保存
   const dayOpts = rangeDates(t.startDate,t.endDate);
   const dateField = dayOpts.length
     ? `<select id="i-date">${dayOpts.map((d,idx)=>`<option value="${d}" ${d===item.date?'selected':''}>Day${idx+1}・${fmtDate(d)}(${fmtDow(d)})</option>`).join('')}
@@ -882,50 +893,58 @@ function openItemForm(t, item, presetDate){
   const typeBtns = Object.entries(TYPES).map(([k,v])=>`<button data-t="${k}" class="${k===item.type?'on':''}"><span class="te">${v.emoji}</span>${v.label}</button>`).join('');
   const payerOpts = `<option value="">支払者…</option>`+PAYERS.map(p=>`<option value="${p}" ${p===item.payer?'selected':''}>${p}</option>`).join('');
   openSheet(`
-    <h3>${isNew?'予定を追加':'予定を編集'}</h3>
+    <h3>${wasNew?'予定を追加':'予定を編集'}</h3>
     <div class="field"><label>種類</label><div class="type-grid" id="i-type">${typeBtns}</div></div>
     <div class="field"><label>日</label>${dateField}</div>
     <div class="field-2">
       <div class="field"><label>出発・開始</label><input type="time" id="i-time" value="${esc(item.time)}"></div>
       <div class="field"><label>到着・終了（任意）</label><input type="time" id="i-end" value="${esc(item.endTime||'')}"></div>
     </div>
-    <div class="field"><label>タイトル</label><input type="text" id="i-title" value="${esc(item.title)}" placeholder="例: 清水寺を散策"></div>
-    <div class="field"><label>場所</label><input type="text" id="i-place" value="${esc(item.place)}" placeholder="例: 清水寺"></div>
-    <div class="field"><label>交通機関・駅メモ 🚃</label><input type="text" id="i-trans" value="${esc(item.transport)}" placeholder="例: 京都駅から市バス206系統で15分"></div>
-    <div class="field"><label>地図・予約リンク 🔗</label><input type="url" id="i-url" value="${esc(item.url)}" placeholder="https://..."></div>
+    <div class="field"><label>タイトル（何をする？）</label><input type="text" id="i-title" value="${esc(item.title)}" placeholder="例: 清水寺を散策"></div>
+    <div class="field"><label>📍 場所（どこ？）</label><input type="text" id="i-place" value="${esc(item.place)}" placeholder="例: 清水寺">
+      <div class="hint">地図ピンと「🗺地図・🚶道順」リンクは、この場所から自動で作られます。</div></div>
+    <div class="field"><label>🚃 移動・交通メモ</label><input type="text" id="i-trans" value="${esc(item.transport)}" placeholder="例: 京都駅から市バス206系統で15分">
+      <div class="hint">何で行くか・乗り換えのメモ（行き方そのものを書く欄）。</div></div>
+    <div class="field"><label>🔗 予約・参考リンク</label><input type="url" id="i-url" value="${esc(item.url)}" placeholder="https://…">
+      <div class="hint">予約確認メールや公式サイトのURLを貼る欄（地図は場所から自動なので不要）。</div></div>
     <div class="field-2">
       <div class="field"><label>費用</label><input type="number" inputmode="numeric" id="i-cost" value="${esc(item.cost)}" placeholder="¥"></div>
       <div class="field"><label>支払</label><select id="i-payer">${payerOpts}</select></div>
     </div>
     <div class="field"><label>メモ</label><textarea id="i-note" placeholder="予約番号・補足など…">${esc(item.note)}</textarea></div>
+    <div class="autosave" id="i-status">✓ 自動保存されます</div>
     <div class="sheet-actions">
-      <button class="btn-primary" id="i-save">${isNew?'追加する':'保存'}</button>
-      <button class="btn-ghost" id="i-cancel">やめる</button>
+      <button class="btn-primary" id="i-done">完了</button>
     </div>
-    ${isNew?'':'<button class="btn-danger" id="i-del">この予定を削除</button>'}
+    <button class="btn-danger" id="i-del">${wasNew?'この予定をやめる':'この予定を削除'}</button>
   `);
   let pickedType=item.type;
+  const status=$('#i-status');
+  const flashSaved=()=>{ status.textContent='✓ 自動保存しました'; status.classList.remove('flash'); void status.offsetWidth; status.classList.add('flash'); };
+  const apply=()=>{
+    const costRaw=$('#i-cost').value, newTime=$('#i-time').value;
+    if(newTime!==item.time) delete item.order;   // 時刻を変えたら手動並べ替えを解除
+    item.date=$('#i-date').value; item.time=newTime; item.endTime=$('#i-end').value; item.type=pickedType;
+    item.title=$('#i-title').value.trim(); item.place=$('#i-place').value.trim();
+    item.transport=$('#i-trans').value.trim(); item.url=$('#i-url').value.trim();
+    item.cost = costRaw===''?0:Number(costRaw); item.payer=$('#i-payer').value; item.note=$('#i-note').value.trim();
+    save(); flashSaved();
+  };
   sheet.querySelectorAll('#i-type button').forEach(b=> b.onclick=()=>{
     pickedType=b.dataset.t;
     sheet.querySelectorAll('#i-type button').forEach(x=>x.classList.toggle('on', x===b));
+    apply();
   });
-  $('#i-cancel').onclick=closeSheet;
-  $('#i-save').onclick=()=>{
-    const costRaw=$('#i-cost').value;
-    const newTime=$('#i-time').value;
-    // 時刻を変えたら手動並べ替えは解除して時刻順に戻す
-    if(newTime!==item.time) delete item.order;
-    Object.assign(item,{
-      date:$('#i-date').value, time:newTime, endTime:$('#i-end').value, type:pickedType,
-      title:$('#i-title').value.trim(), place:$('#i-place').value.trim(),
-      transport:$('#i-trans').value.trim(), url:$('#i-url').value.trim(),
-      cost: costRaw===''?0:Number(costRaw), payer:$('#i-payer').value, note:$('#i-note').value.trim()
-    });
-    if(isNew){ t.items=t.items||[]; t.items.push(item); }
-    save(); closeSheet(); render(); toast(isNew?'追加しました':'保存しました');
-  };
-  const del=$('#i-del'); if(del) del.onclick=()=>{
-    t.items=(t.items||[]).filter(x=>x.id!==item.id); save(); closeSheet(); render(); toast('削除しました');
+  sheet.querySelectorAll('input,textarea,select').forEach(el=>{
+    el.addEventListener('input', apply); el.addEventListener('change', apply);
+  });
+  // シートを閉じたら、中身が空の新規予定は片付けて画面更新
+  _onSheetClose = ()=>{ if(wasNew && itemIsEmpty(item)) t.items=(t.items||[]).filter(x=>x.id!==item.id); render(); };
+  $('#i-done').onclick=()=>{ apply(); closeSheet(); };
+  $('#i-del').onclick=()=>{
+    _onSheetClose=null;
+    t.items=(t.items||[]).filter(x=>x.id!==item.id); save(); closeSheet(); render();
+    toast(wasNew?'やめました':'削除しました');
   };
 }
 
