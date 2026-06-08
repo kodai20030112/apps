@@ -21,6 +21,7 @@
     --red: #ff3b30;
     --orange: #ff9500;
     --gray: #8e8e93;
+    --purple: #8b5cf6;
     --chip: #f0f0f2;
     --accent: #5b6cf0;
     --accent-soft: #eef0ff;
@@ -39,10 +40,20 @@
   .wrap { max-width: 640px; margin: 0 auto; padding: 0 16px; }
 
   /* ===== ヘッダー ===== */
-  header { padding: 26px 4px 8px; text-align: center; }
+  header { padding: 24px 4px 6px; text-align: center; }
   .logo { font-size: 34px; line-height: 1; }
   h1 { font-size: 23px; font-weight: 700; letter-spacing: -.02em; margin: 6px 0 2px; }
   .tagline { color: var(--sub); font-size: 13px; }
+  .sync {
+    display: inline-flex; align-items: center; gap: 5px; margin-top: 7px;
+    font-size: 11.5px; font-weight: 600; color: var(--sub);
+    background: var(--card); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 11px; cursor: default;
+  }
+  .sync .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gray); }
+  .sync.ok .dot { background: var(--green); }
+  .sync.off .dot { background: var(--orange); }
+  .sync.local .dot { background: var(--gray); }
 
   /* ===== タブ ===== */
   .tabs {
@@ -78,12 +89,30 @@
     margin: 18px 4px 8px; display: flex; align-items: center; gap: 6px;
   }
 
+  /* 並べ替えバー */
+  .sortbar { display: flex; align-items: center; gap: 8px; margin: 14px 2px 10px; }
+  .sortbar .sl { font-size: 12px; color: var(--sub); font-weight: 600; }
+  .seg-sm { display: inline-flex; background: var(--chip); border-radius: 10px; padding: 2px; }
+  .seg-sm button {
+    border: none; background: none; cursor: pointer; font-family: inherit;
+    font-size: 12.5px; font-weight: 600; color: var(--sub);
+    border-radius: 8px; padding: 5px 12px;
+  }
+  .seg-sm button.on { background: #fff; color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+
   /* チェックリスト行（やること・買い物） */
   .row {
-    display: flex; align-items: flex-start; gap: 12px;
+    display: flex; align-items: flex-start; gap: 10px;
     background: var(--card); border: 1px solid var(--line);
-    border-radius: 14px; padding: 13px 14px; margin-bottom: 8px;
+    border-radius: 14px; padding: 12px 12px 12px 8px; margin-bottom: 8px;
   }
+  .row.dragging { opacity: .92; box-shadow: 0 10px 26px rgba(0,0,0,.16); border-color: var(--accent); }
+  .row .handle {
+    flex: 0 0 auto; align-self: center; cursor: grab; color: #cdced3;
+    font-size: 17px; line-height: 1; padding: 4px 2px; touch-action: none; user-select: none;
+  }
+  .row .handle:active { cursor: grabbing; }
+  .row.is-done .handle { visibility: hidden; }
   .row .check {
     flex: 0 0 auto; width: 23px; height: 23px; margin-top: 1px;
     border-radius: 50%; border: 2px solid var(--line);
@@ -91,21 +120,35 @@
     color: #fff; font-size: 14px; transition: all .15s;
   }
   .row .check.on { background: var(--green); border-color: var(--green); }
-  .row .label { flex: 1; min-width: 0; font-size: 15px; word-break: break-word; cursor: pointer; }
-  .row.done .label { color: var(--sub); text-decoration: line-through; }
+  .row .body { flex: 1; min-width: 0; }
+  .row .label { font-size: 15px; word-break: break-word; cursor: pointer; }
+  .row.is-done .label { color: var(--sub); text-decoration: line-through; }
+  .row .due {
+    display: inline-flex; align-items: center; gap: 4px; margin-top: 5px;
+    font-size: 11.5px; font-weight: 600; border-radius: 8px; padding: 2px 6px 2px 7px;
+    cursor: pointer; border: none; font-family: inherit;
+  }
+  .row .due.set-over { background: #ffe5e3; color: #d70015; }
+  .row .due.set-today { background: #fff0db; color: #c25e00; }
+  .row .due.set-future { background: var(--accent-soft); color: var(--accent); }
+  .row .due.ghost { background: var(--bg); color: var(--sub); }
+  .row .due .dx { font-weight: 700; opacity: .7; margin-left: 1px; }
+  .row .due-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
   .row .del {
-    flex: 0 0 auto; border: none; background: none; cursor: pointer;
+    flex: 0 0 auto; align-self: center; border: none; background: none; cursor: pointer;
     color: #c7c7cc; font-size: 20px; padding: 0 2px; line-height: 1;
   }
 
-  /* ===== アイデアカード ===== */
-  .filters { display: flex; gap: 7px; flex-wrap: wrap; margin: 14px 0 4px; }
+  /* ===== アイデア ===== */
+  .filters { display: flex; gap: 7px; flex-wrap: wrap; margin: 14px 0 0; }
+  .filters.kind { margin-top: 8px; }
   .fchip {
     border: 1px solid var(--line); background: var(--card); color: var(--sub);
     border-radius: 999px; padding: 6px 13px; font-size: 13px; font-weight: 600;
     cursor: pointer; font-family: inherit;
   }
   .fchip.on { background: var(--text); color: #fff; border-color: var(--text); }
+  .fchip.kc.on { background: var(--accent); border-color: var(--accent); }
 
   .idea {
     background: var(--card); border: 1px solid var(--line);
@@ -115,7 +158,7 @@
   .idea.p-high { border-left-color: var(--red); }
   .idea.p-mid { border-left-color: var(--orange); }
   .idea.p-low { border-left-color: var(--gray); }
-  .idea.s-done { opacity: .62; }
+  .idea.s-done { opacity: .64; }
   .idea .i-top { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-bottom: 7px; }
   .pill {
     border: none; cursor: pointer; font-family: inherit;
@@ -127,6 +170,14 @@
   .pill.status.s-backlog { background: #ececef; color: #636366; }
   .pill.status.s-doing { background: #e3f0ff; color: #0058c7; }
   .pill.status.s-done { background: #e2f6e6; color: #1a8a3a; }
+  .kchip {
+    border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 700;
+    display: inline-flex; align-items: center; gap: 3px;
+  }
+  .kchip.k-plan { background: #efeaff; color: #6b3bf0; }
+  .kchip.k-bug { background: #ffe9e6; color: #d23a26; }
+  .kchip.k-improve { background: #e4f5ec; color: #1f9d57; }
+  .kchip.k-other { background: #eceef3; color: #5b606b; }
   .tag {
     background: var(--accent-soft); color: var(--accent);
     border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 600;
@@ -134,12 +185,18 @@
   .idea .i-title { font-size: 16px; font-weight: 600; word-break: break-word; }
   .idea.s-done .i-title { text-decoration: line-through; }
   .idea .i-memo { font-size: 13.5px; color: var(--sub); margin-top: 5px; white-space: pre-wrap; word-break: break-word; }
-  .idea .i-act { display: flex; gap: 14px; margin-top: 11px; }
+  .idea .i-act { display: flex; gap: 14px; margin-top: 11px; align-items: center; }
   .idea .i-act button {
     border: none; background: none; cursor: pointer; font-family: inherit;
     font-size: 13px; font-weight: 600; color: var(--accent); padding: 2px 0;
   }
   .idea .i-act button.danger { color: #c7c7cc; margin-left: auto; }
+
+  .foot-act { text-align: center; margin: 16px 0 4px; }
+  .foot-act button {
+    border: none; background: none; cursor: pointer; font-family: inherit;
+    font-size: 13px; font-weight: 600; color: var(--sub);
+  }
 
   /* ===== 下部の追加バー ===== */
   .addbar {
@@ -173,9 +230,9 @@
   .sheet {
     background: var(--card); width: 100%; max-width: 640px;
     border-radius: 22px 22px 0 0; padding: 20px 18px calc(20px + env(safe-area-inset-bottom));
-    max-height: 88vh; overflow-y: auto;
+    max-height: 90vh; overflow-y: auto;
   }
-  .sheet h3 { font-size: 18px; font-weight: 700; margin: 0 0 16px; }
+  .sheet h3 { font-size: 18px; font-weight: 700; margin: 0 0 4px; }
   .sheet label { display: block; font-size: 12.5px; font-weight: 600; color: var(--sub); margin: 14px 2px 6px; }
   .sheet input[type=text], .sheet textarea {
     width: 100%; font: inherit; font-size: 16px;
@@ -184,7 +241,8 @@
   }
   .sheet input:focus, .sheet textarea:focus { outline: none; border-color: var(--accent); background: #fff; }
   .sheet textarea { min-height: 76px; resize: vertical; }
-  .seg { display: flex; gap: 7px; }
+  .seg { display: flex; gap: 7px; flex-wrap: wrap; }
+  .seg.cols4 button { flex: 1 1 40%; }
   .seg button {
     flex: 1; border: 1px solid var(--line); background: var(--bg); cursor: pointer;
     font-family: inherit; font-size: 14px; font-weight: 600; color: var(--sub);
@@ -197,6 +255,10 @@
   .seg.status button.on[data-v=backlog] { background: var(--gray); border-color: var(--gray); }
   .seg.status button.on[data-v=doing] { background: var(--blue); border-color: var(--blue); }
   .seg.status button.on[data-v=done] { background: var(--green); border-color: var(--green); }
+  .seg.kind button.on[data-v=plan] { background: var(--purple); border-color: var(--purple); }
+  .seg.kind button.on[data-v=bug] { background: var(--red); border-color: var(--red); }
+  .seg.kind button.on[data-v=improve] { background: var(--green); border-color: var(--green); }
+  .seg.kind button.on[data-v=other] { background: var(--gray); border-color: var(--gray); }
   .sheet-act { display: flex; gap: 10px; margin-top: 22px; }
   .sheet-act button {
     flex: 1; border: none; cursor: pointer; font-family: inherit;
@@ -205,11 +267,14 @@
   .sheet-act .save { background: var(--accent); color: #fff; }
   .sheet-act .cancel { background: var(--chip); color: var(--text); }
 
-  .foot-act { text-align: center; margin: 16px 0 4px; }
-  .foot-act button {
-    border: none; background: none; cursor: pointer; font-family: inherit;
-    font-size: 13px; font-weight: 600; color: var(--sub);
+  .toast {
+    position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom));
+    transform: translateX(-50%) translateY(12px); z-index: 60;
+    background: rgba(30,30,32,.94); color: #fff; font-size: 13px; font-weight: 600;
+    padding: 9px 16px; border-radius: 999px; opacity: 0; pointer-events: none;
+    transition: opacity .2s, transform .2s;
   }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>
 </head>
 <body>
@@ -218,6 +283,7 @@
     <div class="logo">✅</div>
     <h1>やることばこ</h1>
     <p class="tagline">やること・アイデア・買い物を、ひとつの箱に。</p>
+    <div class="sync local" id="syncChip"><span class="dot"></span><span id="syncText">この端末に保存</span></div>
   </header>
 
   <nav class="tabs">
@@ -226,18 +292,12 @@
     <button class="tab" data-tab="shop"><span class="ti">🛒</span><span class="tn">買い物</span><span class="tc" id="c-shop"></span></button>
   </nav>
 
-  <!-- やること -->
   <section class="panel on" id="panel-todo"></section>
-  <!-- アイデア -->
   <section class="panel" id="panel-idea"></section>
-  <!-- 買い物 -->
   <section class="panel" id="panel-shop"></section>
 </div>
 
-<!-- 追加バー -->
-<div class="addbar">
-  <div class="addbar-inner" id="addbar"></div>
-</div>
+<div class="addbar"><div class="addbar-inner" id="addbar"></div></div>
 
 <!-- アイデア入力シート -->
 <div class="sheet-bg" id="sheetBg">
@@ -247,8 +307,15 @@
     <input type="text" id="f-title" placeholder="例：たびのきの地図がたまにズレる" autocomplete="off">
     <label>メモ（詳細・再現手順・補足）</label>
     <textarea id="f-memo" placeholder="任意"></textarea>
-    <label>対象アプリ・タグ（任意）</label>
-    <input type="text" id="f-tag" placeholder="例：たびのき / 新アプリ" autocomplete="off">
+    <label>種類</label>
+    <div class="seg kind cols4" id="f-kind">
+      <button data-v="plan">✨ 新アプリ構想</button>
+      <button data-v="bug">🐛 バグ</button>
+      <button data-v="improve">🔧 改善</button>
+      <button data-v="other">📌 その他</button>
+    </div>
+    <label>対象アプリ・補足タグ（任意）</label>
+    <input type="text" id="f-tag" placeholder="例：たびのき" autocomplete="off">
     <label>優先度</label>
     <div class="seg prio" id="f-prio">
       <button data-v="high">高</button>
@@ -268,25 +335,125 @@
   </div>
 </div>
 
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-/* ===================== データ ===================== */
-const KEY = 'yarukoto_db_v1';
+/* ===================== 定数 ===================== */
 const PRIO = { high:'高', mid:'中', low:'低' };
 const STAT = { backlog:'バックログ', doing:'進行中', done:'完了' };
 const PRIO_RANK = { high:0, mid:1, low:2 };
+const KINDS = {
+  plan:    { label:'新アプリ構想', short:'構想', emoji:'✨', cls:'k-plan' },
+  bug:     { label:'バグ',        short:'バグ', emoji:'🐛', cls:'k-bug' },
+  improve: { label:'改善',        short:'改善', emoji:'🔧', cls:'k-improve' },
+  other:   { label:'その他',      short:'メモ', emoji:'📌', cls:'k-other' },
+};
 
-function load(){
-  try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch(e){ return {}; }
-}
-function blank(){ return { todos:[], ideas:[], shopping:[] }; }
-let db = Object.assign(blank(), load());
-function save(){ localStorage.setItem(KEY, JSON.stringify(db)); }
+/* ===================== Supabase（たびのき等と同じプロジェクト） ===================== */
+const SUPABASE_URL  = 'https://okbjqtdirrathscctyvx.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rYmpxdGRpcnJhdGhzY2N0eXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMjI4NTIsImV4cCI6MjA5NTg5ODg1Mn0.T-1AOK6vCD6uGdqrVGXjPui3L6WPSNrnygS-IHyfZ6Y';
+const sb = (window.supabase && window.supabase.createClient) ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON) : null;
+const STATE_TABLE = 'yarukoto_state';
+const STATE_ID = 'kodai';        // 個人の複数端末で共有する1行
+const KEY = 'yarukoto_db_v1';
+
+/* ===================== ユーティリティ ===================== */
 function uid(){ return Date.now().toString(36) + Math.floor(Math.random()*1e6).toString(36); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1700); }
+const DOW = ['日','月','火','水','木','金','土'];
+function todayYmd(){ const d=new Date(); d.setHours(0,0,0,0); return d; }
+function parseYmd(s){ if(!s) return null; const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
+function dueInfo(s){
+  const d = parseYmd(s); if(!d) return null;
+  const t = todayYmd();
+  const diff = Math.round((d - t)/86400000);
+  let cls, txt;
+  if(diff < 0){ cls='set-over'; txt='期限切れ '+(d.getMonth()+1)+'/'+d.getDate(); }
+  else if(diff === 0){ cls='set-today'; txt='今日'; }
+  else if(diff === 1){ cls='set-future'; txt='明日'; }
+  else { cls='set-future'; txt=(d.getMonth()+1)+'/'+d.getDate()+'('+DOW[d.getDay()]+')'; }
+  return { cls, txt };
+}
 
+/* ===================== 状態 ===================== */
+function blank(){ return { todos:[], ideas:[], shopping:[] }; }
+let db = blank();
+let online = null;        // null=確認中 true=同期OK false=オフライン（sbあり）
+let lastPushed = '';
 let tab = 'todo';
-let ideaFilter = 'all';
+let ideaStatusFilter = 'all';
+let ideaKindFilter = 'all';
+let todoSort = 'manual';  // 'manual' | 'due'
 let editingId = null;
+
+/* ===================== 永続化・同期 ===================== */
+function migrate(){
+  let o = 0;
+  db.todos.forEach(x=>{ if(typeof x.order!=='number') x.order=o; o++; if(!('due' in x)) x.due=''; });
+  o = 0;
+  db.shopping.forEach(x=>{ if(typeof x.order!=='number') x.order=o; o++; });
+  db.ideas.forEach(x=>{ if(!x.kind) x.kind='other'; });
+}
+function loadLocal(){ try{ const s=localStorage.getItem(KEY); if(s) db=Object.assign(blank(), JSON.parse(s)); }catch(e){} }
+
+let saveTimer=null;
+function save(){
+  localStorage.setItem(KEY, JSON.stringify(db));
+  if(!sb) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async()=>{
+    const payload = JSON.stringify(db);
+    lastPushed = payload;
+    const { error } = await sb.from(STATE_TABLE)
+      .upsert({ id:STATE_ID, state: db, updated_at:new Date().toISOString() });
+    if(error){ online=false; } else if(online!==true){ online=true; }
+    renderSync();
+  }, 350);
+}
+async function loadRemote(){
+  if(!sb){ online=false; return; }
+  const { data, error } = await sb.from(STATE_TABLE).select('state').eq('id', STATE_ID).maybeSingle();
+  if(error){ online=false; renderSync(); return; }
+  online = true;
+  if(data && data.state && typeof data.state==='object'){
+    db = Object.assign(blank(), data.state);   // リモート優先
+    migrate();
+    localStorage.setItem(KEY, JSON.stringify(db));
+    render();
+  } else {
+    // リモートにまだ行が無い → 今あるローカルを種として上げる
+    if(db.todos.length || db.ideas.length || db.shopping.length) save();
+  }
+  renderSync();
+}
+function subscribeRealtime(){
+  if(!sb) return;
+  sb.channel('yarukoto-rt')
+    .on('postgres_changes', { event:'*', schema:'public', table:STATE_TABLE, filter:'id=eq.'+STATE_ID },
+      (payload)=>{
+        const incoming = JSON.stringify((payload.new && payload.new.state) || {});
+        if(incoming === lastPushed) return;     // 自分の書き込みのエコー
+        if(payload.new && payload.new.state){
+          db = Object.assign(blank(), payload.new.state);
+          migrate();
+          localStorage.setItem(KEY, JSON.stringify(db));
+          render();
+          toast('🔄 他の端末から更新');
+        }
+      })
+    .subscribe();
+}
+function renderSync(){
+  const chip = document.getElementById('syncChip');
+  const txt = document.getElementById('syncText');
+  chip.classList.remove('ok','off','local');
+  if(!sb){ chip.classList.add('local'); txt.textContent='この端末に保存'; return; }
+  if(online===true){ chip.classList.add('ok'); txt.textContent='クラウド同期中'; }
+  else if(online===false){ chip.classList.add('off'); txt.textContent='オフライン（この端末に保存）'; }
+  else { chip.classList.add('local'); txt.textContent='接続中…'; }
+}
 
 /* ===================== 描画 ===================== */
 const panels = { todo:'panel-todo', idea:'panel-idea', shop:'panel-shop' };
@@ -298,19 +465,32 @@ function render(){
   renderChecklist('shop');
   renderAddbar();
 }
-
 function renderCounts(){
   const t = db.todos.filter(x=>!x.done).length;
   const i = db.ideas.filter(x=>x.status!=='done').length;
   const s = db.shopping.filter(x=>!x.done).length;
-  document.getElementById('c-todo').textContent = t ? t : '';
-  document.getElementById('c-idea').textContent = i ? i : '';
-  document.getElementById('c-shop').textContent = s ? s : '';
+  document.getElementById('c-todo').textContent = t || '';
+  document.getElementById('c-idea').textContent = i || '';
+  document.getElementById('c-shop').textContent = s || '';
 }
 
-/* やること / 買い物 共通 */
+/* やること / 買い物 */
+function sortActive(list, kind){
+  const arr = list.slice();
+  if(kind==='todo' && todoSort==='due'){
+    arr.sort((a,b)=>{
+      const ad=a.due||'', bd=b.due||'';
+      if(!!ad !== !!bd) return ad?-1:1;     // 期限ありが先
+      if(ad && bd && ad!==bd) return ad<bd?-1:1;
+      return (a.order||0)-(b.order||0);
+    });
+  } else {
+    arr.sort((a,b)=>(a.order||0)-(b.order||0));
+  }
+  return arr;
+}
 function renderChecklist(kind){
-  const isTodo = kind === 'todo';
+  const isTodo = kind==='todo';
   const list = isTodo ? db.todos : db.shopping;
   const el = document.getElementById(isTodo ? 'panel-todo' : 'panel-shop');
   if(!list.length){
@@ -318,9 +498,16 @@ function renderChecklist(kind){
       (isTodo ? '下の入力欄から<br>今日のやることを追加しよう' : '下の入力欄から<br>買うものを追加しよう')+'</div>';
     return;
   }
-  const active = list.filter(x=>!x.done);
+  const active = sortActive(list.filter(x=>!x.done), kind);
   const done = list.filter(x=>x.done);
   let html = '';
+  if(isTodo){
+    html += '<div class="sortbar"><span class="sl">並び順</span>'+
+      '<span class="seg-sm" id="todoSort">'+
+        '<button data-sort="manual"'+(todoSort==='manual'?' class="on"':'')+'>手動（ドラッグ）</button>'+
+        '<button data-sort="due"'+(todoSort==='due'?' class="on"':'')+'>期限順</button>'+
+      '</span></div>';
+  }
   html += active.map(x=>rowHTML(x, kind)).join('');
   if(done.length){
     html += '<div class="group-label">✓ '+(isTodo?'完了':'買ったもの')+'（'+done.length+'）</div>';
@@ -330,9 +517,25 @@ function renderChecklist(kind){
   el.innerHTML = html;
 }
 function rowHTML(x, kind){
-  return '<div class="row'+(x.done?' done':'')+'" data-kind="'+kind+'" data-id="'+x.id+'">'+
+  const isTodo = kind==='todo';
+  const dragOff = (isTodo && todoSort==='due');
+  let dueHTML = '';
+  if(isTodo){
+    const di = dueInfo(x.due);
+    if(di){
+      dueHTML = '<button class="due '+di.cls+'" data-act="due">📅 '+esc(di.txt)+'<span class="dx" data-act="dueClear">×</span></button>';
+    } else if(!x.done){
+      dueHTML = '<button class="due ghost" data-act="due">📅 期限</button>';
+    }
+    dueHTML += '<input type="date" class="due-input" value="'+(x.due||'')+'">';
+  }
+  return '<div class="row'+(x.done?' is-done':'')+'" data-kind="'+kind+'" data-id="'+x.id+'">'+
+    '<span class="handle"'+(dragOff?' style="visibility:hidden"':'')+' data-act="handle">⠿</span>'+
     '<div class="check'+(x.done?' on':'')+'" data-act="toggle">'+(x.done?'✓':'')+'</div>'+
-    '<div class="label" data-act="toggle">'+esc(x.text)+'</div>'+
+    '<div class="body">'+
+      '<div class="label" data-act="toggle">'+esc(x.text)+'</div>'+
+      dueHTML+
+    '</div>'+
     '<button class="del" data-act="del">×</button>'+
   '</div>';
 }
@@ -340,18 +543,24 @@ function rowHTML(x, kind){
 /* アイデア */
 function renderIdeas(){
   const el = document.getElementById('panel-idea');
-  const filters = [['all','すべて'],['backlog','バックログ'],['doing','進行中'],['done','完了']];
-  let html = '<div class="filters">'+filters.map(([v,l])=>{
-    const n = v==='all' ? db.ideas.length : db.ideas.filter(x=>x.status===v).length;
-    return '<button class="fchip'+(ideaFilter===v?' on':'')+'" data-filter="'+v+'">'+l+(n?' '+n:'')+'</button>';
-  }).join('')+'</div>';
+  const active = db.ideas.filter(x=>x.status!=='done');
+  const sfilters = [['all','すべて',active.length],['backlog','バックログ',db.ideas.filter(x=>x.status==='backlog').length],
+    ['doing','進行中',db.ideas.filter(x=>x.status==='doing').length],['done','完了（アーカイブ）',db.ideas.filter(x=>x.status==='done').length]];
+  let html = '<div class="filters">'+sfilters.map(([v,l,n])=>
+    '<button class="fchip'+(ideaStatusFilter===v?' on':'')+'" data-sfilter="'+v+'">'+l+(n?' '+n:'')+'</button>'
+  ).join('')+'</div>';
+  // 種類フィルタ
+  const kf = [['all','すべての種類']].concat(Object.keys(KINDS).map(k=>[k, KINDS[k].emoji+' '+KINDS[k].label]));
+  html += '<div class="filters kind">'+kf.map(([v,l])=>
+    '<button class="fchip kc'+(ideaKindFilter===v?' on':'')+'" data-kfilter="'+v+'">'+l+'</button>'
+  ).join('')+'</div>';
 
   let items = db.ideas.slice();
-  if(ideaFilter!=='all') items = items.filter(x=>x.status===ideaFilter);
-  // 並び順: 完了は下、それ以外は優先度の高い順 → 更新が新しい順
+  if(ideaStatusFilter==='all') items = items.filter(x=>x.status!=='done');
+  else items = items.filter(x=>x.status===ideaStatusFilter);
+  if(ideaKindFilter!=='all') items = items.filter(x=>x.kind===ideaKindFilter);
+
   items.sort((a,b)=>{
-    const ad = a.status==='done', bd = b.status==='done';
-    if(ad!==bd) return ad?1:-1;
     if(PRIO_RANK[a.priority]!==PRIO_RANK[b.priority]) return PRIO_RANK[a.priority]-PRIO_RANK[b.priority];
     return (b.updated||b.ts||0) - (a.updated||a.ts||0);
   });
@@ -363,11 +572,16 @@ function renderIdeas(){
     return;
   }
   html += items.map(ideaHTML).join('');
+  if(ideaStatusFilter==='done' && items.length){
+    html += '<div class="foot-act"><button data-archclear="1">アーカイブをすべて削除</button></div>';
+  }
   el.innerHTML = html;
 }
 function ideaHTML(x){
+  const k = KINDS[x.kind] || KINDS.other;
   return '<div class="idea p-'+x.priority+' s-'+x.status+'" data-id="'+x.id+'">'+
     '<div class="i-top">'+
+      '<span class="kchip '+k.cls+'">'+k.emoji+' '+k.short+'</span>'+
       '<button class="pill prio p-'+x.priority+'" data-act="cyclePrio">優先度 '+PRIO[x.priority]+'</button>'+
       '<button class="pill status s-'+x.status+'" data-act="cycleStatus">'+STAT[x.status]+'</button>'+
       (x.tag ? '<span class="tag">'+esc(x.tag)+'</span>' : '')+
@@ -375,13 +589,15 @@ function ideaHTML(x){
     '<div class="i-title">'+esc(x.title)+'</div>'+
     (x.memo ? '<div class="i-memo">'+esc(x.memo)+'</div>' : '')+
     '<div class="i-act">'+
-      '<button data-act="edit">編集</button>'+
+      (x.status==='done'
+        ? '<button data-act="restore">↩︎ 戻す</button>'
+        : '<button data-act="edit">編集</button>')+
       '<button class="danger" data-act="del">削除</button>'+
     '</div>'+
   '</div>';
 }
 
-/* 追加バー（タブで切り替え） */
+/* 追加バー */
 function renderAddbar(){
   const el = document.getElementById('addbar');
   if(tab==='idea'){
@@ -395,8 +611,11 @@ function renderAddbar(){
     const addIt = ()=>{
       const v = inp.value.trim(); if(!v) return;
       const arr = tab==='todo' ? db.todos : db.shopping;
-      arr.unshift({ id:uid(), text:v, done:false, ts:Date.now() });
-      save(); inp.value=''; render(); inp.focus();
+      const minOrder = arr.reduce((m,x)=>Math.min(m, x.order||0), 0);
+      const item = { id:uid(), text:v, done:false, ts:Date.now(), order:minOrder-1 };
+      if(tab==='todo') item.due='';
+      arr.unshift(item);
+      save(); inp.value=''; render(); document.getElementById('quickInput').focus();
     };
     document.getElementById('quickAdd').onclick = addIt;
     inp.addEventListener('keydown', e=>{ if(e.key==='Enter') addIt(); });
@@ -414,14 +633,25 @@ document.querySelectorAll('.tab').forEach(btn=>{
   });
 });
 
-/* ===================== イベント（委譲） ===================== */
-document.getElementById('panel-todo').addEventListener('click', onChecklistClick);
-document.getElementById('panel-shop').addEventListener('click', onChecklistClick);
+/* ===================== チェックリスト操作 ===================== */
+let suppressClick = false;
+['panel-todo','panel-shop'].forEach(pid=>{
+  const el = document.getElementById(pid);
+  el.addEventListener('click', onChecklistClick);
+  el.addEventListener('change', e=>{
+    const inp = e.target.closest('.due-input'); if(!inp) return;
+    const row = inp.closest('.row'); const it = db.todos.find(x=>x.id===row.dataset.id);
+    if(it){ it.due = inp.value||''; save(); render(); }
+  });
+  el.addEventListener('pointerdown', onHandleDown);
+});
 function onChecklistClick(e){
+  if(suppressClick){ suppressClick=false; return; }
+  const sortBtn = e.target.closest('[data-sort]');
+  if(sortBtn){ todoSort = sortBtn.dataset.sort; renderChecklist('todo'); return; }
   const clear = e.target.closest('[data-clear]');
   if(clear){
-    const kind = clear.dataset.clear;
-    if(kind==='todo') db.todos = db.todos.filter(x=>!x.done);
+    if(clear.dataset.clear==='todo') db.todos = db.todos.filter(x=>!x.done);
     else db.shopping = db.shopping.filter(x=>!x.done);
     save(); render(); return;
   }
@@ -430,31 +660,76 @@ function onChecklistClick(e){
   const arr = kind==='todo' ? db.todos : db.shopping;
   const item = arr.find(x=>x.id===id); if(!item) return;
   const act = e.target.closest('[data-act]')?.dataset.act;
-  if(act==='toggle'){ item.done = !item.done; save(); render(); }
-  else if(act==='del'){ const i=arr.indexOf(item); arr.splice(i,1); save(); render(); }
+  if(act==='dueClear'){ item.due=''; save(); render(); }
+  else if(act==='due'){ const inp=row.querySelector('.due-input'); if(inp){ if(inp.showPicker){ try{inp.showPicker();}catch(err){ inp.focus(); } } else inp.focus(); } }
+  else if(act==='toggle'){ item.done=!item.done; if(item.done) item.doneAt=Date.now(); save(); render(); }
+  else if(act==='del'){ arr.splice(arr.indexOf(item),1); save(); render(); }
 }
 
+/* ドラッグ並べ替え（ポインタ操作・タッチ/マウス両対応） */
+let drag = null;
+function onHandleDown(e){
+  const handle = e.target.closest('[data-act="handle"]'); if(!handle) return;
+  if(tab==='todo' && todoSort==='due') return;
+  const row = handle.closest('.row'); if(!row || row.classList.contains('is-done')) return;
+  e.preventDefault();
+  const cont = row.parentElement;
+  const rect = row.getBoundingClientRect();
+  drag = { kind: row.dataset.kind, row, cont };
+  row.classList.add('dragging');
+  row.style.width = rect.width+'px';
+  try{ row.setPointerCapture(e.pointerId); }catch(err){}
+  document.addEventListener('pointermove', onDragMove);
+  document.addEventListener('pointerup', onDragEnd, { once:true });
+}
+function onDragMove(e){
+  if(!drag) return;
+  const rows = [...drag.cont.querySelectorAll('.row:not(.is-done)')].filter(r=>r!==drag.row);
+  let placed = false;
+  for(const r of rows){
+    const box = r.getBoundingClientRect();
+    if(e.clientY < box.top + box.height/2){ drag.cont.insertBefore(drag.row, r); placed=true; break; }
+  }
+  if(!placed && rows.length){ rows[rows.length-1].after(drag.row); }
+}
+function onDragEnd(){
+  if(!drag) return;
+  document.removeEventListener('pointermove', onDragMove);
+  drag.row.classList.remove('dragging');
+  drag.row.style.width='';
+  const arr = drag.kind==='todo' ? db.todos : db.shopping;
+  const ids = [...drag.cont.querySelectorAll('.row:not(.is-done)')].map(r=>r.dataset.id);
+  ids.forEach((id,i)=>{ const it=arr.find(x=>x.id===id); if(it) it.order=i; });
+  drag = null;
+  suppressClick = true;
+  save(); render();
+}
+
+/* ===================== アイデア操作 ===================== */
 document.getElementById('panel-idea').addEventListener('click', e=>{
-  const f = e.target.closest('[data-filter]');
-  if(f){ ideaFilter = f.dataset.filter; renderIdeas(); return; }
+  const sf = e.target.closest('[data-sfilter]');
+  if(sf){ ideaStatusFilter = sf.dataset.sfilter; renderIdeas(); return; }
+  const kf = e.target.closest('[data-kfilter]');
+  if(kf){ ideaKindFilter = kf.dataset.kfilter; renderIdeas(); return; }
+  const ac = e.target.closest('[data-archclear]');
+  if(ac){ if(confirm('アーカイブ（完了したアイデア）をすべて削除しますか？')){ db.ideas=db.ideas.filter(x=>x.status!=='done'); save(); render(); } return; }
   const card = e.target.closest('.idea'); if(!card) return;
   const x = db.ideas.find(i=>i.id===card.dataset.id); if(!x) return;
   const act = e.target.closest('[data-act]')?.dataset.act;
   if(act==='cyclePrio'){ x.priority = ({high:'mid',mid:'low',low:'high'})[x.priority]; x.updated=Date.now(); save(); render(); }
   else if(act==='cycleStatus'){ x.status = ({backlog:'doing',doing:'done',done:'backlog'})[x.status]; x.updated=Date.now(); save(); render(); }
+  else if(act==='restore'){ x.status='backlog'; x.updated=Date.now(); save(); render(); }
   else if(act==='edit'){ openSheet(x); }
-  else if(act==='del'){ const i=db.ideas.indexOf(x); db.ideas.splice(i,1); save(); render(); }
+  else if(act==='del'){ db.ideas.splice(db.ideas.indexOf(x),1); save(); render(); }
 });
 
 /* ===================== アイデア入力シート ===================== */
 const sheetBg = document.getElementById('sheetBg');
-let sheetPrio = 'mid', sheetStatus = 'backlog';
-
-function setSeg(group, val){
-  document.querySelectorAll('#f-'+group+' button').forEach(b=>b.classList.toggle('on', b.dataset.v===val));
-}
+let sheetPrio='mid', sheetStatus='backlog', sheetKind='plan';
+function setSeg(group, val){ document.querySelectorAll('#f-'+group+' button').forEach(b=>b.classList.toggle('on', b.dataset.v===val)); }
 document.querySelectorAll('#f-prio button').forEach(b=>b.onclick=()=>{ sheetPrio=b.dataset.v; setSeg('prio',sheetPrio); });
 document.querySelectorAll('#f-status button').forEach(b=>b.onclick=()=>{ sheetStatus=b.dataset.v; setSeg('status',sheetStatus); });
+document.querySelectorAll('#f-kind button').forEach(b=>b.onclick=()=>{ sheetKind=b.dataset.v; setSeg('kind',sheetKind); });
 
 function openSheet(x){
   editingId = x ? x.id : null;
@@ -464,12 +739,12 @@ function openSheet(x){
   document.getElementById('f-tag').value = x ? (x.tag||'') : '';
   sheetPrio = x ? x.priority : 'mid';
   sheetStatus = x ? x.status : 'backlog';
-  setSeg('prio', sheetPrio); setSeg('status', sheetStatus);
+  sheetKind = x ? (x.kind||'other') : 'plan';
+  setSeg('prio',sheetPrio); setSeg('status',sheetStatus); setSeg('kind',sheetKind);
   sheetBg.classList.add('on');
   setTimeout(()=>document.getElementById('f-title').focus(), 80);
 }
 function closeSheet(){ sheetBg.classList.remove('on'); editingId=null; }
-
 document.getElementById('sheetCancel').onclick = closeSheet;
 sheetBg.addEventListener('click', e=>{ if(e.target===sheetBg) closeSheet(); });
 document.getElementById('sheetSave').onclick = ()=>{
@@ -479,15 +754,19 @@ document.getElementById('sheetSave').onclick = ()=>{
   const tag = document.getElementById('f-tag').value.trim();
   if(editingId){
     const x = db.ideas.find(i=>i.id===editingId);
-    if(x){ Object.assign(x, { title, memo, tag, priority:sheetPrio, status:sheetStatus, updated:Date.now() }); }
+    if(x) Object.assign(x, { title, memo, tag, kind:sheetKind, priority:sheetPrio, status:sheetStatus, updated:Date.now() });
   } else {
-    db.ideas.unshift({ id:uid(), title, memo, tag, priority:sheetPrio, status:sheetStatus, ts:Date.now(), updated:Date.now() });
+    db.ideas.unshift({ id:uid(), title, memo, tag, kind:sheetKind, priority:sheetPrio, status:sheetStatus, ts:Date.now(), updated:Date.now() });
   }
   save(); closeSheet(); render();
 };
 
 /* ===================== 起動 ===================== */
+loadLocal();
+migrate();
 render();
+renderSync();
+if(sb){ loadRemote(); subscribeRealtime(); }
 </script>
 <!-- tsumiki-back-button -->
 <style>
