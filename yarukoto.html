@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="apple-touch-icon" href="icons/icon-yarukoto.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="やることばこ">
+<meta name="theme-color" content="#f5f5f7">
+<title>やることばこ — やること・アイデア・買い物</title>
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --card: #ffffff;
+    --text: #1d1d1f;
+    --sub: #6e6e73;
+    --line: #e3e3e6;
+    --blue: #0071e3;
+    --green: #34c759;
+    --red: #ff3b30;
+    --orange: #ff9500;
+    --gray: #8e8e93;
+    --chip: #f0f0f2;
+    --accent: #5b6cf0;
+    --accent-soft: #eef0ff;
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: calc(120px + env(safe-area-inset-bottom));
+  }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 0 16px; }
+
+  /* ===== ヘッダー ===== */
+  header { padding: 26px 4px 8px; text-align: center; }
+  .logo { font-size: 34px; line-height: 1; }
+  h1 { font-size: 23px; font-weight: 700; letter-spacing: -.02em; margin: 6px 0 2px; }
+  .tagline { color: var(--sub); font-size: 13px; }
+
+  /* ===== タブ ===== */
+  .tabs {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; gap: 6px; padding: 12px 0 10px;
+    background: linear-gradient(var(--bg) 78%, rgba(245,245,247,0));
+  }
+  .tab {
+    flex: 1; border: none; cursor: pointer; font: inherit;
+    background: var(--card); color: var(--sub);
+    border: 1px solid var(--line); border-radius: 14px;
+    padding: 9px 4px 8px; font-size: 13px; font-weight: 600;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    transition: all .15s;
+  }
+  .tab .ti { font-size: 18px; }
+  .tab .tn { font-size: 12px; }
+  .tab .tc { font-size: 11px; font-weight: 700; opacity: .6; }
+  .tab.on { background: var(--accent); color: #fff; border-color: var(--accent); box-shadow: 0 6px 16px rgba(91,108,240,.32); }
+  .tab.on .tc { opacity: .85; }
+
+  /* ===== リスト共通 ===== */
+  .panel { display: none; }
+  .panel.on { display: block; }
+  .empty {
+    text-align: center; color: var(--sub); font-size: 14px;
+    padding: 48px 20px; line-height: 1.8;
+  }
+  .empty .e-ico { font-size: 40px; display: block; margin-bottom: 10px; opacity: .8; }
+
+  .group-label {
+    font-size: 12px; font-weight: 600; color: var(--sub);
+    margin: 18px 4px 8px; display: flex; align-items: center; gap: 6px;
+  }
+
+  /* チェックリスト行（やること・買い物） */
+  .row {
+    display: flex; align-items: flex-start; gap: 12px;
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 14px; padding: 13px 14px; margin-bottom: 8px;
+  }
+  .row .check {
+    flex: 0 0 auto; width: 23px; height: 23px; margin-top: 1px;
+    border-radius: 50%; border: 2px solid var(--line);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 14px; transition: all .15s;
+  }
+  .row .check.on { background: var(--green); border-color: var(--green); }
+  .row .label { flex: 1; min-width: 0; font-size: 15px; word-break: break-word; cursor: pointer; }
+  .row.done .label { color: var(--sub); text-decoration: line-through; }
+  .row .del {
+    flex: 0 0 auto; border: none; background: none; cursor: pointer;
+    color: #c7c7cc; font-size: 20px; padding: 0 2px; line-height: 1;
+  }
+
+  /* ===== アイデアカード ===== */
+  .filters { display: flex; gap: 7px; flex-wrap: wrap; margin: 14px 0 4px; }
+  .fchip {
+    border: 1px solid var(--line); background: var(--card); color: var(--sub);
+    border-radius: 999px; padding: 6px 13px; font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+  }
+  .fchip.on { background: var(--text); color: #fff; border-color: var(--text); }
+
+  .idea {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 16px; padding: 14px 15px; margin-bottom: 10px;
+    border-left: 4px solid var(--gray);
+  }
+  .idea.p-high { border-left-color: var(--red); }
+  .idea.p-mid { border-left-color: var(--orange); }
+  .idea.p-low { border-left-color: var(--gray); }
+  .idea.s-done { opacity: .62; }
+  .idea .i-top { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-bottom: 7px; }
+  .pill {
+    border: none; cursor: pointer; font-family: inherit;
+    border-radius: 999px; padding: 4px 11px; font-size: 12px; font-weight: 700;
+  }
+  .pill.prio.p-high { background: #ffe5e3; color: #d70015; }
+  .pill.prio.p-mid { background: #fff0db; color: #c25e00; }
+  .pill.prio.p-low { background: #ececef; color: #636366; }
+  .pill.status.s-backlog { background: #ececef; color: #636366; }
+  .pill.status.s-doing { background: #e3f0ff; color: #0058c7; }
+  .pill.status.s-done { background: #e2f6e6; color: #1a8a3a; }
+  .tag {
+    background: var(--accent-soft); color: var(--accent);
+    border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 600;
+  }
+  .idea .i-title { font-size: 16px; font-weight: 600; word-break: break-word; }
+  .idea.s-done .i-title { text-decoration: line-through; }
+  .idea .i-memo { font-size: 13.5px; color: var(--sub); margin-top: 5px; white-space: pre-wrap; word-break: break-word; }
+  .idea .i-act { display: flex; gap: 14px; margin-top: 11px; }
+  .idea .i-act button {
+    border: none; background: none; cursor: pointer; font-family: inherit;
+    font-size: 13px; font-weight: 600; color: var(--accent); padding: 2px 0;
+  }
+  .idea .i-act button.danger { color: #c7c7cc; margin-left: auto; }
+
+  /* ===== 下部の追加バー ===== */
+  .addbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+    padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
+    background: rgba(255,255,255,.86); backdrop-filter: saturate(180%) blur(18px);
+    -webkit-backdrop-filter: saturate(180%) blur(18px);
+    border-top: 1px solid var(--line);
+  }
+  .addbar-inner { max-width: 640px; margin: 0 auto; display: flex; gap: 9px; }
+  .addbar input {
+    flex: 1; min-width: 0; font: inherit; font-size: 16px;
+    border: 1px solid var(--line); background: var(--bg);
+    border-radius: 13px; padding: 12px 14px;
+  }
+  .addbar input:focus { outline: none; border-color: var(--accent); background: #fff; }
+  .addbar .add {
+    flex: 0 0 auto; border: none; cursor: pointer; font-family: inherit;
+    background: var(--accent); color: #fff; font-size: 22px; font-weight: 600;
+    border-radius: 13px; width: 52px; display: flex; align-items: center; justify-content: center;
+  }
+  .addbar .add.wide { width: auto; flex: 1; font-size: 16px; gap: 6px; }
+  .addbar .add:active { transform: scale(.96); }
+
+  /* ===== アイデア入力シート ===== */
+  .sheet-bg {
+    position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.32);
+    display: none; align-items: flex-end; justify-content: center;
+  }
+  .sheet-bg.on { display: flex; }
+  .sheet {
+    background: var(--card); width: 100%; max-width: 640px;
+    border-radius: 22px 22px 0 0; padding: 20px 18px calc(20px + env(safe-area-inset-bottom));
+    max-height: 88vh; overflow-y: auto;
+  }
+  .sheet h3 { font-size: 18px; font-weight: 700; margin: 0 0 16px; }
+  .sheet label { display: block; font-size: 12.5px; font-weight: 600; color: var(--sub); margin: 14px 2px 6px; }
+  .sheet input[type=text], .sheet textarea {
+    width: 100%; font: inherit; font-size: 16px;
+    border: 1px solid var(--line); background: var(--bg);
+    border-radius: 12px; padding: 11px 13px;
+  }
+  .sheet input:focus, .sheet textarea:focus { outline: none; border-color: var(--accent); background: #fff; }
+  .sheet textarea { min-height: 76px; resize: vertical; }
+  .seg { display: flex; gap: 7px; }
+  .seg button {
+    flex: 1; border: 1px solid var(--line); background: var(--bg); cursor: pointer;
+    font-family: inherit; font-size: 14px; font-weight: 600; color: var(--sub);
+    border-radius: 11px; padding: 10px 4px;
+  }
+  .seg button.on { color: #fff; }
+  .seg.prio button.on[data-v=high] { background: var(--red); border-color: var(--red); }
+  .seg.prio button.on[data-v=mid] { background: var(--orange); border-color: var(--orange); }
+  .seg.prio button.on[data-v=low] { background: var(--gray); border-color: var(--gray); }
+  .seg.status button.on[data-v=backlog] { background: var(--gray); border-color: var(--gray); }
+  .seg.status button.on[data-v=doing] { background: var(--blue); border-color: var(--blue); }
+  .seg.status button.on[data-v=done] { background: var(--green); border-color: var(--green); }
+  .sheet-act { display: flex; gap: 10px; margin-top: 22px; }
+  .sheet-act button {
+    flex: 1; border: none; cursor: pointer; font-family: inherit;
+    font-size: 16px; font-weight: 600; border-radius: 13px; padding: 13px;
+  }
+  .sheet-act .save { background: var(--accent); color: #fff; }
+  .sheet-act .cancel { background: var(--chip); color: var(--text); }
+
+  .foot-act { text-align: center; margin: 16px 0 4px; }
+  .foot-act button {
+    border: none; background: none; cursor: pointer; font-family: inherit;
+    font-size: 13px; font-weight: 600; color: var(--sub);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">✅</div>
+    <h1>やることばこ</h1>
+    <p class="tagline">やること・アイデア・買い物を、ひとつの箱に。</p>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab on" data-tab="todo"><span class="ti">📝</span><span class="tn">やること</span><span class="tc" id="c-todo"></span></button>
+    <button class="tab" data-tab="idea"><span class="ti">💡</span><span class="tn">アイデア</span><span class="tc" id="c-idea"></span></button>
+    <button class="tab" data-tab="shop"><span class="ti">🛒</span><span class="tn">買い物</span><span class="tc" id="c-shop"></span></button>
+  </nav>
+
+  <!-- やること -->
+  <section class="panel on" id="panel-todo"></section>
+  <!-- アイデア -->
+  <section class="panel" id="panel-idea"></section>
+  <!-- 買い物 -->
+  <section class="panel" id="panel-shop"></section>
+</div>
+
+<!-- 追加バー -->
+<div class="addbar">
+  <div class="addbar-inner" id="addbar"></div>
+</div>
+
+<!-- アイデア入力シート -->
+<div class="sheet-bg" id="sheetBg">
+  <div class="sheet" id="sheet">
+    <h3 id="sheetTitle">アイデアを追加</h3>
+    <label>タイトル（やりたいこと・直したいバグ）</label>
+    <input type="text" id="f-title" placeholder="例：たびのきの地図がたまにズレる" autocomplete="off">
+    <label>メモ（詳細・再現手順・補足）</label>
+    <textarea id="f-memo" placeholder="任意"></textarea>
+    <label>対象アプリ・タグ（任意）</label>
+    <input type="text" id="f-tag" placeholder="例：たびのき / 新アプリ" autocomplete="off">
+    <label>優先度</label>
+    <div class="seg prio" id="f-prio">
+      <button data-v="high">高</button>
+      <button data-v="mid">中</button>
+      <button data-v="low">低</button>
+    </div>
+    <label>ステータス</label>
+    <div class="seg status" id="f-status">
+      <button data-v="backlog">バックログ</button>
+      <button data-v="doing">進行中</button>
+      <button data-v="done">完了</button>
+    </div>
+    <div class="sheet-act">
+      <button class="cancel" id="sheetCancel">キャンセル</button>
+      <button class="save" id="sheetSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===================== データ ===================== */
+const KEY = 'yarukoto_db_v1';
+const PRIO = { high:'高', mid:'中', low:'低' };
+const STAT = { backlog:'バックログ', doing:'進行中', done:'完了' };
+const PRIO_RANK = { high:0, mid:1, low:2 };
+
+function load(){
+  try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch(e){ return {}; }
+}
+function blank(){ return { todos:[], ideas:[], shopping:[] }; }
+let db = Object.assign(blank(), load());
+function save(){ localStorage.setItem(KEY, JSON.stringify(db)); }
+function uid(){ return Date.now().toString(36) + Math.floor(Math.random()*1e6).toString(36); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+let tab = 'todo';
+let ideaFilter = 'all';
+let editingId = null;
+
+/* ===================== 描画 ===================== */
+const panels = { todo:'panel-todo', idea:'panel-idea', shop:'panel-shop' };
+
+function render(){
+  renderCounts();
+  renderChecklist('todo');
+  renderIdeas();
+  renderChecklist('shop');
+  renderAddbar();
+}
+
+function renderCounts(){
+  const t = db.todos.filter(x=>!x.done).length;
+  const i = db.ideas.filter(x=>x.status!=='done').length;
+  const s = db.shopping.filter(x=>!x.done).length;
+  document.getElementById('c-todo').textContent = t ? t : '';
+  document.getElementById('c-idea').textContent = i ? i : '';
+  document.getElementById('c-shop').textContent = s ? s : '';
+}
+
+/* やること / 買い物 共通 */
+function renderChecklist(kind){
+  const isTodo = kind === 'todo';
+  const list = isTodo ? db.todos : db.shopping;
+  const el = document.getElementById(isTodo ? 'panel-todo' : 'panel-shop');
+  if(!list.length){
+    el.innerHTML = '<div class="empty"><span class="e-ico">'+(isTodo?'📝':'🛒')+'</span>'+
+      (isTodo ? '下の入力欄から<br>今日のやることを追加しよう' : '下の入力欄から<br>買うものを追加しよう')+'</div>';
+    return;
+  }
+  const active = list.filter(x=>!x.done);
+  const done = list.filter(x=>x.done);
+  let html = '';
+  html += active.map(x=>rowHTML(x, kind)).join('');
+  if(done.length){
+    html += '<div class="group-label">✓ '+(isTodo?'完了':'買ったもの')+'（'+done.length+'）</div>';
+    html += done.map(x=>rowHTML(x, kind)).join('');
+    html += '<div class="foot-act"><button data-clear="'+kind+'">'+(isTodo?'完了したものを消す':'買ったものを消す')+'</button></div>';
+  }
+  el.innerHTML = html;
+}
+function rowHTML(x, kind){
+  return '<div class="row'+(x.done?' done':'')+'" data-kind="'+kind+'" data-id="'+x.id+'">'+
+    '<div class="check'+(x.done?' on':'')+'" data-act="toggle">'+(x.done?'✓':'')+'</div>'+
+    '<div class="label" data-act="toggle">'+esc(x.text)+'</div>'+
+    '<button class="del" data-act="del">×</button>'+
+  '</div>';
+}
+
+/* アイデア */
+function renderIdeas(){
+  const el = document.getElementById('panel-idea');
+  const filters = [['all','すべて'],['backlog','バックログ'],['doing','進行中'],['done','完了']];
+  let html = '<div class="filters">'+filters.map(([v,l])=>{
+    const n = v==='all' ? db.ideas.length : db.ideas.filter(x=>x.status===v).length;
+    return '<button class="fchip'+(ideaFilter===v?' on':'')+'" data-filter="'+v+'">'+l+(n?' '+n:'')+'</button>';
+  }).join('')+'</div>';
+
+  let items = db.ideas.slice();
+  if(ideaFilter!=='all') items = items.filter(x=>x.status===ideaFilter);
+  // 並び順: 完了は下、それ以外は優先度の高い順 → 更新が新しい順
+  items.sort((a,b)=>{
+    const ad = a.status==='done', bd = b.status==='done';
+    if(ad!==bd) return ad?1:-1;
+    if(PRIO_RANK[a.priority]!==PRIO_RANK[b.priority]) return PRIO_RANK[a.priority]-PRIO_RANK[b.priority];
+    return (b.updated||b.ts||0) - (a.updated||a.ts||0);
+  });
+
+  if(!items.length){
+    html += '<div class="empty"><span class="e-ico">💡</span>'+
+      (db.ideas.length ? 'この条件のアイデアはありません' : 'アプリの構想やバグメモを<br>下のボタンから書き留めよう')+'</div>';
+    el.innerHTML = html;
+    return;
+  }
+  html += items.map(ideaHTML).join('');
+  el.innerHTML = html;
+}
+function ideaHTML(x){
+  return '<div class="idea p-'+x.priority+' s-'+x.status+'" data-id="'+x.id+'">'+
+    '<div class="i-top">'+
+      '<button class="pill prio p-'+x.priority+'" data-act="cyclePrio">優先度 '+PRIO[x.priority]+'</button>'+
+      '<button class="pill status s-'+x.status+'" data-act="cycleStatus">'+STAT[x.status]+'</button>'+
+      (x.tag ? '<span class="tag">'+esc(x.tag)+'</span>' : '')+
+    '</div>'+
+    '<div class="i-title">'+esc(x.title)+'</div>'+
+    (x.memo ? '<div class="i-memo">'+esc(x.memo)+'</div>' : '')+
+    '<div class="i-act">'+
+      '<button data-act="edit">編集</button>'+
+      '<button class="danger" data-act="del">削除</button>'+
+    '</div>'+
+  '</div>';
+}
+
+/* 追加バー（タブで切り替え） */
+function renderAddbar(){
+  const el = document.getElementById('addbar');
+  if(tab==='idea'){
+    el.innerHTML = '<button class="add wide" id="openSheet">＋ アイデアを追加</button>';
+    document.getElementById('openSheet').onclick = ()=>openSheet(null);
+  } else {
+    const ph = tab==='todo' ? 'やることを入力…' : '買うものを入力…';
+    el.innerHTML = '<input type="text" id="quickInput" placeholder="'+ph+'" autocomplete="off" enterkeyhint="done">'+
+      '<button class="add" id="quickAdd">＋</button>';
+    const inp = document.getElementById('quickInput');
+    const addIt = ()=>{
+      const v = inp.value.trim(); if(!v) return;
+      const arr = tab==='todo' ? db.todos : db.shopping;
+      arr.unshift({ id:uid(), text:v, done:false, ts:Date.now() });
+      save(); inp.value=''; render(); inp.focus();
+    };
+    document.getElementById('quickAdd').onclick = addIt;
+    inp.addEventListener('keydown', e=>{ if(e.key==='Enter') addIt(); });
+  }
+}
+
+/* ===================== タブ切替 ===================== */
+document.querySelectorAll('.tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    tab = btn.dataset.tab;
+    document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on', b===btn));
+    Object.entries(panels).forEach(([k,id])=>document.getElementById(id).classList.toggle('on', k===tab));
+    renderAddbar();
+    window.scrollTo({ top:0 });
+  });
+});
+
+/* ===================== イベント（委譲） ===================== */
+document.getElementById('panel-todo').addEventListener('click', onChecklistClick);
+document.getElementById('panel-shop').addEventListener('click', onChecklistClick);
+function onChecklistClick(e){
+  const clear = e.target.closest('[data-clear]');
+  if(clear){
+    const kind = clear.dataset.clear;
+    if(kind==='todo') db.todos = db.todos.filter(x=>!x.done);
+    else db.shopping = db.shopping.filter(x=>!x.done);
+    save(); render(); return;
+  }
+  const row = e.target.closest('.row'); if(!row) return;
+  const kind = row.dataset.kind, id = row.dataset.id;
+  const arr = kind==='todo' ? db.todos : db.shopping;
+  const item = arr.find(x=>x.id===id); if(!item) return;
+  const act = e.target.closest('[data-act]')?.dataset.act;
+  if(act==='toggle'){ item.done = !item.done; save(); render(); }
+  else if(act==='del'){ const i=arr.indexOf(item); arr.splice(i,1); save(); render(); }
+}
+
+document.getElementById('panel-idea').addEventListener('click', e=>{
+  const f = e.target.closest('[data-filter]');
+  if(f){ ideaFilter = f.dataset.filter; renderIdeas(); return; }
+  const card = e.target.closest('.idea'); if(!card) return;
+  const x = db.ideas.find(i=>i.id===card.dataset.id); if(!x) return;
+  const act = e.target.closest('[data-act]')?.dataset.act;
+  if(act==='cyclePrio'){ x.priority = ({high:'mid',mid:'low',low:'high'})[x.priority]; x.updated=Date.now(); save(); render(); }
+  else if(act==='cycleStatus'){ x.status = ({backlog:'doing',doing:'done',done:'backlog'})[x.status]; x.updated=Date.now(); save(); render(); }
+  else if(act==='edit'){ openSheet(x); }
+  else if(act==='del'){ const i=db.ideas.indexOf(x); db.ideas.splice(i,1); save(); render(); }
+});
+
+/* ===================== アイデア入力シート ===================== */
+const sheetBg = document.getElementById('sheetBg');
+let sheetPrio = 'mid', sheetStatus = 'backlog';
+
+function setSeg(group, val){
+  document.querySelectorAll('#f-'+group+' button').forEach(b=>b.classList.toggle('on', b.dataset.v===val));
+}
+document.querySelectorAll('#f-prio button').forEach(b=>b.onclick=()=>{ sheetPrio=b.dataset.v; setSeg('prio',sheetPrio); });
+document.querySelectorAll('#f-status button').forEach(b=>b.onclick=()=>{ sheetStatus=b.dataset.v; setSeg('status',sheetStatus); });
+
+function openSheet(x){
+  editingId = x ? x.id : null;
+  document.getElementById('sheetTitle').textContent = x ? 'アイデアを編集' : 'アイデアを追加';
+  document.getElementById('f-title').value = x ? x.title : '';
+  document.getElementById('f-memo').value = x ? (x.memo||'') : '';
+  document.getElementById('f-tag').value = x ? (x.tag||'') : '';
+  sheetPrio = x ? x.priority : 'mid';
+  sheetStatus = x ? x.status : 'backlog';
+  setSeg('prio', sheetPrio); setSeg('status', sheetStatus);
+  sheetBg.classList.add('on');
+  setTimeout(()=>document.getElementById('f-title').focus(), 80);
+}
+function closeSheet(){ sheetBg.classList.remove('on'); editingId=null; }
+
+document.getElementById('sheetCancel').onclick = closeSheet;
+sheetBg.addEventListener('click', e=>{ if(e.target===sheetBg) closeSheet(); });
+document.getElementById('sheetSave').onclick = ()=>{
+  const title = document.getElementById('f-title').value.trim();
+  if(!title){ document.getElementById('f-title').focus(); return; }
+  const memo = document.getElementById('f-memo').value.trim();
+  const tag = document.getElementById('f-tag').value.trim();
+  if(editingId){
+    const x = db.ideas.find(i=>i.id===editingId);
+    if(x){ Object.assign(x, { title, memo, tag, priority:sheetPrio, status:sheetStatus, updated:Date.now() }); }
+  } else {
+    db.ideas.unshift({ id:uid(), title, memo, tag, priority:sheetPrio, status:sheetStatus, ts:Date.now(), updated:Date.now() });
+  }
+  save(); closeSheet(); render();
+};
+
+/* ===================== 起動 ===================== */
+render();
+</script>
+<!-- tsumiki-back-button -->
+<style>
+  #tsumikiEdge{position:fixed; top:0; bottom:0; left:0; width:22px; z-index:999;}
+  #tsumikiPeek{
+    position:fixed; top:50%; left:0; z-index:1001; margin-top:-23px;
+    width:46px; height:46px; display:flex; align-items:center; justify-content:center;
+    background:rgba(255,255,255,.92);
+    -webkit-backdrop-filter:saturate(180%) blur(14px); backdrop-filter:saturate(180%) blur(14px);
+    border:1px solid rgba(0,0,0,.06); border-radius:50%;
+    box-shadow:0 6px 20px rgba(0,0,0,.18);
+    color:#0071e3; font-size:24px; font-weight:600; line-height:1;
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Helvetica Neue",Arial,sans-serif;
+    transform:translateX(-70px) scale(.8); opacity:0; pointer-events:none;
+  }
+</style>
+<div id="tsumikiEdge"></div>
+<div id="tsumikiPeek">‹</div>
+<script>
+  (function(){
+    var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+      || window.navigator.standalone === true;
+    var fromTsumiki = false;
+    try{
+      if(document.referrer){
+        var r = new URL(document.referrer);
+        fromTsumiki = (r.origin === location.origin);
+      }
+    }catch(e){}
+    if(!(standalone && fromTsumiki)) return;
+
+    var peek = document.getElementById('tsumikiPeek');
+    var edge = document.getElementById('tsumikiEdge');
+
+    function goBack(){ location.href = 'index.html'; }
+
+    /* --- 左端エッジスワイプで戻る（iOS純正の戻る操作。見えるボタンは置かない） --- */
+    var sx=0, sy=0, prog=0, dragging=false, W=window.innerWidth;
+    var TRIGGER = Math.min(120, W*0.32);
+    window.addEventListener('resize', function(){ W=window.innerWidth; TRIGGER=Math.min(120, W*0.32); });
+
+    function reset(){
+      dragging = false; prog = 0;
+      peek.style.transition = 'transform .25s ease, opacity .25s ease';
+      peek.style.transform = 'translateX(-70px) scale(.8)';
+      peek.style.opacity = 0;
+    }
+    function start(e){
+      var t = e.touches ? e.touches[0] : e;
+      if(t.clientX > 26) return;
+      sx = t.clientX; sy = t.clientY; prog = 0; dragging = true;
+      peek.style.transition = 'none';
+    }
+    function move(e){
+      if(!dragging) return;
+      var t = e.touches ? e.touches[0] : e;
+      var dx = t.clientX - sx, dy = t.clientY - sy;
+      if(Math.abs(dy) > Math.abs(dx) + 12){ reset(); return; }
+      if(dx < 0) dx = 0;
+      prog = Math.min(dx / TRIGGER, 1);
+      peek.style.transform = 'translateX(' + (-70 + prog*82) + 'px) scale(' + (0.8 + prog*0.2) + ')';
+      peek.style.opacity = prog;
+      if(dx > 6 && e.cancelable) e.preventDefault();
+    }
+    function end(){
+      if(!dragging) return;
+      dragging = false;
+      if(prog >= 0.999){
+        peek.style.transition = 'transform .25s ease, opacity .25s ease';
+        peek.style.transform = 'translateX(20px) scale(1.05)';
+        peek.style.opacity = 1;
+        goBack();
+      }else{
+        reset();
+      }
+    }
+    edge.addEventListener('touchstart', start, {passive:true});
+    window.addEventListener('touchmove', move, {passive:false});
+    window.addEventListener('touchend', end, {passive:true});
+    window.addEventListener('touchcancel', end, {passive:true});
+  })();
+</script>
+<!-- /tsumiki-back-button -->
+</body>
+</html>

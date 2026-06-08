@@ -30,6 +30,7 @@ APPS = {
     "tsugi":       ("⏰", "#5fd3c3", "#15a892"),
     "copybox":     ("📋", "#7fa8ff", "#4d6fe0"),
     "tabinoki":    ("🌴", "#3fd4c4", "#0d9488"),
+    "yarukoto":    ("✅", "#7c8bff", "#4f5edb"),
 }
 
 
