@@ -389,7 +389,7 @@ const PAYERS = ['こうだい','ゆずは','ふたり'];
 /* ============ 状態 ============ */
 let db = { trips: [] };
 let who = localStorage.getItem(WHO_KEY) || '';
-let online = false;
+let online = null;   // null=確認中 / true=クラウド同期OK / false=オフライン
 let route = { name:'home', tripId:null, tab:'plan' };
 let lastPushed = '';   // 自分のupsertのエコーを無視するため
 
@@ -409,7 +409,7 @@ function save(){
   }, 350);
 }
 async function loadRemote(){
-  if(!sb) return false;
+  if(!sb){ online=false; return false; }
   const { data, error } = await sb.from(STATE_TABLE).select('state').eq('id', STATE_ID).maybeSingle();
   if(error){ online=false; return false; }
   online = true;
@@ -455,7 +455,7 @@ function render(){ renderTopbar(); (route.name==='trip'?renderTrip:renderHome)()
 function renderTopbar(){
   const bar = $('#topbar');
   const whoChip = who ? `<button class="who-chip" id="whoBtn">${esc(who)}</button>` : '';
-  const off = online ? '' : '<span class="offline-badge">●この端末のみ</span>';
+  const off = online===false ? '<span class="offline-badge">●オフライン</span>' : '';
   if(route.name==='trip'){
     bar.innerHTML = `<button class="tb-btn back" id="homeBtn">‹ 一覧</button>
       <span class="tb-title">たびのき${off}</span>${whoChip}`;
@@ -504,7 +504,7 @@ function renderHome(){
     </header>
     <button class="add-trip" id="addTrip">＋ 新しい旅を作る</button>
     ${cards}
-    <p class="sync-note">${online?'☁️ ふたりのスマホで自動同期されています':'⚠️ いまはこの端末だけに保存中。<br>同期テーブルを作るとゆずちゃんと共有できます'}</p>`;
+    <p class="sync-note">${online===true?'☁️ ふたりのスマホで自動同期中':online===null?'☁️ 同期を確認中…':'⚠️ オフラインのためこの端末に保存中。<br>通信が戻ると自動で同期します'}</p>`;
   $('#addTrip').onclick = ()=>openTripForm();
   v.querySelectorAll('.trip-card').forEach(c=> c.onclick=()=>go('trip', c.dataset.id, 'plan'));
 }
