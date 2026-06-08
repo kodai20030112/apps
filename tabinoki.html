@@ -9,6 +9,8 @@
 <meta name="apple-mobile-web-app-title" content="たびのき">
 <meta name="theme-color" content="#0d9488">
 <title>たびのき — ふたりの旅のしおり</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
   :root{
     --bg:#f3f6f6; --card:#ffffff; --ink:#16211f; --sub:#6b7c79;
@@ -140,6 +142,17 @@
 
   .add-ev{display:flex; align-items:center; gap:7px; color:var(--accent-ink);
     font-size:14px; font-weight:600; padding:8px 6px; margin-left:58px;}
+
+  /* マップ */
+  #map{height:60vh; min-height:340px; border-radius:16px; overflow:hidden; border:1px solid var(--line);}
+  .map-note{font-size:12.5px; color:var(--sub); margin:10px 2px 4px; line-height:1.6;}
+  .map-legend{display:flex; flex-wrap:wrap; gap:10px; margin:10px 2px;}
+  .map-legend span{display:flex; align-items:center; gap:5px; font-size:12.5px; color:var(--sub);}
+  .map-legend i{width:12px; height:12px; border-radius:50%; display:inline-block;}
+  .pin{color:#fff; border-radius:50% 50% 50% 0; width:24px; height:24px; transform:rotate(-45deg);
+    display:flex; align-items:center; justify-content:center; border:2px solid #fff; box-shadow:0 2px 5px rgba(0,0,0,.35);}
+  .pin b{transform:rotate(45deg); font-size:12px; font-weight:800;}
+  .leaflet-popup-content{font-size:13px; line-height:1.5; font-family:inherit;}
 
   /* 持ち物 */
   .check-list{display:flex; flex-direction:column; gap:2px;}
@@ -506,11 +519,13 @@ function renderTrip(){
     </div>`;
   const tabs = `<div class="tabs">
       <button data-tab="plan" class="${route.tab==='plan'?'on':''}">🗓 しおり</button>
+      <button data-tab="map" class="${route.tab==='map'?'on':''}">🗺 地図</button>
       <button data-tab="pack" class="${route.tab==='pack'?'on':''}">🎒 持ち物</button>
       <button data-tab="cost" class="${route.tab==='cost'?'on':''}">💰 費用</button>
     </div>`;
   let body='';
   if(route.tab==='plan') body = renderPlan(t);
+  else if(route.tab==='map') body = renderMap(t);
   else if(route.tab==='pack') body = renderPack(t);
   else body = renderCost(t);
 
@@ -519,6 +534,7 @@ function renderTrip(){
   v.querySelectorAll('.tabs button').forEach(b=> b.onclick=()=>{ route.tab=b.dataset.tab; render(); });
   bindPlan(t); bindPack(t); bindCost(t);
   if(route.tab==='plan') loadWeather(t);
+  if(route.tab==='map') bindMap(t);
 }
 
 /* ----- しおり（タイムライン） ----- */
@@ -538,6 +554,7 @@ function renderPlan(t){
     const dlabel = date==='__none__'? '<span class="day-date">予定</span>'
       : `<span class="day-date">${fmtDate(date)}</span><span class="day-dow">(${fmtDow(date)})</span><span class="day-wx" data-wxdate="${date}"></span>`;
     let evs='';
+    let prevPlace='';
     dayItems.forEach((it,k)=>{
       let gap='';
       if(k>0){
@@ -545,7 +562,8 @@ function renderPlan(t){
         const a=timeToMin(prev.endTime||prev.time), b=timeToMin(it.time);
         if(a!=null && b!=null && b-a>0) gap=`<div class="gap">⏱ あき ${fmtDur(b-a)}</div>`;
       }
-      evs += evHtml(t, it, date, gap);
+      evs += evHtml(t, it, date, gap, prevPlace);
+      if(it.place) prevPlace=it.place;
     });
     html += `<div class="day-block">
       <div class="day-head">${dnum}${dlabel}</div>
@@ -555,12 +573,20 @@ function renderPlan(t){
   });
   return html;
 }
-function evHtml(t,i,date,gap){
+function mapQ(t, place){ // 地名＋行き先で精度を上げる
+  const tok=(t.destination||'').split(/[・、,／/\s〜~]/)[0].trim();
+  return encodeURIComponent(place + (tok && !place.includes(tok) ? ' '+tok : ''));
+}
+function evHtml(t,i,date,gap,prevPlace){
   const ty = TYPES[i.type]||TYPES.other;
   const tags=[];
   const dur = (i.endTime && timeToMin(i.time)!=null && timeToMin(i.endTime)!=null && timeToMin(i.endTime)-timeToMin(i.time)>0)
     ? (timeToMin(i.endTime)-timeToMin(i.time)) : 0;
   if(dur) tags.push(`<span class="tag">⏱ 所要 ${fmtDur(dur)}</span>`);
+  if(i.place){
+    tags.push(`<a class="tag link" href="https://www.google.com/maps/search/?api=1&query=${mapQ(t,i.place)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🗺 地図</a>`);
+    if(prevPlace) tags.push(`<a class="tag link" href="https://www.google.com/maps/dir/?api=1&origin=${mapQ(t,prevPlace)}&destination=${mapQ(t,i.place)}&travelmode=transit" target="_blank" rel="noopener" onclick="event.stopPropagation()">🚶 道順</a>`);
+  }
   if(i.url) tags.push(`<a class="tag link" href="${esc(i.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 リンク</a>`);
   if(i.cost) tags.push(`<span class="tag">${yen(i.cost)}${i.payer?'・'+esc(i.payer):''}</span>`);
   const comments = (i.comments||[]);
@@ -715,6 +741,83 @@ function renderCost(t){
     <p class="sync-note">金額は「しおり」の各予定を編集して入力できます</p>`;
 }
 function bindCost(t){ /* 表示のみ */ }
+
+/* ----- 地図（Leaflet + OpenStreetMap・キー不要） ----- */
+const DAY_COLORS = ['#0d9488','#e8843b','#2f6fd0','#9b51e0','#e0483b','#c98a00','#1f8a55','#d6336c'];
+const geoCache = (()=>{ try{ return JSON.parse(localStorage.getItem('tabinoki_geo')||'{}'); }catch(e){ return {}; } })();
+const sleep = ms=>new Promise(r=>setTimeout(r,ms));
+let _lastGeo = 0;
+async function geocode(q){
+  if(geoCache[q]) return geoCache[q];
+  const wait = 1100-(Date.now()-_lastGeo); if(wait>0) await sleep(wait);  // Nominatimは1秒1回まで
+  _lastGeo = Date.now();
+  try{
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&accept-language=ja&q=${encodeURIComponent(q)}`).then(x=>x.json());
+    if(r && r[0]){ const c=[+r[0].lat, +r[0].lon]; geoCache[q]=c; localStorage.setItem('tabinoki_geo', JSON.stringify(geoCache)); return c; }
+  }catch(e){}
+  return null;
+}
+function renderMap(t){
+  const hasPlace = (t.items||[]).some(i=>i.place);
+  if(!hasPlace) return `<div class="empty" style="padding:50px 0;"><span class="big">🗺</span>予定に「場所」を入れると<br>ここに地図とピンが出ます</div>`;
+  return `<div id="map"></div><div class="map-legend" id="mapLegend"></div><div class="map-note" id="mapNote">📍 場所を地図に並べています…</div>`;
+}
+let _leafletMap = null;
+function bindMap(t){
+  if(route.tab!=='map') return;
+  const el = document.getElementById('map');
+  if(!el) return;
+  if(!window.L){ const n=document.getElementById('mapNote'); if(n) n.textContent='地図ライブラリを読み込めませんでした。通信環境をご確認ください。'; return; }
+  if(_leafletMap){ try{ _leafletMap.remove(); }catch(e){} _leafletMap=null; }
+  const map = L.map(el, {scrollWheelZoom:true}).setView([35.68,139.77], 9);
+  _leafletMap = map;
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'© OpenStreetMap'}).addTo(map);
+  setTimeout(()=>{ try{ map.invalidateSize(); }catch(e){} }, 200);
+
+  // 日ごとに、場所のある予定を時刻順で
+  const dayList = rangeDates(t.startDate, t.endDate);
+  const extra = [...new Set((t.items||[]).map(i=>i.date).filter(Boolean))].filter(d=>!dayList.includes(d));
+  const days = [...dayList, ...extra].sort();
+  const useDays = days.length? days : [t.startDate||'__none__'];
+
+  (async()=>{
+    const allLatLng = [];
+    const failed = [];
+    const legend = [];
+    for(let di=0; di<useDays.length; di++){
+      const date = useDays[di];
+      const color = DAY_COLORS[di % DAY_COLORS.length];
+      const dayItems = (t.items||[]).filter(i=> (i.date||t.startDate||'__none__')===date && i.place)
+        .sort((a,b)=> effOrder(a)-effOrder(b));
+      if(!dayItems.length) continue;
+      const line = [];
+      let n=0;
+      for(const it of dayItems){
+        if(route.name!=='trip' || route.tripId!==t.id || route.tab!=='map') return; // 画面を離れたら中断
+        n++;
+        const c = await geocode(geoCacheKey(t, it.place));
+        if(!c){ failed.push(it.place); continue; }
+        allLatLng.push(c); line.push(c);
+        const icon = L.divIcon({ className:'', html:`<div class="pin" style="background:${color}"><b>${n}</b></div>`, iconSize:[24,24], iconAnchor:[12,24], popupAnchor:[0,-22] });
+        const dayLabel = date==='__none__'? '' : `Day${di+1} `;
+        L.marker(c, {icon}).addTo(map).bindPopup(`<b>${esc(it.title||it.place)}</b><br>${dayLabel}${it.time?esc(it.time)+' ':''}${esc(it.place)}`);
+      }
+      if(line.length>=2) L.polyline(line, {color, weight:3, opacity:.7}).addTo(map);
+      if(line.length) legend.push(`<span><i style="background:${color}"></i>${date==='__none__'?'予定':'Day'+(di+1)}</span>`);
+      if(line.length) try{ map.fitBounds(allLatLng, {padding:[40,40], maxZoom:15}); }catch(e){}
+    }
+    const lg=document.getElementById('mapLegend'); if(lg) lg.innerHTML=legend.join('');
+    const note=document.getElementById('mapNote');
+    if(note){
+      if(!allLatLng.length) note.textContent='場所を地図に表示できませんでした（地名が見つからないかも）。';
+      else note.innerHTML = '数字は1日の中の順番です。'+(failed.length? '<br>📍 見つからなかった場所: '+failed.map(esc).join('、') : '');
+    }
+  })();
+}
+function geoCacheKey(t, place){
+  const tok=(t.destination||'').split(/[・、,／/\s〜~]/)[0].trim();
+  return place + (tok && !place.includes(tok) ? ' '+tok : '');
+}
 
 /* ============ シート（フォーム） ============ */
 const overlay = $('#overlay'), sheet = $('#sheet');
