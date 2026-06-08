@@ -9,8 +9,6 @@
 <meta name="apple-mobile-web-app-title" content="たびのき">
 <meta name="theme-color" content="#0d9488">
 <title>たびのき — ふたりの旅のしおり</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
   :root{
     --bg:#f3f6f6; --card:#ffffff; --ink:#16211f; --sub:#6b7c79;
@@ -143,16 +141,18 @@
   .add-ev{display:flex; align-items:center; gap:7px; color:var(--accent-ink);
     font-size:14px; font-weight:600; padding:8px 6px; margin-left:58px;}
 
-  /* マップ */
-  #map{height:60vh; min-height:340px; border-radius:16px; overflow:hidden; border:1px solid var(--line);}
-  .map-note{font-size:12.5px; color:var(--sub); margin:10px 2px 4px; line-height:1.6;}
-  .map-legend{display:flex; flex-wrap:wrap; gap:10px; margin:10px 2px;}
-  .map-legend span{display:flex; align-items:center; gap:5px; font-size:12.5px; color:var(--sub);}
-  .map-legend i{width:12px; height:12px; border-radius:50%; display:inline-block;}
-  .pin{color:#fff; border-radius:50% 50% 50% 0; width:24px; height:24px; transform:rotate(-45deg);
-    display:flex; align-items:center; justify-content:center; border:2px solid #fff; box-shadow:0 2px 5px rgba(0,0,0,.35);}
-  .pin b{transform:rotate(45deg); font-size:12px; font-weight:800;}
-  .leaflet-popup-content{font-size:13px; line-height:1.5; font-family:inherit;}
+  /* マップ（Googleマップ埋め込み） */
+  .map-days{display:flex; gap:8px; overflow-x:auto; padding:0 2px 12px; -webkit-overflow-scrolling:touch;}
+  .map-days button{flex:0 0 auto; font-size:13px; font-weight:600; color:var(--sub);
+    background:var(--card); border:1px solid var(--line); border-radius:999px; padding:7px 14px;}
+  .map-days button.on{background:var(--accent-soft); color:var(--accent-ink); border-color:var(--accent-soft);}
+  .map-open{display:flex; align-items:center; justify-content:center; gap:7px; width:100%;
+    background:var(--accent); color:#fff; font-size:15px; font-weight:700; text-decoration:none;
+    border-radius:13px; padding:13px; margin-bottom:11px; box-shadow:0 5px 15px rgba(13,148,136,.25);}
+  .map-open:active{transform:scale(.98);}
+  #map{height:54vh; min-height:320px; border-radius:16px; overflow:hidden; border:1px solid var(--line); background:#eef2f1;}
+  #map iframe{width:100%; height:100%; border:0; display:block;}
+  .map-note{font-size:12.5px; color:var(--sub); margin:11px 2px 4px; line-height:1.6;}
 
   /* 持ち物 */
   .check-list{display:flex; flex-direction:column; gap:2px;}
@@ -748,81 +748,54 @@ function renderCost(t){
 }
 function bindCost(t){ /* 表示のみ */ }
 
-/* ----- 地図（Leaflet + OpenStreetMap・キー不要） ----- */
-const DAY_COLORS = ['#0d9488','#e8843b','#2f6fd0','#9b51e0','#e0483b','#c98a00','#1f8a55','#d6336c'];
-const geoCache = (()=>{ try{ return JSON.parse(localStorage.getItem('tabinoki_geo')||'{}'); }catch(e){ return {}; } })();
-const sleep = ms=>new Promise(r=>setTimeout(r,ms));
-let _lastGeo = 0;
-async function geocode(q){
-  if(geoCache[q]) return geoCache[q];
-  const wait = 1100-(Date.now()-_lastGeo); if(wait>0) await sleep(wait);  // Nominatimは1秒1回まで
-  _lastGeo = Date.now();
-  try{
-    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&accept-language=ja&q=${encodeURIComponent(q)}`).then(x=>x.json());
-    if(r && r[0]){ const c=[+r[0].lat, +r[0].lon]; geoCache[q]=c; localStorage.setItem('tabinoki_geo', JSON.stringify(geoCache)); return c; }
-  }catch(e){}
-  return null;
-}
-function renderMap(t){
-  const hasPlace = (t.items||[]).some(i=>i.place);
-  if(!hasPlace) return `<div class="empty" style="padding:50px 0;"><span class="big">🗺</span>予定に「場所」を入れると<br>ここに地図とピンが出ます</div>`;
-  return `<div id="map"></div><div class="map-legend" id="mapLegend"></div><div class="map-note" id="mapNote">📍 場所を地図に並べています…</div>`;
-}
-let _leafletMap = null;
-function bindMap(t){
-  if(route.tab!=='map') return;
-  const el = document.getElementById('map');
-  if(!el) return;
-  if(!window.L){ const n=document.getElementById('mapNote'); if(n) n.textContent='地図ライブラリを読み込めませんでした。通信環境をご確認ください。'; return; }
-  if(_leafletMap){ try{ _leafletMap.remove(); }catch(e){} _leafletMap=null; }
-  const map = L.map(el, {scrollWheelZoom:true}).setView([35.68,139.77], 9);
-  _leafletMap = map;
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'© OpenStreetMap'}).addTo(map);
-  setTimeout(()=>{ try{ map.invalidateSize(); }catch(e){} }, 200);
-
-  // 日ごとに、場所のある予定を時刻順で
+/* ----- 地図（Googleマップ埋め込み・キー不要。日本のお店もそのままヒット） ----- */
+let _mapDay = null;
+function mapDays(t){
   const dayList = rangeDates(t.startDate, t.endDate);
   const extra = [...new Set((t.items||[]).map(i=>i.date).filter(Boolean))].filter(d=>!dayList.includes(d));
   const days = [...dayList, ...extra].sort();
-  const useDays = days.length? days : [t.startDate||'__none__'];
-
-  (async()=>{
-    const allLatLng = [];
-    const failed = [];
-    const legend = [];
-    for(let di=0; di<useDays.length; di++){
-      const date = useDays[di];
-      const color = DAY_COLORS[di % DAY_COLORS.length];
-      const dayItems = (t.items||[]).filter(i=> (i.date||t.startDate||'__none__')===date && i.place)
-        .sort((a,b)=> effOrder(a)-effOrder(b));
-      if(!dayItems.length) continue;
-      const line = [];
-      let n=0;
-      for(const it of dayItems){
-        if(route.name!=='trip' || route.tripId!==t.id || route.tab!=='map') return; // 画面を離れたら中断
-        n++;
-        const c = await geocode(geoCacheKey(t, it.place));
-        if(!c){ failed.push(it.place); continue; }
-        allLatLng.push(c); line.push(c);
-        const icon = L.divIcon({ className:'', html:`<div class="pin" style="background:${color}"><b>${n}</b></div>`, iconSize:[24,24], iconAnchor:[12,24], popupAnchor:[0,-22] });
-        const dayLabel = date==='__none__'? '' : `Day${di+1} `;
-        L.marker(c, {icon}).addTo(map).bindPopup(`<b>${esc(it.title||it.place)}</b><br>${dayLabel}${it.time?esc(it.time)+' ':''}${esc(it.place)}`);
-      }
-      if(line.length>=2) L.polyline(line, {color, weight:3, opacity:.7}).addTo(map);
-      if(line.length) legend.push(`<span><i style="background:${color}"></i>${date==='__none__'?'予定':'Day'+(di+1)}</span>`);
-      if(line.length) try{ map.fitBounds(allLatLng, {padding:[40,40], maxZoom:15}); }catch(e){}
-    }
-    const lg=document.getElementById('mapLegend'); if(lg) lg.innerHTML=legend.join('');
-    const note=document.getElementById('mapNote');
-    if(note){
-      if(!allLatLng.length) note.textContent='場所を地図に表示できませんでした（地名が見つからないかも）。';
-      else note.innerHTML = '数字は1日の中の順番です。'+(failed.length? '<br>📍 見つからなかった場所: '+failed.map(esc).join('、') : '');
-    }
-  })();
+  return days.length? days : [t.startDate||'__none__'];
 }
-function geoCacheKey(t, place){
-  const tok=(t.destination||'').split(/[・、,／/\s〜~]/)[0].trim();
-  return place + (tok && !place.includes(tok) ? ' '+tok : '');
+function dayPlaceItems(t, date){
+  return (t.items||[]).filter(i=> (i.date||t.startDate||'__none__')===date && i.place)
+    .sort((a,b)=> effOrder(a)-effOrder(b));
+}
+function mapEmbedSrc(t, items){
+  const q = p => mapQ(t, p);   // 場所＋行き先で精度UP（encodeURIComponent済み）
+  if(items.length===1) return `https://www.google.com/maps?q=${q(items[0].place)}&z=15&hl=ja&output=embed`;
+  const saddr = q(items[0].place);
+  const daddr = items.slice(1).map(i=>q(i.place)).join('+to:');   // 経由地つき
+  return `https://www.google.com/maps?saddr=${saddr}&daddr=${daddr}&dirflg=r&hl=ja&output=embed`;
+}
+function mapRouteUrl(t, items){   // 本物のGoogleマップを開く（経由地つき・確実）
+  const q = p => mapQ(t, p);
+  if(items.length===1) return `https://www.google.com/maps/search/?api=1&query=${q(items[0].place)}`;
+  const origin=q(items[0].place), dest=q(items[items.length-1].place);
+  const way = items.slice(1,-1).map(i=>q(i.place)).join('%7C');   // %7C = |
+  return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}&travelmode=transit`+(way?`&waypoints=${way}`:'');
+}
+function renderMap(t){
+  const useDays = mapDays(t);
+  const withPlaces = useDays.filter(d=> dayPlaceItems(t,d).length>0);
+  if(!withPlaces.length){
+    return `<div class="empty" style="padding:50px 0;"><span class="big">🗺</span>予定に「場所」を入れると<br>その日のルートを地図に表示します</div>`;
+  }
+  const sel = withPlaces.includes(_mapDay)? _mapDay : withPlaces[0];
+  const chips = withPlaces.map(d=>{
+    const label = d==='__none__'? '予定' : 'Day'+(useDays.indexOf(d)+1);
+    return `<button data-mapday="${esc(d)}" class="${d===sel?'on':''}">${label}</button>`;
+  }).join('');
+  const items = dayPlaceItems(t, sel);
+  const src = mapEmbedSrc(t, items);
+  const routeUrl = mapRouteUrl(t, items);
+  return `${withPlaces.length>1?`<div class="map-days">${chips}</div>`:''}
+    <a class="map-open" href="${routeUrl}" target="_blank" rel="noopener">↗ この日のルートをGoogleマップで開く</a>
+    <div id="map"><iframe loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${src}"></iframe></div>
+    <div class="map-note">📍 地図はGoogleマップのプレビュー（${items.length}か所）。うまく出ないときは上の「Googleマップで開く」か、各予定の「🚶 道順」が確実です。</div>`;
+}
+function bindMap(t){
+  if(route.tab!=='map') return;
+  document.querySelectorAll('.map-days button').forEach(b=> b.onclick=()=>{ _mapDay=b.dataset.mapday; render(); });
 }
 
 /* ============ シート（フォーム） ============ */
@@ -906,8 +879,6 @@ function openItemForm(t, item, presetDate){
       <div class="hint">地図ピンと「🗺地図・🚶道順」リンクは、この場所から自動で作られます。</div></div>
     <div class="field"><label>🚃 移動・交通メモ</label><input type="text" id="i-trans" value="${esc(item.transport)}" placeholder="例: 京都駅から市バス206系統で15分">
       <div class="hint">何で行くか・乗り換えのメモ（行き方そのものを書く欄）。</div></div>
-    <div class="field"><label>🔗 予約・参考リンク</label><input type="url" id="i-url" value="${esc(item.url)}" placeholder="https://…">
-      <div class="hint">予約確認メールや公式サイトのURLを貼る欄（地図は場所から自動なので不要）。</div></div>
     <div class="field-2">
       <div class="field"><label>費用</label><input type="number" inputmode="numeric" id="i-cost" value="${esc(item.cost)}" placeholder="¥"></div>
       <div class="field"><label>支払</label><select id="i-payer">${payerOpts}</select></div>
@@ -927,7 +898,7 @@ function openItemForm(t, item, presetDate){
     if(newTime!==item.time) delete item.order;   // 時刻を変えたら手動並べ替えを解除
     item.date=$('#i-date').value; item.time=newTime; item.endTime=$('#i-end').value; item.type=pickedType;
     item.title=$('#i-title').value.trim(); item.place=$('#i-place').value.trim();
-    item.transport=$('#i-trans').value.trim(); item.url=$('#i-url').value.trim();
+    item.transport=$('#i-trans').value.trim();
     item.cost = costRaw===''?0:Number(costRaw); item.payer=$('#i-payer').value; item.note=$('#i-note').value.trim();
     save(); flashSaved();
   };
