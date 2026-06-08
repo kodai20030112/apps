@@ -29,6 +29,7 @@ APPS = {
     "career":      ("🗂️", "#4db6ac", "#00897b"),
     "tsugi":       ("⏰", "#5fd3c3", "#15a892"),
     "copybox":     ("📋", "#7fa8ff", "#4d6fe0"),
+    "tabinoki":    ("🌴", "#3fd4c4", "#0d9488"),
 }
 
 

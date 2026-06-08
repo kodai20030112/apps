@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+<link rel="apple-touch-icon" href="icons/icon-tabinoki.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="たびのき">
+<meta name="theme-color" content="#0d9488">
+<title>たびのき — ふたりの旅のしおり</title>
+<style>
+  :root{
+    --bg:#f3f6f6; --card:#ffffff; --ink:#16211f; --sub:#6b7c79;
+    --line:#e4ebea; --accent:#0d9488; --accent-soft:#d6f0ec; --accent-ink:#0a766c;
+    --radius:20px; --warn:#e8843b;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{overscroll-behavior-y:none;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Helvetica Neue",Arial,sans-serif;
+    background:var(--bg); color:var(--ink);
+    line-height:1.6; -webkit-font-smoothing:antialiased;
+    padding:env(safe-area-inset-top) 0 calc(env(safe-area-inset-bottom) + 40px);
+  }
+  .wrap{max-width:680px; margin:0 auto; padding:0 16px;}
+  button{font-family:inherit; cursor:pointer; border:none; background:none; color:inherit;}
+  input,textarea,select{font-family:inherit; font-size:16px;}
+  a{color:var(--accent-ink);}
+
+  /* ===== トップバー ===== */
+  .topbar{position:sticky; top:0; z-index:50; background:rgba(243,246,246,.86);
+    backdrop-filter:saturate(160%) blur(14px); -webkit-backdrop-filter:saturate(160%) blur(14px);
+    border-bottom:1px solid var(--line);}
+  .topbar .inner{max-width:680px; margin:0 auto; padding:10px 12px;
+    display:flex; align-items:center; gap:8px; min-height:52px;}
+  .tb-title{font-size:18px; font-weight:700; letter-spacing:-.01em; flex:1; min-width:0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .tb-btn{font-size:15px; color:var(--accent-ink); font-weight:600; padding:8px 6px; flex:0 0 auto;}
+  .tb-btn.back{display:flex; align-items:center; gap:2px;}
+  .who-chip{flex:0 0 auto; font-size:13px; font-weight:600; color:var(--accent-ink);
+    background:var(--accent-soft); border-radius:999px; padding:5px 11px;}
+
+  /* ===== ホーム ===== */
+  header.home{padding:26px 4px 14px; text-align:center;}
+  header.home .logo{font-size:46px; line-height:1;}
+  header.home h1{font-size:27px; font-weight:800; letter-spacing:-.02em; margin-top:8px;}
+  header.home .tagline{color:var(--sub); font-size:14px; margin-top:6px;}
+
+  .add-trip{display:flex; align-items:center; justify-content:center; gap:8px;
+    width:100%; background:var(--accent); color:#fff; font-size:16px; font-weight:700;
+    border-radius:16px; padding:15px; margin:14px 0 4px;
+    box-shadow:0 6px 18px rgba(13,148,136,.28); transition:transform .12s ease;}
+  .add-trip:active{transform:scale(.97);}
+
+  .trips{display:flex; flex-direction:column; gap:13px; margin-top:18px;}
+  .trip-card{display:block; width:100%; text-align:left; background:var(--card);
+    border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+    transition:transform .12s ease, box-shadow .12s ease;}
+  .trip-card:active{transform:scale(.985);}
+  @media(hover:hover){ .trip-card:hover{box-shadow:0 10px 26px rgba(0,0,0,.07);} }
+  .trip-top{display:flex; align-items:center; gap:14px; padding:16px 16px 12px;}
+  .trip-emoji{font-size:30px; width:56px; height:56px; flex:0 0 auto; border-radius:16px;
+    display:flex; align-items:center; justify-content:center; background:var(--accent-soft);}
+  .trip-meta{min-width:0; flex:1;}
+  .trip-name{font-size:18px; font-weight:700; letter-spacing:-.01em; line-height:1.25;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .trip-dest{font-size:13px; color:var(--sub); margin-top:1px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .trip-foot{display:flex; align-items:center; gap:10px; padding:0 16px 14px; flex-wrap:wrap;}
+  .pill{font-size:12px; font-weight:600; color:var(--sub); background:var(--bg);
+    border-radius:999px; padding:4px 10px;}
+  .pill.count-d{color:#fff; background:var(--accent);}
+  .pill.count-soon{color:#fff; background:var(--warn);}
+
+  .empty{text-align:center; color:var(--sub); padding:60px 20px;}
+  .empty .big{font-size:50px; display:block; margin-bottom:12px;}
+
+  /* ===== 旅詳細 ===== */
+  .trip-hero{background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px; margin:14px 0;}
+  .trip-hero .h-emoji{font-size:34px;}
+  .trip-hero h2{font-size:22px; font-weight:800; letter-spacing:-.02em; margin-top:6px;}
+  .trip-hero .h-sub{color:var(--sub); font-size:14px; margin-top:4px;}
+  .trip-hero .h-note{font-size:14px; margin-top:10px; white-space:pre-wrap; color:#3a4a47;}
+  .trip-hero .h-edit{margin-top:12px; font-size:13px; font-weight:600; color:var(--accent-ink);}
+
+  .tabs{display:flex; gap:6px; background:var(--card); border:1px solid var(--line);
+    border-radius:14px; padding:4px; margin-bottom:16px; position:sticky;
+    top:calc(env(safe-area-inset-top) + 60px); z-index:30;}
+  .tabs button{flex:1; font-size:14px; font-weight:600; color:var(--sub);
+    padding:9px 4px; border-radius:10px; transition:.15s;}
+  .tabs button.on{background:var(--accent-soft); color:var(--accent-ink);}
+
+  /* しおり（タイムライン） */
+  .day-block{margin-bottom:22px;}
+  .day-head{display:flex; align-items:baseline; gap:9px; padding:0 2px 8px;}
+  .day-num{font-size:15px; font-weight:800; color:var(--accent-ink);
+    background:var(--accent-soft); border-radius:8px; padding:2px 9px;}
+  .day-date{font-size:14px; font-weight:600;}
+  .day-dow{font-size:13px; color:var(--sub);}
+
+  .tl{position:relative; padding-left:2px;}
+  .ev{position:relative; display:flex; gap:12px; padding:0 0 4px;}
+  .ev .rail{position:relative; flex:0 0 auto; width:46px; text-align:right;}
+  .ev .time{font-size:13px; font-weight:700; color:var(--ink); white-space:nowrap;}
+  .ev .body{flex:1; min-width:0; background:var(--card); border:1px solid var(--line);
+    border-radius:14px; padding:12px 13px; margin-bottom:11px; position:relative;}
+  .ev .body:active{background:#fafcfc;}
+  .ev .e-line{display:flex; align-items:center; gap:8px;}
+  .ev .e-emoji{font-size:18px; flex:0 0 auto;}
+  .ev .e-title{font-size:15.5px; font-weight:700; line-height:1.3; min-width:0; flex:1;}
+  .ev .e-place{font-size:13px; color:var(--sub); margin-top:2px;}
+  .ev .e-trans{font-size:13px; color:var(--accent-ink); margin-top:6px;
+    background:var(--accent-soft); border-radius:8px; padding:5px 9px; display:inline-block;}
+  .ev .e-row{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; align-items:center;}
+  .ev .tag{font-size:12px; color:var(--sub); background:var(--bg); border-radius:999px; padding:3px 9px;}
+  .ev .tag.link{color:var(--accent-ink); background:var(--accent-soft);}
+  .ev .e-note{font-size:13.5px; margin-top:8px; white-space:pre-wrap; color:#3a4a47;}
+
+  /* コメント */
+  .cmts{margin-top:10px; border-top:1px dashed var(--line); padding-top:9px;}
+  .cmt{display:flex; gap:7px; font-size:13px; margin-bottom:6px;}
+  .cmt .c-who{font-weight:700; flex:0 0 auto;}
+  .cmt .c-who.kodai{color:#2f6fd0;} .cmt .c-who.yuzu{color:#e8843b;}
+  .cmt .c-body{min-width:0; white-space:pre-wrap;}
+  .cmt .c-del{margin-left:auto; color:#c7c7cc; flex:0 0 auto; padding:0 4px;}
+  .cmt-add{display:flex; gap:7px; margin-top:8px;}
+  .cmt-add input{flex:1; border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:14px;}
+  .cmt-add button{flex:0 0 auto; color:var(--accent-ink); font-weight:700; font-size:14px; padding:0 6px;}
+
+  .add-ev{display:flex; align-items:center; gap:7px; color:var(--accent-ink);
+    font-size:14px; font-weight:600; padding:8px 6px; margin-left:58px;}
+
+  /* 持ち物 */
+  .check-list{display:flex; flex-direction:column; gap:2px;}
+  .check{display:flex; align-items:center; gap:12px; padding:13px 6px; border-bottom:1px solid var(--line);}
+  .check .box{width:24px; height:24px; flex:0 0 auto; border-radius:7px; border:2px solid var(--line);
+    display:flex; align-items:center; justify-content:center; font-size:15px; color:#fff;}
+  .check.done .box{background:var(--accent); border-color:var(--accent);}
+  .check .ctext{flex:1; font-size:15px; min-width:0;}
+  .check.done .ctext{color:var(--sub); text-decoration:line-through;}
+  .check .cwho{font-size:11px; color:var(--sub); flex:0 0 auto;}
+  .check .cdel{color:#c7c7cc; flex:0 0 auto; padding:4px;}
+  .add-row{display:flex; gap:8px; margin-top:14px;}
+  .add-row input{flex:1; border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:var(--card);}
+  .add-row button{flex:0 0 auto; background:var(--accent); color:#fff; font-weight:700;
+    border-radius:12px; padding:0 18px;}
+  .progress{font-size:13px; color:var(--sub); margin-bottom:6px; padding:0 2px;}
+
+  /* 費用 */
+  .cost-sum{background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px; margin-bottom:14px;}
+  .cost-total{font-size:30px; font-weight:800; letter-spacing:-.02em;}
+  .cost-total small{font-size:15px; font-weight:600; color:var(--sub); margin-left:3px;}
+  .cost-split{display:flex; gap:10px; margin-top:14px;}
+  .cost-cell{flex:1; background:var(--bg); border-radius:12px; padding:11px 13px;}
+  .cost-cell b{font-size:19px; font-weight:800; display:block; letter-spacing:-.01em;}
+  .cost-cell span{font-size:12px; color:var(--sub);}
+  .cost-row{display:flex; align-items:center; gap:10px; padding:12px 4px; border-bottom:1px solid var(--line);}
+  .cost-row .cr-emoji{font-size:17px; flex:0 0 auto;}
+  .cost-row .cr-t{flex:1; min-width:0;}
+  .cost-row .cr-name{font-size:14.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .cost-row .cr-meta{font-size:12px; color:var(--sub);}
+  .cost-row .cr-amt{font-size:15px; font-weight:700; flex:0 0 auto;}
+
+  /* ===== モーダル / シート ===== */
+  .overlay{position:fixed; inset:0; z-index:100; background:rgba(20,30,28,.4);
+    display:none; align-items:flex-end; justify-content:center;}
+  .overlay.on{display:flex;}
+  .sheet{background:var(--card); width:100%; max-width:680px;
+    border-radius:22px 22px 0 0; padding:8px 18px calc(env(safe-area-inset-bottom) + 22px);
+    max-height:92vh; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    animation:slideup .26s cubic-bezier(.22,.61,.36,1);}
+  @keyframes slideup{from{transform:translateY(100%);}to{transform:translateY(0);}}
+  .grab{width:38px; height:5px; background:#d6dedd; border-radius:3px; margin:8px auto 14px;}
+  .sheet h3{font-size:19px; font-weight:800; letter-spacing:-.01em; margin-bottom:14px;}
+  .field{margin-bottom:13px;}
+  .field label{display:block; font-size:13px; font-weight:600; color:var(--sub); margin-bottom:5px;}
+  .field input, .field textarea, .field select{width:100%; border:1px solid var(--line);
+    border-radius:12px; padding:12px 13px; background:#fafcfc;}
+  .field textarea{min-height:74px; resize:vertical; line-height:1.5;}
+  .field-2{display:flex; gap:10px;} .field-2 .field{flex:1;}
+  .type-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
+  .type-grid button{display:flex; flex-direction:column; align-items:center; gap:3px;
+    border:1.5px solid var(--line); border-radius:12px; padding:10px 4px; font-size:12px; color:var(--sub);}
+  .type-grid button .te{font-size:21px;}
+  .type-grid button.on{border-color:var(--accent); background:var(--accent-soft); color:var(--accent-ink); font-weight:700;}
+  .emoji-pick{display:flex; gap:8px; flex-wrap:wrap;}
+  .emoji-pick button{font-size:23px; width:44px; height:44px; border-radius:12px; border:1.5px solid var(--line);}
+  .emoji-pick button.on{border-color:var(--accent); background:var(--accent-soft);}
+  .sheet-actions{display:flex; gap:10px; margin-top:18px;}
+  .btn-primary{flex:1; background:var(--accent); color:#fff; font-weight:700; font-size:16px;
+    border-radius:14px; padding:14px;}
+  .btn-ghost{flex:0 0 auto; color:var(--sub); font-weight:600; font-size:15px; padding:14px 16px;}
+  .btn-danger{width:100%; color:#e0483b; font-weight:600; font-size:15px; padding:13px; margin-top:6px;}
+  .who-pick{display:flex; gap:12px;}
+  .who-pick button{flex:1; border:1.5px solid var(--line); border-radius:16px; padding:20px 10px;
+    font-size:17px; font-weight:700;}
+  .who-pick button .we{font-size:32px; display:block; margin-bottom:6px;}
+  .who-pick button.kodai.on{border-color:#2f6fd0; background:#eaf2fd; color:#2f6fd0;}
+  .who-pick button.yuzu.on{border-color:#e8843b; background:#fdf0e6; color:#e8843b;}
+
+  .toast{position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom) + 26px);
+    transform:translateX(-50%) translateY(20px); background:#16211f; color:#fff;
+    font-size:14px; padding:11px 20px; border-radius:999px; opacity:0; pointer-events:none;
+    transition:.25s; z-index:200; box-shadow:0 8px 24px rgba(0,0,0,.2);}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  .sync-note{font-size:12px; color:var(--sub); text-align:center; margin:24px 0 8px; line-height:1.7;}
+  .offline-badge{display:inline-block; font-size:11px; color:var(--warn); margin-left:6px;}
+  .hidden{display:none !important;}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="inner" id="topbar"></div></div>
+
+<main class="wrap" id="view"></main>
+
+<!-- 汎用シート -->
+<div class="overlay" id="overlay"><div class="sheet" id="sheet"></div></div>
+<!-- 本人選択 -->
+<div class="overlay" id="whoOverlay"><div class="sheet">
+  <div class="grab"></div>
+  <h3>あなたはどっち？ 🌴</h3>
+  <p style="color:var(--sub); font-size:14px; margin:-6px 0 16px;">ふたりで共有する旅のしおりです。記録するときの名前を選んでね。</p>
+  <div class="who-pick">
+    <button class="kodai" data-who="こうだい"><span class="we">🧑</span>こうだい</button>
+    <button class="yuzu" data-who="ゆずは"><span class="we">👩</span>ゆずは</button>
+  </div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ============ Supabase（ゆずごはんと同じプロジェクト） ============ */
+const SUPABASE_URL  = 'https://okbjqtdirrathscctyvx.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rYmpxdGRpcnJhdGhzY2N0eXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMjI4NTIsImV4cCI6MjA5NTg5ODg1Mn0.T-1AOK6vCD6uGdqrVGXjPui3L6WPSNrnygS-IHyfZ6Y';
+const sb = (window.supabase && window.supabase.createClient) ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON) : null;
+const STATE_TABLE = 'tabinoki_state';
+const STATE_ID = 'shared';          // ふたり共有の1行
+const LS_KEY = 'tabinoki_db_v1';
+const WHO_KEY = 'tabinoki_who';
+
+/* ============ ユーティリティ ============ */
+const $ = s=>document.querySelector(s);
+const uid = ()=> Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1700);}
+
+const DOW = ['日','月','火','水','木','金','土'];
+function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function parseYmd(s){ if(!s) return null; const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
+function fmtDate(s){ const d=parseYmd(s); if(!d) return ''; return (d.getMonth()+1)+'/'+d.getDate(); }
+function fmtDow(s){ const d=parseYmd(s); return d?DOW[d.getDay()]:''; }
+function todayYmd(){ return ymd(new Date()); }
+function daysBetween(a,b){ // a,b: Date → 日数差
+  const ms = parseYmd(b)-parseYmd(a); return Math.round(ms/86400000);
+}
+function rangeDates(start,end){ // YYYY-MM-DD 配列（含む両端）
+  const out=[]; if(!start) return out;
+  const s=parseYmd(start), e=parseYmd(end||start);
+  if(e<s) return [start];
+  for(let d=new Date(s); d<=e; d.setDate(d.getDate()+1)) out.push(ymd(new Date(d)));
+  return out;
+}
+function yen(n){ return '¥'+Number(n||0).toLocaleString('ja-JP'); }
+
+const TYPES = {
+  move:  {emoji:'🚃', label:'移動'},
+  spot:  {emoji:'📸', label:'観光'},
+  food:  {emoji:'🍽️', label:'ごはん'},
+  stay:  {emoji:'🏨', label:'宿'},
+  play:  {emoji:'🎡', label:'あそび'},
+  shop:  {emoji:'🛍️', label:'買い物'},
+  other: {emoji:'📌', label:'その他'},
+};
+const TRIP_EMOJIS = ['🌴','🗼','⛩️','🏖️','🏔️','🏯','🚢','✈️','🚗','🍜','♨️','🎡','🦌','🌸','🗺️','🏝️'];
+const PAYERS = ['こうだい','ゆずは','ふたり'];
+
+/* ============ 状態 ============ */
+let db = { trips: [] };
+let who = localStorage.getItem(WHO_KEY) || '';
+let online = false;
+let route = { name:'home', tripId:null, tab:'plan' };
+let lastPushed = '';   // 自分のupsertのエコーを無視するため
+
+/* ============ 永続化 ============ */
+function loadLocal(){ try{ const s=localStorage.getItem(LS_KEY); if(s) db=JSON.parse(s); }catch(e){} }
+let saveTimer=null;
+function save(){
+  localStorage.setItem(LS_KEY, JSON.stringify(db));
+  if(!sb) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async()=>{
+    const payload = JSON.stringify(db);
+    lastPushed = payload;
+    const { error } = await sb.from(STATE_TABLE)
+      .upsert({ id:STATE_ID, state: db, updated_at:new Date().toISOString() });
+    if(error){ online=false; renderTopbar(); }
+  }, 350);
+}
+async function loadRemote(){
+  if(!sb) return false;
+  const { data, error } = await sb.from(STATE_TABLE).select('state').eq('id', STATE_ID).maybeSingle();
+  if(error){ online=false; return false; }
+  online = true;
+  if(data && data.state && typeof data.state==='object'){
+    // ローカルに何か未保存があり、リモートが空なら自分を残す。基本はリモート優先。
+    db = data.state;
+    if(!Array.isArray(db.trips)) db.trips=[];
+    localStorage.setItem(LS_KEY, JSON.stringify(db));
+  }
+  return true;
+}
+function subscribeRealtime(){
+  if(!sb) return;
+  sb.channel('tabinoki-rt')
+    .on('postgres_changes', { event:'*', schema:'public', table:STATE_TABLE, filter:'id=eq.'+STATE_ID },
+      (payload)=>{
+        const incoming = JSON.stringify((payload.new && payload.new.state) || {});
+        if(incoming === lastPushed) return;          // 自分の書き込みのエコー
+        if(payload.new && payload.new.state){
+          db = payload.new.state;
+          if(!Array.isArray(db.trips)) db.trips=[];
+          localStorage.setItem(LS_KEY, JSON.stringify(db));
+          render();                                   // 画面を最新化（モーダル中でも背面更新）
+          toast('🔄 更新されました');
+        }
+      })
+    .subscribe();
+}
+
+/* ============ 取得ヘルパ ============ */
+const getTrip = id => db.trips.find(t=>t.id===id);
+
+/* ============ ルーティング ============ */
+function go(name, tripId, tab){
+  route = { name, tripId:tripId||null, tab: tab||'plan' };
+  window.scrollTo(0,0);
+  render();
+}
+
+/* ============ レンダリング ============ */
+function render(){ renderTopbar(); (route.name==='trip'?renderTrip:renderHome)(); }
+
+function renderTopbar(){
+  const bar = $('#topbar');
+  const whoChip = who ? `<button class="who-chip" id="whoBtn">${esc(who)}</button>` : '';
+  const off = online ? '' : '<span class="offline-badge">●この端末のみ</span>';
+  if(route.name==='trip'){
+    bar.innerHTML = `<button class="tb-btn back" id="homeBtn">‹ 一覧</button>
+      <span class="tb-title">たびのき${off}</span>${whoChip}`;
+    $('#homeBtn').onclick = ()=>go('home');
+  } else {
+    bar.innerHTML = `<span class="tb-title">たびのき 🌴${off}</span>${whoChip}`;
+  }
+  const wb=$('#whoBtn'); if(wb) wb.onclick=openWho;
+}
+
+function renderHome(){
+  const v = $('#view');
+  const trips = [...db.trips].sort((a,b)=>(a.startDate||'9999').localeCompare(b.startDate||'9999'));
+  let cards;
+  if(!trips.length){
+    cards = `<div class="empty"><span class="big">🌴</span>まだ旅がありません。<br>下のボタンから最初の旅を作ろう！</div>`;
+  } else {
+    cards = `<div class="trips">` + trips.map(t=>{
+      const dates = (t.startDate? fmtDate(t.startDate)+(t.endDate&&t.endDate!==t.startDate?' 〜 '+fmtDate(t.endDate):'') : '日程未定');
+      const evCount = (t.items||[]).length;
+      let cd='';
+      if(t.startDate){
+        const d = daysBetween(todayYmd(), t.startDate);
+        if(d>0) cd = `<span class="pill ${d<=7?'count-soon':'count-d'}">あと${d}日</span>`;
+        else if(d===0) cd = `<span class="pill count-soon">今日から！</span>`;
+        else if(t.endDate && daysBetween(todayYmd(), t.endDate)>=0) cd = `<span class="pill count-soon">旅行中 🎒</span>`;
+        else cd = `<span class="pill">おわった旅</span>`;
+      }
+      return `<button class="trip-card" data-id="${t.id}">
+        <div class="trip-top">
+          <span class="trip-emoji">${esc(t.emoji||'🌴')}</span>
+          <span class="trip-meta">
+            <span class="trip-name">${esc(t.title||'無題の旅')}</span>
+            <span class="trip-dest">${esc(t.destination||'')||'&nbsp;'}</span>
+          </span>
+        </div>
+        <div class="trip-foot">${cd}<span class="pill">📅 ${esc(dates)}</span><span class="pill">📍 ${evCount}件の予定</span></div>
+      </button>`;
+    }).join('') + `</div>`;
+  }
+  v.innerHTML = `
+    <header class="home">
+      <div class="logo">🌴</div>
+      <h1>たびのき</h1>
+      <p class="tagline">ふたりで作る旅のしおり</p>
+    </header>
+    <button class="add-trip" id="addTrip">＋ 新しい旅を作る</button>
+    ${cards}
+    <p class="sync-note">${online?'☁️ ふたりのスマホで自動同期されています':'⚠️ いまはこの端末だけに保存中。<br>同期テーブルを作るとゆずちゃんと共有できます'}</p>`;
+  $('#addTrip').onclick = ()=>openTripForm();
+  v.querySelectorAll('.trip-card').forEach(c=> c.onclick=()=>go('trip', c.dataset.id, 'plan'));
+}
+
+function renderTrip(){
+  const t = getTrip(route.tripId);
+  if(!t){ go('home'); return; }
+  const v = $('#view');
+  const dates = (t.startDate? fmtDate(t.startDate)+'('+fmtDow(t.startDate)+')'+(t.endDate&&t.endDate!==t.startDate?' 〜 '+fmtDate(t.endDate)+'('+fmtDow(t.endDate)+')':'') : '日程未定');
+  const nights = (t.startDate&&t.endDate)? Math.max(0, daysBetween(t.startDate,t.endDate)) : 0;
+  const nightLabel = nights>0 ? `（${nights}泊${nights+1}日）` : '';
+  const hero = `<div class="trip-hero">
+      <div class="h-emoji">${esc(t.emoji||'🌴')}</div>
+      <h2>${esc(t.title||'無題の旅')}</h2>
+      <div class="h-sub">${t.destination?'📍 '+esc(t.destination)+'　':''}📅 ${esc(dates)} ${nightLabel}</div>
+      ${t.memo?`<div class="h-note">${esc(t.memo)}</div>`:''}
+      <div class="h-edit" id="editTrip">✎ 旅の情報を編集</div>
+    </div>`;
+  const tabs = `<div class="tabs">
+      <button data-tab="plan" class="${route.tab==='plan'?'on':''}">🗓 しおり</button>
+      <button data-tab="pack" class="${route.tab==='pack'?'on':''}">🎒 持ち物</button>
+      <button data-tab="cost" class="${route.tab==='cost'?'on':''}">💰 費用</button>
+    </div>`;
+  let body='';
+  if(route.tab==='plan') body = renderPlan(t);
+  else if(route.tab==='pack') body = renderPack(t);
+  else body = renderCost(t);
+
+  v.innerHTML = hero + tabs + `<div id="tabbody">${body}</div>`;
+  $('#editTrip').onclick = ()=>openTripForm(t);
+  v.querySelectorAll('.tabs button').forEach(b=> b.onclick=()=>{ route.tab=b.dataset.tab; render(); });
+  bindPlan(t); bindPack(t); bindCost(t);
+}
+
+/* ----- しおり（タイムライン） ----- */
+function renderPlan(t){
+  const items = t.items||[];
+  const dayList = rangeDates(t.startDate, t.endDate);
+  // 日程未定でも、itemsに付いている日付を拾う
+  const extra = [...new Set(items.map(i=>i.date).filter(Boolean))].filter(d=>!dayList.includes(d));
+  const days = [...dayList, ...extra].sort();
+  const useDays = days.length? days : [t.startDate||'__none__'];
+
+  let html='';
+  useDays.forEach((date, idx)=>{
+    const dayItems = items.filter(i=> (i.date||t.startDate||'__none__')===date)
+      .sort((a,b)=> (a.time||'99:99').localeCompare(b.time||'99:99'));
+    const dnum = date==='__none__'? '' : `<span class="day-num">Day ${idx+1}</span>`;
+    const dlabel = date==='__none__'? '<span class="day-date">予定</span>'
+      : `<span class="day-date">${fmtDate(date)}</span><span class="day-dow">(${fmtDow(date)})</span>`;
+    html += `<div class="day-block">
+      <div class="day-head">${dnum}${dlabel}</div>
+      <div class="tl">${dayItems.map(i=>evHtml(t,i)).join('') || '<div style="color:var(--sub);font-size:13px;padding:4px 0 8px 58px;">まだ予定なし</div>'}
+        <div class="add-ev" data-add="${date}">＋ 予定を追加</div>
+      </div></div>`;
+  });
+  return html;
+}
+function evHtml(t,i){
+  const ty = TYPES[i.type]||TYPES.other;
+  const tags=[];
+  if(i.url) tags.push(`<a class="tag link" href="${esc(i.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 リンク</a>`);
+  if(i.cost) tags.push(`<span class="tag">${yen(i.cost)}${i.payer?'・'+esc(i.payer):''}</span>`);
+  const comments = (i.comments||[]);
+  const cmtHtml = comments.map(c=>`<div class="cmt">
+      <span class="c-who ${c.who==='こうだい'?'kodai':'yuzu'}">${esc(c.who)}</span>
+      <span class="c-body">${esc(c.body)}</span>
+      <button class="c-del" data-delc="${i.id}|${c.id}" onclick="event.stopPropagation()">×</button>
+    </div>`).join('');
+  return `<div class="ev"><div class="rail"><span class="time">${esc(i.time||'')}</span></div>
+    <div class="body" data-edit="${i.id}">
+      <div class="e-line"><span class="e-emoji">${ty.emoji}</span><span class="e-title">${esc(i.title||ty.label)}</span></div>
+      ${i.place?`<div class="e-place">📍 ${esc(i.place)}</div>`:''}
+      ${i.transport?`<div class="e-trans">🚃 ${esc(i.transport)}</div>`:''}
+      ${i.note?`<div class="e-note">${esc(i.note)}</div>`:''}
+      ${tags.length?`<div class="e-row">${tags.join('')}</div>`:''}
+      <div class="cmts" onclick="event.stopPropagation()">
+        ${cmtHtml}
+        <div class="cmt-add">
+          <input type="text" placeholder="ひとことメモ…" data-cmt="${i.id}">
+          <button data-cmtbtn="${i.id}">送信</button>
+        </div>
+      </div>
+    </div></div>`;
+}
+function bindPlan(t){
+  if(route.tab!=='plan') return;
+  const v=$('#view');
+  v.querySelectorAll('[data-add]').forEach(b=> b.onclick=()=>openItemForm(t, null, b.dataset.add==='__none__'?'':b.dataset.add));
+  v.querySelectorAll('[data-edit]').forEach(b=> b.onclick=()=>{
+    const it=(t.items||[]).find(x=>x.id===b.dataset.edit); if(it) openItemForm(t, it);
+  });
+  v.querySelectorAll('[data-cmtbtn]').forEach(b=> b.onclick=()=>{
+    if(!who){ openWho(); return; }
+    const inp=v.querySelector(`[data-cmt="${b.dataset.cmtbtn}"]`); const body=inp.value.trim();
+    if(!body) return;
+    const it=(t.items||[]).find(x=>x.id===b.dataset.cmtbtn); if(!it) return;
+    it.comments = it.comments||[]; it.comments.push({id:uid(), who, body, ts:Date.now()});
+    save(); render();
+  });
+  v.querySelectorAll('[data-delc]').forEach(b=> b.onclick=()=>{
+    const [iid,cid]=b.dataset.delc.split('|');
+    const it=(t.items||[]).find(x=>x.id===iid); if(!it) return;
+    it.comments=(it.comments||[]).filter(c=>c.id!==cid); save(); render();
+  });
+}
+
+/* ----- 持ち物 ----- */
+function renderPack(t){
+  const list = t.checklist||[];
+  const done = list.filter(x=>x.done).length;
+  const rows = list.map(c=>`<div class="check ${c.done?'done':''}" data-toggle="${c.id}">
+      <span class="box">${c.done?'✓':''}</span>
+      <span class="ctext">${esc(c.text)}</span>
+      ${c.who?`<span class="cwho">${esc(c.who)}</span>`:''}
+      <button class="cdel" data-delp="${c.id}">×</button>
+    </div>`).join('');
+  return `${list.length?`<div class="progress">${done} / ${list.length} 準備OK</div>`:''}
+    <div class="check-list">${rows || '<div class="empty" style="padding:36px 0;"><span class="big">🎒</span>持ち物を追加しよう</div>'}</div>
+    <div class="add-row"><input type="text" id="packInput" placeholder="持ち物を追加（例: 充電器）"><button id="packAdd">追加</button></div>`;
+}
+function bindPack(t){
+  if(route.tab!=='pack') return;
+  const v=$('#view');
+  const add=()=>{
+    const inp=$('#packInput'); const text=inp.value.trim(); if(!text) return;
+    t.checklist=t.checklist||[]; t.checklist.push({id:uid(), text, done:false, who});
+    save(); render(); setTimeout(()=>{const n=$('#packInput'); if(n) n.focus();},30);
+  };
+  $('#packAdd').onclick=add;
+  $('#packInput').onkeydown=e=>{ if(e.key==='Enter') add(); };
+  v.querySelectorAll('[data-toggle]').forEach(b=> b.onclick=()=>{
+    const c=(t.checklist||[]).find(x=>x.id===b.dataset.toggle); if(c){ c.done=!c.done; save(); render(); }
+  });
+  v.querySelectorAll('[data-delp]').forEach(b=> b.onclick=(e)=>{
+    e.stopPropagation();
+    t.checklist=(t.checklist||[]).filter(x=>x.id!==b.dataset.delp); save(); render();
+  });
+}
+
+/* ----- 費用 ----- */
+function renderCost(t){
+  const items=(t.items||[]).filter(i=>i.cost>0);
+  const total=items.reduce((s,i)=>s+Number(i.cost||0),0);
+  const by={'こうだい':0,'ゆずは':0,'ふたり':0,'':0};
+  items.forEach(i=> by[i.payer||'']=(by[i.payer||'']||0)+Number(i.cost||0));
+  const rows=[...items].sort((a,b)=>(a.date||'').localeCompare(b.date||''))
+    .map(i=>{const ty=TYPES[i.type]||TYPES.other; return `<div class="cost-row">
+      <span class="cr-emoji">${ty.emoji}</span>
+      <span class="cr-t"><span class="cr-name">${esc(i.title||ty.label)}</span>
+        <span class="cr-meta">${i.date?fmtDate(i.date)+' ':''}${i.payer?'・'+esc(i.payer):'支払者未設定'}</span></span>
+      <span class="cr-amt">${yen(i.cost)}</span></div>`;}).join('');
+  return `<div class="cost-sum">
+      <div class="cost-total">${yen(total)}<small>の旅</small></div>
+      <div class="cost-split">
+        <div class="cost-cell"><b>${yen(by['こうだい'])}</b><span>こうだい立替</span></div>
+        <div class="cost-cell"><b>${yen(by['ゆずは'])}</b><span>ゆずは立替</span></div>
+        <div class="cost-cell"><b>${yen(by['ふたり']+by[''])}</b><span>ふたり/未設定</span></div>
+      </div>
+    </div>
+    ${rows? rows : '<div class="empty" style="padding:30px 0;"><span class="big">💰</span>各予定に金額を入れると<br>ここに費用がまとまります</div>'}
+    <p class="sync-note">金額は「しおり」の各予定を編集して入力できます</p>`;
+}
+function bindCost(t){ /* 表示のみ */ }
+
+/* ============ シート（フォーム） ============ */
+const overlay = $('#overlay'), sheet = $('#sheet');
+function openSheet(html){ sheet.innerHTML = `<div class="grab"></div>`+html; overlay.classList.add('on'); }
+function closeSheet(){ overlay.classList.remove('on'); }
+overlay.onclick = e=>{ if(e.target===overlay) closeSheet(); };
+
+/* 旅の作成・編集 */
+function openTripForm(trip){
+  const isNew = !trip;
+  trip = trip || { id:uid(), title:'', destination:'', emoji:'🌴', startDate:'', endDate:'', memo:'', items:[], checklist:[] };
+  const emojiBtns = TRIP_EMOJIS.map(e=>`<button data-e="${e}" class="${e===trip.emoji?'on':''}">${e}</button>`).join('');
+  openSheet(`
+    <h3>${isNew?'新しい旅 🌴':'旅を編集'}</h3>
+    <div class="field"><label>旅の名前</label><input type="text" id="f-title" value="${esc(trip.title)}" placeholder="例: 京都ふたり旅"></div>
+    <div class="field"><label>行き先</label><input type="text" id="f-dest" value="${esc(trip.destination)}" placeholder="例: 京都・大阪"></div>
+    <div class="field-2">
+      <div class="field"><label>出発日</label><input type="date" id="f-start" value="${esc(trip.startDate)}"></div>
+      <div class="field"><label>帰る日</label><input type="date" id="f-end" value="${esc(trip.endDate)}"></div>
+    </div>
+    <div class="field"><label>アイコン</label><div class="emoji-pick" id="f-emoji">${emojiBtns}</div></div>
+    <div class="field"><label>メモ（自由）</label><textarea id="f-memo" placeholder="集合場所、予算、持ち物の方針など…">${esc(trip.memo)}</textarea></div>
+    <div class="sheet-actions">
+      <button class="btn-primary" id="f-save">${isNew?'この旅を作る':'保存'}</button>
+      <button class="btn-ghost" id="f-cancel">やめる</button>
+    </div>
+    ${isNew?'':'<button class="btn-danger" id="f-del">この旅を削除</button>'}
+  `);
+  let pickedEmoji = trip.emoji;
+  sheet.querySelectorAll('#f-emoji button').forEach(b=> b.onclick=()=>{
+    pickedEmoji=b.dataset.e;
+    sheet.querySelectorAll('#f-emoji button').forEach(x=>x.classList.toggle('on', x===b));
+  });
+  $('#f-cancel').onclick=closeSheet;
+  $('#f-save').onclick=()=>{
+    const start=$('#f-start').value, end=$('#f-end').value;
+    Object.assign(trip,{
+      title:$('#f-title').value.trim()||'無題の旅',
+      destination:$('#f-dest').value.trim(),
+      startDate:start, endDate:end||start, emoji:pickedEmoji, memo:$('#f-memo').value.trim()
+    });
+    if(isNew) db.trips.push(trip);
+    save(); closeSheet();
+    if(isNew) go('trip', trip.id, 'plan'); else render();
+    toast(isNew?'旅を作りました 🌴':'保存しました');
+  };
+  const del=$('#f-del'); if(del) del.onclick=()=>{
+    if(!confirm('この旅と中のすべての予定を削除します。よろしいですか？')) return;
+    db.trips=db.trips.filter(x=>x.id!==trip.id); save(); closeSheet(); go('home'); toast('削除しました');
+  };
+}
+
+/* 予定の作成・編集 */
+function openItemForm(t, item, presetDate){
+  const isNew=!item;
+  item = item || { id:uid(), date:presetDate||t.startDate||'', time:'', type:'spot', title:'', place:'', transport:'', url:'', cost:'', payer:'', note:'', comments:[] };
+  const dayOpts = rangeDates(t.startDate,t.endDate);
+  const dateField = dayOpts.length
+    ? `<select id="i-date">${dayOpts.map((d,idx)=>`<option value="${d}" ${d===item.date?'selected':''}>Day${idx+1}・${fmtDate(d)}(${fmtDow(d)})</option>`).join('')}
+        <option value="" ${!item.date?'selected':''}>日付なし</option></select>`
+    : `<input type="date" id="i-date" value="${esc(item.date)}">`;
+  const typeBtns = Object.entries(TYPES).map(([k,v])=>`<button data-t="${k}" class="${k===item.type?'on':''}"><span class="te">${v.emoji}</span>${v.label}</button>`).join('');
+  const payerOpts = `<option value="">支払者…</option>`+PAYERS.map(p=>`<option value="${p}" ${p===item.payer?'selected':''}>${p}</option>`).join('');
+  openSheet(`
+    <h3>${isNew?'予定を追加':'予定を編集'}</h3>
+    <div class="field"><label>種類</label><div class="type-grid" id="i-type">${typeBtns}</div></div>
+    <div class="field-2">
+      <div class="field"><label>日</label>${dateField}</div>
+      <div class="field"><label>時刻</label><input type="time" id="i-time" value="${esc(item.time)}"></div>
+    </div>
+    <div class="field"><label>タイトル</label><input type="text" id="i-title" value="${esc(item.title)}" placeholder="例: 清水寺を散策"></div>
+    <div class="field"><label>場所</label><input type="text" id="i-place" value="${esc(item.place)}" placeholder="例: 清水寺"></div>
+    <div class="field"><label>交通機関・駅メモ 🚃</label><input type="text" id="i-trans" value="${esc(item.transport)}" placeholder="例: 京都駅から市バス206系統で15分"></div>
+    <div class="field"><label>地図・予約リンク 🔗</label><input type="url" id="i-url" value="${esc(item.url)}" placeholder="https://..."></div>
+    <div class="field-2">
+      <div class="field"><label>費用</label><input type="number" inputmode="numeric" id="i-cost" value="${esc(item.cost)}" placeholder="¥"></div>
+      <div class="field"><label>支払</label><select id="i-payer">${payerOpts}</select></div>
+    </div>
+    <div class="field"><label>メモ</label><textarea id="i-note" placeholder="予約番号・補足など…">${esc(item.note)}</textarea></div>
+    <div class="sheet-actions">
+      <button class="btn-primary" id="i-save">${isNew?'追加する':'保存'}</button>
+      <button class="btn-ghost" id="i-cancel">やめる</button>
+    </div>
+    ${isNew?'':'<button class="btn-danger" id="i-del">この予定を削除</button>'}
+  `);
+  let pickedType=item.type;
+  sheet.querySelectorAll('#i-type button').forEach(b=> b.onclick=()=>{
+    pickedType=b.dataset.t;
+    sheet.querySelectorAll('#i-type button').forEach(x=>x.classList.toggle('on', x===b));
+  });
+  $('#i-cancel').onclick=closeSheet;
+  $('#i-save').onclick=()=>{
+    const costRaw=$('#i-cost').value;
+    Object.assign(item,{
+      date:$('#i-date').value, time:$('#i-time').value, type:pickedType,
+      title:$('#i-title').value.trim(), place:$('#i-place').value.trim(),
+      transport:$('#i-trans').value.trim(), url:$('#i-url').value.trim(),
+      cost: costRaw===''?0:Number(costRaw), payer:$('#i-payer').value, note:$('#i-note').value.trim()
+    });
+    if(isNew){ t.items=t.items||[]; t.items.push(item); }
+    save(); closeSheet(); render(); toast(isNew?'追加しました':'保存しました');
+  };
+  const del=$('#i-del'); if(del) del.onclick=()=>{
+    t.items=(t.items||[]).filter(x=>x.id!==item.id); save(); closeSheet(); render(); toast('削除しました');
+  };
+}
+
+/* ============ 本人選択 ============ */
+const whoOverlay=$('#whoOverlay');
+function openWho(){ whoOverlay.classList.add('on'); }
+whoOverlay.querySelectorAll('[data-who]').forEach(b=> b.onclick=()=>{
+  who=b.dataset.who; localStorage.setItem(WHO_KEY, who);
+  whoOverlay.classList.remove('on'); renderTopbar();
+  toast('ようこそ、'+who+'さん 🌴');
+});
+whoOverlay.onclick=e=>{ if(e.target===whoOverlay && who) whoOverlay.classList.remove('on'); };
+
+/* ============ 初期化 ============ */
+(async()=>{
+  loadLocal();
+  render();                       // まずローカルで即描画
+  await loadRemote();             // クラウドから最新を取得
+  render();
+  subscribeRealtime();
+  if(!who) openWho();
+})();
+</script>
+<!-- tsumiki-back-button -->
+<style>
+  #tsumikiEdge{position:fixed; top:0; bottom:0; left:0; width:22px; z-index:999;}
+  #tsumikiPeek{
+    position:fixed; top:50%; left:0; z-index:1001; margin-top:-23px;
+    width:46px; height:46px; display:flex; align-items:center; justify-content:center;
+    background:rgba(255,255,255,.92);
+    -webkit-backdrop-filter:saturate(180%) blur(14px); backdrop-filter:saturate(180%) blur(14px);
+    border:1px solid rgba(0,0,0,.06); border-radius:50%;
+    box-shadow:0 6px 20px rgba(0,0,0,.18);
+    color:#0071e3; font-size:24px; font-weight:600; line-height:1;
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Helvetica Neue",Arial,sans-serif;
+    transform:translateX(-70px) scale(.8); opacity:0; pointer-events:none;
+  }
+</style>
+<div id="tsumikiEdge"></div>
+<div id="tsumikiPeek">‹</div>
+<script>
+  (function(){
+    var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+      || window.navigator.standalone === true;
+    var fromTsumiki = false;
+    try{
+      if(document.referrer){
+        var r = new URL(document.referrer);
+        fromTsumiki = (r.origin === location.origin);
+      }
+    }catch(e){}
+    if(!(standalone && fromTsumiki)) return;
+
+    var peek = document.getElementById('tsumikiPeek');
+    var edge = document.getElementById('tsumikiEdge');
+
+    function goBack(){ location.href = 'index.html'; }
+
+    /* --- 左端エッジスワイプで戻る（iOS純正の戻る操作。見えるボタンは置かない） --- */
+    var sx=0, sy=0, prog=0, dragging=false, W=window.innerWidth;
+    var TRIGGER = Math.min(120, W*0.32);
+    window.addEventListener('resize', function(){ W=window.innerWidth; TRIGGER=Math.min(120, W*0.32); });
+
+    function reset(){
+      dragging = false; prog = 0;
+      peek.style.transition = 'transform .25s ease, opacity .25s ease';
+      peek.style.transform = 'translateX(-70px) scale(.8)';
+      peek.style.opacity = 0;
+    }
+    function start(e){
+      var t = e.touches ? e.touches[0] : e;
+      if(t.clientX > 26) return;
+      sx = t.clientX; sy = t.clientY; prog = 0; dragging = true;
+      peek.style.transition = 'none';
+    }
+    function move(e){
+      if(!dragging) return;
+      var t = e.touches ? e.touches[0] : e;
+      var dx = t.clientX - sx, dy = t.clientY - sy;
+      if(Math.abs(dy) > Math.abs(dx) + 12){ reset(); return; }
+      if(dx < 0) dx = 0;
+      prog = Math.min(dx / TRIGGER, 1);
+      peek.style.transform = 'translateX(' + (-70 + prog*82) + 'px) scale(' + (0.8 + prog*0.2) + ')';
+      peek.style.opacity = prog;
+      if(dx > 6 && e.cancelable) e.preventDefault();
+    }
+    function end(){
+      if(!dragging) return;
+      dragging = false;
+      if(prog >= 0.999){
+        peek.style.transition = 'transform .25s ease, opacity .25s ease';
+        peek.style.transform = 'translateX(20px) scale(1.05)';
+        peek.style.opacity = 1;
+        goBack();
+      }else{
+        reset();
+      }
+    }
+    edge.addEventListener('touchstart', start, {passive:true});
+    window.addEventListener('touchmove', move, {passive:false});
+    window.addEventListener('touchend', end, {passive:true});
+    window.addEventListener('touchcancel', end, {passive:true});
+  })();
+</script>
+<!-- /tsumiki-back-button -->
+</body>
+</html>
