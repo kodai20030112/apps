@@ -220,20 +220,6 @@
     let streak = 0; const cur = new Date(); cur.setHours(0,0,0,0);
     while(achDays.has(cur.toDateString())){ streak++; cur.setDate(cur.getDate()-1); }
 
-    let recent = items.filter(e => e.action !== "visit").slice(0,5);
-    if(!recent.length) recent = items.slice(0,5);
-
-    const apps = (Career.APPS) || {};
-    const rows = recent.map(e=>{
-      const meta = apps[e.app] || {};
-      const href = APP_HREF[e.app] || (e.app + ".html");
-      return '<a class="fitem" href="'+href+'">'+
-        '<span class="fe">'+(meta.emoji||"•")+'</span>'+
-        '<span class="ft"><span class="fs">'+esc(e.summary || (meta.label||e.app))+'</span>'+
-        '<span class="fm">'+esc(meta.label||e.app)+' ・ '+relTime(e.ts)+'</span></span>'+
-        '<span class="fa">›</span></a>';
-    }).join("");
-
     const dash = document.getElementById("dash");
     dash.innerHTML =
       '<div class="dash-head">'+
@@ -246,8 +232,7 @@
         '<div class="dstat warm"><div class="di">🔥</div><b>'+streak+'<small>日</small></b><span>連続活動</span></div>'+
         '<div class="dstat"><div class="di">📅</div><b>'+activeDays+'<small>日</small></b><span>活動した日</span></div>'+
       '</div>'+
-      '<div class="bwrap-sec"><div class="bchart">'+bars+'</div></div>'+
-      '<p class="feed-title">最近の足跡</p>'+ rows;
+      '<div class="bwrap-sec"><div class="bchart">'+bars+'</div></div>';
     dash.hidden = false;
   })();
 </script>
