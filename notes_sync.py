@@ -46,6 +46,10 @@ def build_body(categories):
     URL は素のテキストで入れる（Notes が自動でタップ可能なリンクにする）。"""
     today = datetime.now().strftime("%Y-%m-%d %H:%M")
     parts = [f"<div><b>{NOTE_TITLE}</b></div>", "<div><br></div>"]
+    # つみきトップページのURLを先頭に入れる（各アプリと同じく素のテキスト）
+    parts.append("<div>🧱 つみき トップ</div>")
+    parts.append(f"<div>{BASE_URL}</div>")
+    parts.append("<div><br></div>")
     total = 0
     for label, cat_emoji, apps in categories:
         parts.append(f"<div><b>{cat_emoji} {label}</b></div>")

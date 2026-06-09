@@ -54,6 +54,8 @@
     font-family: inherit; color: var(--text);
   }
   .field input:focus { outline: none; border-color: var(--blue); background: #fff; }
+  /* iOS Safari の type=date は既定だと固有幅で枠からはみ出すため appearance を解除して幅100%に従わせる */
+  .field input[type=date]{ -webkit-appearance:none; appearance:none; min-width:0; min-height:44px; }
   .days { font-size: 13px; color: var(--sub); margin-top: 6px; min-height: 18px; }
 
   /* tally rows */
