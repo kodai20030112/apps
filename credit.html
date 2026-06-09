@@ -125,12 +125,20 @@ h1{font-size:22px;font-weight:600;text-align:center;margin:4px 0 2px}
 .amz-order-item .link-info.linked-info{color:var(--blue)}
 .muted{color:var(--sub);font-size:11px}
 @media(max-width:480px){.cat-row .name{flex:0 0 90px;font-size:12px}.top-tab{font-size:12px;padding:8px 4px}}
+.sync-chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--sub);background:rgba(120,120,128,.12);padding:4px 10px;border-radius:999px;margin:-4px 0 14px}
+.sync-chip .dot{width:7px;height:7px;border-radius:50%;background:#8e8e93;flex:none}
+.sync-chip.ok .dot{background:#34c759}.sync-chip.ok{color:#0a7d2e}
+.sync-chip.off .dot{background:#ff9f0a}
+.sync-chip.local .dot{background:#8e8e93}
+.sync-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:rgba(20,20,22,.92);color:#fff;font-size:13px;padding:10px 18px;border-radius:12px;opacity:0;pointer-events:none;transition:.25s;z-index:9999}
+.sync-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>クレジット明細マネージャー</h1>
   <p class="tagline">立て替えとクレカ支出を切り分けて管理</p>
+  <div class="sync-chip local" id="syncChip"><span class="dot"></span><span id="syncText">接続中…</span></div>
 
   <div class="top-tabs">
     <button class="top-tab active" data-tab="credit">💳 明細</button>
@@ -309,8 +317,15 @@ h1{font-size:22px;font-weight:600;text-align:center;margin:4px 0 2px}
 
 <datalist id="peopleList"></datalist>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const STORAGE_KEY='creditMgr_v2',LEGACY_KEY='creditMgr_v1';
+/* ===== Supabase 同期（たびのき/interview と同じプロジェクト・個人用1行ブロブ） ===== */
+const SUPABASE_URL='https://okbjqtdirrathscctyvx.supabase.co';
+const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rYmpxdGRpcnJhdGhzY2N0eXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMjI4NTIsImV4cCI6MjA5NTg5ODg1Mn0.T-1AOK6vCD6uGdqrVGXjPui3L6WPSNrnygS-IHyfZ6Y';
+const STATE_TABLE='credit_state', STATE_ID='kodai';
+const sb=(window.supabase&&window.supabase.createClient)?supabase.createClient(SUPABASE_URL,SUPABASE_ANON):null;
+let online=null, lastPushed='', pendingSync=false, saveTimer=null;
 let data={months:{},amazonOrders:[],loans:[],payments:[],people:[]};
 let state={currentTab:'credit',currentMonth:null,currentFilter:'all',currentSort:'date-desc',currentAmzFilter:'all',loanFromTxTarget:null,editingLoanId:null,paymentTargetLoanId:null,editingAmazonId:null,expandedTxIds:new Set(),expandedLoanIds:new Set(),expandedPersonNames:new Set()};
 
@@ -338,7 +353,85 @@ function migrateToCycles(){
   data.months=byCycle;
   save();
 }
-function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(data));}
+function save(){
+  data.updatedAt=Date.now();                       // 古いクラウドデータでの上書きを防ぐ
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+  if(!sb)return;
+  pendingSync=true;
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(flushSave,350);
+}
+// クラウドへ即送信（デバウンス完了時／アプリを閉じる直前）
+async function flushSave(){
+  if(!sb||!pendingSync)return;
+  clearTimeout(saveTimer);
+  lastPushed=JSON.stringify(data);
+  pendingSync=false;
+  try{
+    const {error}=await sb.from(STATE_TABLE).upsert({id:STATE_ID,state:data,updated_at:new Date().toISOString()});
+    if(error){online=false;pendingSync=true;}else if(online!==true){online=true;}
+  }catch(e){online=false;pendingSync=true;}
+  renderSync();
+}
+// 編集中（モーダル表示中）はリアルタイム上書きを抑止
+function isEditing(){return !!document.querySelector('.modal-back.show');}
+// クラウドから取得して、新しい方を採用
+async function loadRemote(){
+  if(!sb){online=false;renderSync();return;}
+  try{
+    const {data:row,error}=await sb.from(STATE_TABLE).select('state').eq('id',STATE_ID).maybeSingle();
+    if(error){online=false;renderSync();return;}
+    online=true;
+    if(row&&row.state&&typeof row.state==='object'){
+      const localT=data.updatedAt||0, remoteT=row.state.updatedAt||0;
+      if(remoteT>=localT){ data={months:{},amazonOrders:[],loans:[],payments:[],people:[],...row.state}; migrateToCycles(); localStorage.setItem(STORAGE_KEY,JSON.stringify(data)); refreshAfterSync(); }
+      else { save(); } // ローカルの方が新しい（前回未送信）→ 送り直す
+    } else {
+      // クラウドが空：手元にデータがあれば初回アップロード
+      if(Object.keys(data.months).length||data.loans.length||data.amazonOrders.length) save();
+    }
+  }catch(e){online=false;}
+  renderSync();
+}
+function subscribeRealtime(){
+  if(!sb)return;
+  sb.channel('credit-rt')
+    .on('postgres_changes',{event:'*',schema:'public',table:STATE_TABLE,filter:'id=eq.'+STATE_ID},(payload)=>{
+      const incoming=payload.new&&payload.new.state;
+      if(!incoming)return;
+      if(JSON.stringify(incoming)===lastPushed)return;           // 自分の書き込みのエコー
+      if(isEditing())return;                                     // 編集中は上書きしない
+      if((incoming.updatedAt||0)<(data.updatedAt||0))return;     // 自分の方が新しければ無視
+      data={months:{},amazonOrders:[],loans:[],payments:[],people:[],...incoming};
+      migrateToCycles();
+      localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+      refreshAfterSync();
+      showSyncToast('🔄 他の端末から更新しました');
+    })
+    .subscribe();
+}
+// 同期で data が差し替わった後、現在の選択期間を保ちつつ再描画
+function refreshAfterSync(){
+  const keys=Object.keys(data.months).sort();
+  if(!keys.includes(state.currentMonth)) state.currentMonth=keys.length?keys[keys.length-1]:null;
+  render();
+}
+function renderSync(){
+  const chip=document.getElementById('syncChip'),txt=document.getElementById('syncText');
+  if(!chip)return;
+  chip.classList.remove('ok','off','local');
+  if(!sb){chip.classList.add('local');txt.textContent='この端末に保存';return;}
+  if(online===true){chip.classList.add('ok');txt.textContent='クラウド同期中';}
+  else if(online===false){chip.classList.add('off');txt.textContent='オフライン（この端末に保存）';}
+  else{chip.classList.add('local');txt.textContent='接続中…';}
+}
+function showSyncToast(msg){
+  let t=document.getElementById('syncToast');
+  if(!t){t=document.createElement('div');t.id='syncToast';t.className='sync-toast';document.body.appendChild(t);}
+  t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1800);
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushSave();});
+window.addEventListener('pagehide',()=>{flushSave();});
 
 function migrateFromV1(v1){
   data.months={};data.loans=[];data.payments=[];
@@ -1061,6 +1154,9 @@ load();
 const ms=Object.keys(data.months).sort();
 if(ms.length>0)state.currentMonth=ms[ms.length-1];
 render();
+renderSync();
+loadRemote();
+subscribeRealtime();
 </script>
 <!-- tsumiki-back-button -->
 <style>
