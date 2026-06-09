@@ -69,19 +69,31 @@
   .dstat b small{font-size:15px; font-weight:700;}
   .dstat span{font-size:11px; color:var(--sub); display:block; margin-top:2px;}
   .dstat.warm b{color:#ff9500;}
-  /* 週の活動バーチャート */
-  .bwrap-sec{margin:20px 2px 4px;}
-  .bchart{display:flex; gap:7px; align-items:flex-end; height:92px;}
-  .bcol{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; gap:6px;}
-  .bnum{font-size:11px; font-weight:700; color:var(--sub); height:13px; line-height:1;}
-  .btrack{flex:1; width:100%; display:flex; align-items:flex-end; justify-content:center;}
-  .bar{width:72%; max-width:26px; min-height:5px; border-radius:7px;
-    background:linear-gradient(180deg,#5aa6ff,#0071e3); transition:height .4s cubic-bezier(.2,.8,.2,1);}
-  .bar.empty{background:var(--line); min-height:5px;}
-  .bar.future{opacity:.35;}
-  .bcol.today .bar{background:linear-gradient(180deg,#ffc04d,#ff9500);}
-  .blbl{font-size:11px; color:var(--sub); line-height:1;}
-  .bcol.today .blbl{color:#ff9500; font-weight:800;}
+  /* アプリ×曜日 ヒートマップ */
+  .hm{margin:20px 0 6px; display:flex; flex-direction:column; gap:5px;}
+  .hm-row{display:grid; grid-template-columns:var(--hm-app) repeat(7,1fr) 26px;
+    gap:5px; align-items:center; --hm-app:96px;}
+  @media(max-width:420px){ .hm-row{--hm-app:74px; gap:4px;} }
+  .hm-app{display:flex; align-items:center; gap:6px; min-width:0;
+    text-decoration:none; color:inherit;}
+  .hm-app:active{opacity:.55;}
+  .hm-app .he{font-size:15px; flex:0 0 auto;}
+  .hm-app .hl{font-size:12px; color:var(--ink); overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap;}
+  .hm-cell{aspect-ratio:1/1; border-radius:5px; background:#ebebf0;
+    transition:transform .12s ease;}
+  .hm-cell.l1{background:#cfe3ff;} .hm-cell.l2{background:#8fc0ff;}
+  .hm-cell.l3{background:#3b93ff;} .hm-cell.l4{background:#0071e3;}
+  .hm-cell.today{box-shadow:0 0 0 2px #ff9500 inset;}
+  .hm-tot{font-size:12px; font-weight:800; color:var(--sub); text-align:right;}
+  /* ヘッダー行（曜日ラベル） */
+  .hm-head .hm-dl{font-size:11px; color:var(--sub); text-align:center; line-height:1;}
+  .hm-head .hm-dl.today{color:#ff9500; font-weight:800;}
+  /* 凡例 */
+  .hm-leg{display:flex; align-items:center; justify-content:flex-end; gap:5px;
+    margin:8px 2px 2px; font-size:10px; color:var(--sub);}
+  .hm-leg i{width:13px; height:13px; border-radius:4px; display:inline-block;}
+  .hm-empty{margin:18px 4px; text-align:center; font-size:13px; color:var(--sub);}
   .feed-title{font-size:12px; color:var(--sub); font-weight:600; margin:18px 4px 4px;}
   a.fitem{display:flex; align-items:center; gap:11px; padding:11px 6px;
     text-decoration:none; color:var(--ink); border-top:1px solid var(--line);}
@@ -199,20 +211,53 @@
     const achThisWeek = ach.length;
     const activeDays = new Set(week.map(e => new Date(e.ts).toDateString())).size;
 
-    /* 月〜日それぞれの実績数 */
-    const dayCounts = [0,0,0,0,0,0,0];
-    ach.forEach(e=>{ dayCounts[(new Date(e.ts).getDay()+6)%7]++; });
-    const maxDay = Math.max(1, ...dayCounts);
     const todayIdx = (new Date().getDay()+6)%7;
     const dayLabels = ["月","火","水","木","金","土","日"];
-    const bars = dayCounts.map((c,i)=>{
-      const h = c ? Math.round(14 + (c/maxDay)*60) : 5;       // 5〜74px
-      const cls = i>todayIdx ? "bar future" : (c ? "bar" : "bar empty");
-      return '<div class="bcol'+(i===todayIdx?" today":"")+'">'+
-        '<div class="bnum">'+(c||"")+'</div>'+
-        '<div class="btrack"><div class="'+cls+'" style="height:'+h+'px"></div></div>'+
-        '<div class="blbl">'+dayLabels[i]+'</div></div>';
+
+    /* Workアプリの絵文字・短ラベル（index.htメニューから流用） */
+    const workCat = categories.find(c => c.key === "work") || {apps:[]};
+    const APP_META = {};
+    workCat.apps.forEach(a=>{
+      APP_META[a.href.replace(/\.html$/i,"")] = {emoji:a.emoji, label:a.title};
+    });
+
+    /* アプリ × 曜日 で全活動（visit＋実績）を集計 */
+    const perApp = {};   // app -> {days:[7], total}
+    week.forEach(e=>{
+      const app = e.app;
+      if(!APP_META[app]) return;                 // Workアプリのみ
+      const d = (new Date(e.ts).getDay()+6)%7;
+      if(!perApp[app]) perApp[app] = {days:[0,0,0,0,0,0,0], total:0};
+      perApp[app].days[d]++; perApp[app].total++;
+    });
+    /* 活動の多い順に並べる */
+    const rows = Object.keys(perApp)
+      .map(app => ({app, ...perApp[app]}))
+      .sort((a,b)=> b.total - a.total);
+
+    const lvl = c => c===0 ? "" : (c>=4 ? " l4" : " l"+c);   // 1,2,3,4+
+    const headRow =
+      '<div class="hm-row hm-head"><div></div>'+
+      dayLabels.map((d,i)=>'<div class="hm-dl'+(i===todayIdx?" today":"")+'">'+d+'</div>').join("")+
+      '<div></div></div>';
+    const bodyRows = rows.map(r=>{
+      const m = APP_META[r.app];
+      const cells = r.days.map((c,i)=>
+        '<div class="hm-cell'+lvl(c)+(i===todayIdx?" today":"")+'"></div>').join("");
+      return '<div class="hm-row">'+
+        '<a class="hm-app" href="'+esc(r.app)+'.html">'+
+          '<span class="he">'+m.emoji+'</span>'+
+          '<span class="hl">'+esc(m.label)+'</span></a>'+
+        cells+
+        '<div class="hm-tot">'+r.total+'</div></div>';
     }).join("");
+    const heatmap = rows.length
+      ? '<div class="hm">'+headRow+bodyRows+'</div>'+
+        '<div class="hm-leg">少'+
+          '<i style="background:#ebebf0"></i><i style="background:#cfe3ff"></i>'+
+          '<i style="background:#8fc0ff"></i><i style="background:#3b93ff"></i>'+
+          '<i style="background:#0071e3"></i>多</div>'
+      : '<div class="hm-empty">今週はまだ活動がありません</div>';
 
     /* 連続活動日数（実績がある日を今日からさかのぼって数える） */
     const achDays = new Set(items.filter(e=>e.action!=="visit")
@@ -232,7 +277,7 @@
         '<div class="dstat warm"><div class="di">🔥</div><b>'+streak+'<small>日</small></b><span>連続活動</span></div>'+
         '<div class="dstat"><div class="di">📅</div><b>'+activeDays+'<small>日</small></b><span>活動した日</span></div>'+
       '</div>'+
-      '<div class="bwrap-sec"><div class="bchart">'+bars+'</div></div>';
+      heatmap;
     dash.hidden = false;
   })();
 </script>
