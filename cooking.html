@@ -112,20 +112,25 @@
   }
   .fab:active { transform: scale(.93); }
 
-  /* ===== 閲覧専用モード（家族向け） ===== */
+  /* ===== 家族モード（いいね・コメントOK／投稿・編集・削除は不可） ===== */
   .view-badge { display:none; margin:10px auto 0; max-width:max-content;
     font-size:12.5px; font-weight:700; color:#9a6a3c;
     background:rgba(232,145,91,.14); border:1px solid rgba(232,145,91,.3);
     padding:5px 12px; border-radius:999px; }
-  body.readonly .view-badge { display:block; }
-  /* 書き込み系のUIをすべて隠す */
-  body.readonly .fab,
-  body.readonly #likeBtn,
-  body.readonly .cmt-input,
-  body.readonly #editRecBtn,
-  body.readonly .cmt .del,
-  body.readonly .st-reactions,
-  body.readonly .st-reply { display:none !important; }
+  body.family .view-badge { display:block; }
+  /* 投稿・編集・削除だけ隠す（いいね・コメント・スタンプは残す） */
+  body.family .fab,
+  body.family #editRecBtn,
+  body.family #deleteRecordBtn,
+  body.family .cmt .del { display:none !important; }
+  /* 名前入力カード（家族モードのみ表示） */
+  #whoCardFamily { display:none; }
+  #whoCardFamily input { width:100%; box-sizing:border-box; font-family:inherit;
+    font-size:16px; padding:13px 16px; border:1px solid var(--line);
+    border-radius:14px; margin-bottom:12px; }
+  #whoCardFamily .btn { width:100%; }
+  body.family #whoCardCouple { display:none; }
+  body.family #whoCardFamily { display:block; }
 
   /* ===== モーダル ===== */
   .modal-bg { position:fixed; inset:0; background:rgba(40,30,20,.42); z-index:100; display:none; align-items:flex-end; justify-content:center;}
@@ -334,7 +339,7 @@
   <div class="logo">🍋</div>
   <h1>ゆずごはん日記</h1>
   <div class="tagline">ゆずちゃんが作ってくれたごはんの記録</div>
-  <div class="view-badge" id="viewBadge">👀 閲覧専用モード（家族へのおすそわけ）</div>
+  <div class="view-badge" id="viewBadge">🍋 家族モード（いいね・コメントできます）</div>
   <div class="stat-row">
     <div class="stat"><div class="n" id="statTotal">0</div><div class="l">これまでの品数</div></div>
     <div class="stat"><div class="n" id="statMonth">0</div><div class="l">今月のごはん</div></div>
@@ -419,7 +424,7 @@
 <div class="modal-bg" id="whoModal">
   <div class="modal">
     <div class="grip"></div>
-    <div class="who-card">
+    <div class="who-card" id="whoCardCouple">
       <div style="font-size:34px">🍋</div>
       <h3>あなたはどっち？</h3>
       <p>いいねやコメントに名前が表示されます</p>
@@ -427,6 +432,13 @@
         <button data-who="こうだい"><span class="em">🙋🏻‍♂️</span>こうだい</button>
         <button data-who="ゆずは"><span class="em">🙋🏻‍♀️</span>ゆずは</button>
       </div>
+    </div>
+    <div class="who-card" id="whoCardFamily">
+      <div style="font-size:34px">🍋</div>
+      <h3>お名前を教えてね</h3>
+      <p>いいねやコメントに表示されます</p>
+      <input type="text" id="famNameInput" placeholder="例：おかあさん" autocomplete="off" maxlength="12">
+      <button class="btn" id="famNameOk">はじめる</button>
     </div>
   </div>
 </div>
@@ -468,9 +480,9 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 const PHOTO_BUCKET = 'photos';
 
-/* ============ 閲覧専用モード（?view=family で家族におすそわけ） ============ */
-const READONLY = new URLSearchParams(location.search).get('view') === 'family';
-if(READONLY){ document.body.classList.add('readonly'); }
+/* ============ 家族モード（?view=family）いいね・コメントOK／投稿・編集・削除は不可 ============ */
+const FAMILY = new URLSearchParams(location.search).get('view') === 'family';
+if(FAMILY){ document.body.classList.add('family'); }
 
 /* ============ ユーティリティ ============ */
 const $ = s=>document.querySelector(s);
@@ -512,6 +524,7 @@ function urlB64ToUint8Array(base64){
 }
 /* この端末をプッシュ購読し、push_subs テーブルに（誰の端末か付きで）登録する */
 async function ensurePushSubscription(){
+  if(FAMILY) return;                                               // 家族端末は通知登録しない
   if(!who) return;                                                 // 名前未選択なら登録しない
   if(!('serviceWorker' in navigator) || !('PushManager' in window)) return;
   if(!('Notification' in window) || Notification.permission!=='granted') return;
@@ -699,14 +712,18 @@ let openDetailId=null;
 let who = localStorage.getItem('yuzuWho') || '';
 let pendingWhoCb = null;
 function ensureWho(cb){ if(who){ cb && cb(); } else { pendingWhoCb=cb; showModal('whoModal'); } }
-document.querySelectorAll('#whoModal [data-who]').forEach(b=>b.onclick=()=>{
-  who=b.dataset.who; localStorage.setItem('yuzuWho', who);
+function setWho(name){
+  who=name; localStorage.setItem('yuzuWho', who);
   hideModal('whoModal');
-  ensurePushSubscription();   // この端末を「誰の端末か」付きで購読登録
+  ensurePushSubscription();   // この端末を「誰の端末か」付きで購読登録（家族端末は登録しない）
   const cb=pendingWhoCb; pendingWhoCb=null;
   if(cb) cb(); else renderCurrentView();
   if(openDetailId) renderDetail(openDetailId);
-});
+}
+document.querySelectorAll('#whoModal [data-who]').forEach(b=>b.onclick=()=>setWho(b.dataset.who));
+/* 家族モード：自分の名前を入力して、いいね・コメントできるようにする */
+$('#famNameOk').onclick=()=>{ const v=$('#famNameInput').value.trim(); if(!v){ $('#famNameInput').focus(); return; } setWho(v); };
+$('#famNameInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); $('#famNameOk').click(); } });
 
 /* ============ いいね・コメント データ層 ============ */
 async function loadLikes(){
@@ -723,7 +740,7 @@ function likesFor(id){ return allLikes.filter(l=>l.record_id===id); }
 function iLiked(id){ return allLikes.some(l=>l.record_id===id && l.who===who); }
 function commentsFor(id){ return allComments.filter(c=>c.record_id===id); }
 async function toggleLike(id){
-  if(READONLY || !who) return;
+  if(!who) return;
   const mine = allLikes.find(l=>l.record_id===id && l.who===who);
   if(mine){ const {error}=await sb.from('likes').delete().eq('id',mine.id); if(error)console.error(error); }
   else {
@@ -733,7 +750,6 @@ async function toggleLike(id){
   }
 }
 async function addComment(id, body){
-  if(READONLY) return;
   const {error}=await sb.from('comments').insert({ id:'c'+Date.now()+Math.random().toString(36).slice(2,6), record_id:id, who, body, created_at:Date.now() });
   if(error){ console.error(error); throw error; }
   pushNotify('comment', id, body);   // コメントを相手に通知
@@ -918,7 +934,7 @@ function compressImage(file, maxDim=1400, quality=0.82){
 /* ============ 記録モーダル ============ */
 let editingId=null, formPhotos=[], formTags=[];
 function openRecord(rec){
-  if(READONLY) return;   // 閲覧専用モードでは投稿・編集を開かせない
+  if(FAMILY) return;   // 家族モードでは投稿・編集を開かせない
   editingId = rec? rec.id : null;
   formPhotos = rec? [...(rec.photos||[])] : [];
   formTags = rec? [...(rec.tags||[])] : [];
@@ -1217,7 +1233,6 @@ function updateReplyPlaceholder(){
   if(inp && r) inp.placeholder=`「${r.name}」にひとこと…`;
 }
 async function onReact(id, emoji, slide){
-  if(READONLY) return;   // 閲覧専用モードではリアクションを記録しない
   if(!who){ ensureWho(()=>onReact(id,emoji,slide)); return; }
   haptic(true);
   const mine=allReactions.find(x=>x.record_id===id && x.who===who && x.emoji===emoji);
@@ -1250,7 +1265,7 @@ function openStory(){
     requestAnimationFrame(()=>{ $('#stTrack').scrollLeft=0; });
     if(!storyBound){ bindStoryControls(); storyBound=true; }
   };
-  if(READONLY){ run(); } else { ensureWho(run); }   // 家族は名前選択なしで思い出を見られる
+  if(FAMILY){ run(); } else { ensureWho(run); }   // 家族は名前選択なしで思い出を見られる（反応時に名前入力）
 }
 function closeStory(){ $('#story').classList.remove('show'); document.body.style.overflow=''; }
 function bindStoryControls(){
