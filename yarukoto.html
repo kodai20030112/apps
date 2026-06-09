@@ -126,21 +126,21 @@
   .row .label { font-size: 15px; word-break: break-word; cursor: pointer; }
   .row.is-done .label { color: var(--sub); text-decoration: line-through; }
   .row .due-line { display: flex; align-items: center; gap: 6px; margin-top: 5px; }
-  .row .due-wrap { position: relative; display: inline-flex; }
   .row .due {
     display: inline-flex; align-items: center; gap: 4px;
     font-size: 11.5px; font-weight: 600; border-radius: 8px; padding: 3px 9px;
-    border: none; font-family: inherit; white-space: nowrap;
+    border: none; font-family: inherit; white-space: nowrap; cursor: pointer;
   }
+  .row .due:active { transform: scale(.97); }
   .row .due.set-over { background: #ffe5e3; color: #d70015; }
   .row .due.set-today { background: #fff0db; color: #c25e00; }
   .row .due.set-future { background: var(--accent-soft); color: var(--accent); }
   .row .due.ghost { background: var(--bg); color: var(--sub); border: 1px solid var(--line); }
-  /* 日付入力をチップの上に透明で重ね、タップで純正ピッカーを直接開く（iOS対応） */
-  .row .due-input {
-    position: absolute; inset: 0; width: 100%; height: 100%;
-    margin: 0; padding: 0; border: 0; opacity: 0; cursor: pointer;
-    -webkit-appearance: none; appearance: none; background: transparent;
+  /* やこと・買い物のテキスト編集（インライン） */
+  .row .label-edit {
+    width: 100%; font: inherit; font-size: 16px; color: var(--text);
+    border: none; border-bottom: 2px solid var(--accent); background: transparent;
+    border-radius: 0; padding: 0 0 2px; margin: -1px 0; outline: none;
   }
   .row .dx {
     flex: 0 0 auto; border: none; background: var(--chip); color: var(--sub);
@@ -366,6 +366,9 @@
   </div>
 </div>
 
+<!-- 期限ピッカー用の隠しinput（リスト再描画の影響を受けないようにリスト外に置く） -->
+<input type="date" id="dueProxy" style="position:fixed; left:-9999px; top:0; width:1px; height:1px; opacity:0; pointer-events:none;" aria-hidden="true" tabindex="-1">
+
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -573,12 +576,10 @@ function rowHTML(x, kind){
   if(showDue){
     let chip;
     if(di){
-      chip = '<span class="due-wrap"><span class="due '+di.cls+'">📅 '+esc(di.txt)+'</span>'+
-        '<input type="date" class="due-input" value="'+(x.due||'')+'"></span>'+
+      chip = '<button class="due '+di.cls+'" data-act="due">📅 '+esc(di.txt)+'</button>'+
         '<button class="dx" data-act="dueClear">×</button>';
     } else {
-      chip = '<span class="due-wrap"><span class="due ghost">📅 期限を設定</span>'+
-        '<input type="date" class="due-input" value=""></span>';
+      chip = '<button class="due ghost" data-act="due">📅 期限を設定</button>';
     }
     dueLine = '<div class="due-line">'+chip+'</div>';
   }
@@ -586,7 +587,7 @@ function rowHTML(x, kind){
     '<span class="handle"'+(dragOff?' style="visibility:hidden"':'')+' data-act="handle">⠿</span>'+
     '<div class="check'+(x.done?' on':'')+'" data-act="toggle">'+(x.done?'✓':'')+'</div>'+
     '<div class="body">'+
-      '<div class="label" data-act="toggle">'+esc(x.text)+'</div>'+
+      '<div class="label" data-act="editText">'+esc(x.text)+'</div>'+
       dueLine+
     '</div>'+
     '<button class="del" data-act="del">×</button>'+
@@ -675,7 +676,12 @@ function renderAddbar(){
       const item = { id:uid(), text:v, done:false, ts:Date.now(), order:minOrder-1 };
       if(tab==='todo') item.due='';
       arr.unshift(item);
-      save(); inp.value=''; render(); document.getElementById('quickInput').focus();
+      save();
+      inp.value='';
+      // 入力欄(addbar)は作り直さずリストとカウントだけ更新 → iOSでキーボードが閉じず連続入力できる
+      renderCounts();
+      renderChecklist(tab);
+      inp.focus();
     };
     document.getElementById('quickAdd').onclick = addIt;
     inp.addEventListener('keydown', e=>{ if(e.key==='Enter') addIt(); });
@@ -698,11 +704,6 @@ let suppressClick = false;
 ['panel-todo','panel-shop'].forEach(pid=>{
   const el = document.getElementById(pid);
   el.addEventListener('click', onChecklistClick);
-  el.addEventListener('change', e=>{
-    const inp = e.target.closest('.due-input'); if(!inp) return;
-    const row = inp.closest('.row'); const it = db.todos.find(x=>x.id===row.dataset.id);
-    if(it){ it.due = inp.value||''; save(); render(); }
-  });
   el.addEventListener('pointerdown', onHandleDown);
 });
 function onChecklistClick(e){
@@ -720,9 +721,60 @@ function onChecklistClick(e){
   const arr = kind==='todo' ? db.todos : db.shopping;
   const item = arr.find(x=>x.id===id); if(!item) return;
   const act = e.target.closest('[data-act]')?.dataset.act;
-  if(act==='dueClear'){ item.due=''; save(); render(); }
+  if(act==='due'){ openDuePicker(item.id); }
+  else if(act==='dueClear'){ item.due=''; save(); render(); }
+  else if(act==='editText'){ startInlineEdit(row, item); }
   else if(act==='toggle'){ item.done=!item.done; if(item.done) item.doneAt=Date.now(); save(); render(); }
   else if(act==='del'){ arr.splice(arr.indexOf(item),1); save(); render(); }
+}
+
+/* テキストをその場で編集（タップ→入力欄に変身） */
+function startInlineEdit(row, item){
+  const labelEl = row.querySelector('.label');
+  if(!labelEl) return;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'label-edit';
+  input.value = item.text;
+  input.setAttribute('enterkeyhint','done');
+  labelEl.replaceWith(input);
+  input.focus();
+  // キャレットを末尾に
+  const v = input.value; input.value=''; input.value=v;
+  let committed = false;
+  function commit(persist){
+    if(committed) return; committed = true;
+    if(persist){
+      const nv = input.value.trim();
+      if(nv && nv !== item.text){ item.text = nv; save(); }
+    }
+    render();
+  }
+  input.addEventListener('keydown', e=>{
+    if(e.key==='Enter'){ e.preventDefault(); commit(true); }
+    else if(e.key==='Escape'){ commit(false); }
+  });
+  input.addEventListener('blur', ()=>commit(true));
+}
+
+/* 期限ピッカー：リスト外の専用inputで純正ピッカーを開く（iOSでの二重起動・取りこぼしを防ぐ） */
+const dueProxy = document.getElementById('dueProxy');
+let dueEditId = null;
+dueProxy.addEventListener('change', ()=>{
+  if(!dueEditId) return;
+  const it = db.todos.find(x=>x.id===dueEditId);
+  dueEditId = null;
+  if(it){ it.due = dueProxy.value || ''; save(); render(); }
+});
+function openDuePicker(id){
+  const it = db.todos.find(x=>x.id===id); if(!it) return;
+  dueEditId = id;
+  dueProxy.value = it.due || '';
+  try{
+    if(typeof dueProxy.showPicker === 'function'){ dueProxy.showPicker(); return; }
+  }catch(e){}
+  // 古い環境向けフォールバック
+  dueProxy.focus(); dueProxy.click();
 }
 
 /* ドラッグ並べ替え（ポインタ操作・タッチ/マウス両対応） */
