@@ -395,29 +395,49 @@ let lastPushed = '';   // 自分のupsertのエコーを無視するため
 
 /* ============ 永続化 ============ */
 function loadLocal(){ try{ const s=localStorage.getItem(LS_KEY); if(s) db=JSON.parse(s); }catch(e){} }
-let saveTimer=null;
+let saveTimer=null, pendingSync=false;
 function save(){
+  db.updatedAt = Date.now();               // 更新時刻を記録（古いクラウドデータで上書きされるのを防ぐ）
   localStorage.setItem(LS_KEY, JSON.stringify(db));
   if(!sb) return;
+  pendingSync = true;
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(async()=>{
-    const payload = JSON.stringify(db);
-    lastPushed = payload;
+  saveTimer = setTimeout(flushSave, 350);
+}
+// クラウドへ即送信（デバウンス完了時・アプリを閉じる直前に呼ぶ）
+async function flushSave(){
+  if(!sb || !pendingSync) return;
+  clearTimeout(saveTimer);
+  const payload = JSON.stringify(db);
+  lastPushed = payload;
+  pendingSync = false;
+  try{
     const { error } = await sb.from(STATE_TABLE)
       .upsert({ id:STATE_ID, state: db, updated_at:new Date().toISOString() });
-    if(error){ online=false; renderTopbar(); }
-  }, 350);
+    if(error){ online=false; pendingSync=true; renderTopbar(); }
+    else if(online!==true){ online=true; renderTopbar(); }
+  }catch(e){ online=false; pendingSync=true; renderTopbar(); }
 }
+// アプリを閉じる/バックグラウンドにする直前に、未送信の変更を取りこぼさず送る
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') flushSave(); });
+window.addEventListener('pagehide', ()=>{ flushSave(); });
 async function loadRemote(){
   if(!sb){ online=false; return false; }
   const { data, error } = await sb.from(STATE_TABLE).select('state').eq('id', STATE_ID).maybeSingle();
   if(error){ online=false; return false; }
   online = true;
   if(data && data.state && typeof data.state==='object'){
-    // ローカルに何か未保存があり、リモートが空なら自分を残す。基本はリモート優先。
-    db = data.state;
-    if(!Array.isArray(db.trips)) db.trips=[];
-    localStorage.setItem(LS_KEY, JSON.stringify(db));
+    const remote = data.state;
+    if(!Array.isArray(remote.trips)) remote.trips=[];
+    const localT = db.updatedAt||0, remoteT = remote.updatedAt||0;
+    if(remoteT >= localT){
+      // クラウドの方が新しい（または同じ）→ クラウド優先
+      db = remote;
+      localStorage.setItem(LS_KEY, JSON.stringify(db));
+    } else {
+      // ローカルの方が新しい（前回まだ送れていなかった変更）→ ローカルを残してクラウドへ送り直す
+      save();
+    }
   }
   return true;
 }
@@ -426,15 +446,16 @@ function subscribeRealtime(){
   sb.channel('tabinoki-rt')
     .on('postgres_changes', { event:'*', schema:'public', table:STATE_TABLE, filter:'id=eq.'+STATE_ID },
       (payload)=>{
-        const incoming = JSON.stringify((payload.new && payload.new.state) || {});
-        if(incoming === lastPushed) return;          // 自分の書き込みのエコー
-        if(payload.new && payload.new.state){
-          db = payload.new.state;
-          if(!Array.isArray(db.trips)) db.trips=[];
-          localStorage.setItem(LS_KEY, JSON.stringify(db));
-          render();                                   // 画面を最新化（モーダル中でも背面更新）
-          toast('🔄 更新されました');
-        }
+        const incomingState = payload.new && payload.new.state;
+        if(!incomingState) return;
+        if(JSON.stringify(incomingState) === lastPushed) return;   // 自分の書き込みのエコー
+        if(overlay.classList.contains('on')) return;               // 編集中は上書きしない（入力が消えるのを防ぐ）
+        if((incomingState.updatedAt||0) < (db.updatedAt||0)) return; // 自分の方が新しければ無視
+        db = incomingState;
+        if(!Array.isArray(db.trips)) db.trips=[];
+        localStorage.setItem(LS_KEY, JSON.stringify(db));
+        render();                                                  // 画面を最新化
+        toast('🔄 更新されました');
       })
     .subscribe();
 }
@@ -593,6 +614,7 @@ function evHtml(t,i,date,gap,prevPlace){
     tags.push(`<a class="tag link" href="https://www.google.com/maps/search/?api=1&query=${mapQ(t,i.place)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🗺 地図</a>`);
     if(prevPlace) tags.push(`<a class="tag link" href="https://www.google.com/maps/dir/?api=1&origin=${mapQ(t,prevPlace)}&destination=${mapQ(t,i.place)}&travelmode=transit" target="_blank" rel="noopener" onclick="event.stopPropagation()">🚶 道順</a>`);
   }
+  if(i.fromStation && i.toStation) tags.push(`<a class="tag link" href="https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(i.fromStation)}&destination=${encodeURIComponent(i.toStation)}&travelmode=transit" target="_blank" rel="noopener" onclick="event.stopPropagation()">🚃 乗換案内</a>`);
   if(i.url) tags.push(`<a class="tag link" href="${esc(i.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 リンク</a>`);
   if(i.cost) tags.push(`<span class="tag">${yen(i.cost)}${i.payer?'・'+esc(i.payer):''}</span>`);
   const comments = (i.comments||[]);
@@ -607,6 +629,7 @@ function evHtml(t,i,date,gap,prevPlace){
       <div class="body" data-edit="${i.id}">
         <div class="e-line"><span class="e-emoji">${ty.emoji}</span><span class="e-title">${esc(i.title||ty.label)}</span></div>
         ${i.place?`<div class="e-place">📍 ${esc(i.place)}</div>`:''}
+        ${(i.fromStation||i.toStation)?`<div class="e-trans">🚉 ${esc(i.fromStation||'？')} → ${esc(i.toStation||'？')}</div>`:''}
         ${i.transport?`<div class="e-trans">🚃 ${esc(i.transport)}</div>`:''}
         ${i.note?`<div class="e-note">${esc(i.note)}</div>`:''}
         ${tags.length?`<div class="e-row">${tags.join('')}</div>`:''}
@@ -853,11 +876,12 @@ function openTripForm(trip){
 /* 予定の作成・編集（打ち込んだそばから自動保存） */
 function itemIsEmpty(i){
   return !i.title && !i.place && !i.time && !i.endTime && !i.transport && !i.url
+    && !i.fromStation && !i.toStation
     && !i.cost && !i.note && (!i.comments || !i.comments.length);
 }
 function openItemForm(t, item, presetDate){
   const wasNew = !item;
-  item = item || { id:uid(), date:presetDate||t.startDate||'', time:'', endTime:'', type:'spot', title:'', place:'', transport:'', url:'', cost:'', payer:'', note:'', comments:[] };
+  item = item || { id:uid(), date:presetDate||t.startDate||'', time:'', endTime:'', type:'spot', title:'', place:'', transport:'', fromStation:'', toStation:'', url:'', cost:'', payer:'', note:'', comments:[] };
   if(wasNew){ t.items=t.items||[]; t.items.push(item); }   // 先に登録して、入力＝即反映・即保存
   const dayOpts = rangeDates(t.startDate,t.endDate);
   const dateField = dayOpts.length
@@ -877,8 +901,12 @@ function openItemForm(t, item, presetDate){
     <div class="field"><label>タイトル（何をする？）</label><input type="text" id="i-title" value="${esc(item.title)}" placeholder="例: 清水寺を散策"></div>
     <div class="field"><label>📍 場所（どこ？）</label><input type="text" id="i-place" value="${esc(item.place)}" placeholder="例: 清水寺">
       <div class="hint">地図ピンと「🗺地図・🚶道順」リンクは、この場所から自動で作られます。</div></div>
-    <div class="field"><label>🚃 移動・交通メモ</label><input type="text" id="i-trans" value="${esc(item.transport)}" placeholder="例: 京都駅から市バス206系統で15分">
-      <div class="hint">何で行くか・乗り換えのメモ（行き方そのものを書く欄）。</div></div>
+    <div class="field-2">
+      <div class="field"><label>🚉 出発駅</label><input type="text" id="i-from" value="${esc(item.fromStation||'')}" placeholder="例: 京都駅"></div>
+      <div class="field"><label>到着駅</label><input type="text" id="i-to" value="${esc(item.toStation||'')}" placeholder="例: 大阪駅"></div>
+    </div>
+    <div class="field"><label>🚃 移動・交通メモ</label><input type="text" id="i-trans" value="${esc(item.transport)}" placeholder="例: 新快速で約30分">
+      <div class="hint">駅を入れると「🚃 乗換案内」リンクが自動で作られます。ここは補足メモ（路線・所要時間など）。</div></div>
     <div class="field-2">
       <div class="field"><label>費用</label><input type="number" inputmode="numeric" id="i-cost" value="${esc(item.cost)}" placeholder="¥"></div>
       <div class="field"><label>支払</label><select id="i-payer">${payerOpts}</select></div>
@@ -899,6 +927,7 @@ function openItemForm(t, item, presetDate){
     item.date=$('#i-date').value; item.time=newTime; item.endTime=$('#i-end').value; item.type=pickedType;
     item.title=$('#i-title').value.trim(); item.place=$('#i-place').value.trim();
     item.transport=$('#i-trans').value.trim();
+    item.fromStation=$('#i-from').value.trim(); item.toStation=$('#i-to').value.trim();
     item.cost = costRaw===''?0:Number(costRaw); item.payer=$('#i-payer').value; item.note=$('#i-note').value.trim();
     save(); flashSaved();
   };
