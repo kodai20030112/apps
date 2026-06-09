@@ -112,6 +112,21 @@
   }
   .fab:active { transform: scale(.93); }
 
+  /* ===== 閲覧専用モード（家族向け） ===== */
+  .view-badge { display:none; margin:10px auto 0; max-width:max-content;
+    font-size:12.5px; font-weight:700; color:#9a6a3c;
+    background:rgba(232,145,91,.14); border:1px solid rgba(232,145,91,.3);
+    padding:5px 12px; border-radius:999px; }
+  body.readonly .view-badge { display:block; }
+  /* 書き込み系のUIをすべて隠す */
+  body.readonly .fab,
+  body.readonly #likeBtn,
+  body.readonly .cmt-input,
+  body.readonly #editRecBtn,
+  body.readonly .cmt .del,
+  body.readonly .st-reactions,
+  body.readonly .st-reply { display:none !important; }
+
   /* ===== モーダル ===== */
   .modal-bg { position:fixed; inset:0; background:rgba(40,30,20,.42); z-index:100; display:none; align-items:flex-end; justify-content:center;}
   .modal-bg.show { display:flex; }
@@ -453,6 +468,10 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 const PHOTO_BUCKET = 'photos';
 
+/* ============ 閲覧専用モード（?view=family で家族におすそわけ） ============ */
+const READONLY = new URLSearchParams(location.search).get('view') === 'family';
+if(READONLY){ document.body.classList.add('readonly'); }
+
 /* ============ ユーティリティ ============ */
 const $ = s=>document.querySelector(s);
 const $$ = s=>document.querySelectorAll(s);
@@ -704,7 +723,7 @@ function likesFor(id){ return allLikes.filter(l=>l.record_id===id); }
 function iLiked(id){ return allLikes.some(l=>l.record_id===id && l.who===who); }
 function commentsFor(id){ return allComments.filter(c=>c.record_id===id); }
 async function toggleLike(id){
-  if(!who) return;
+  if(READONLY || !who) return;
   const mine = allLikes.find(l=>l.record_id===id && l.who===who);
   if(mine){ const {error}=await sb.from('likes').delete().eq('id',mine.id); if(error)console.error(error); }
   else {
@@ -714,6 +733,7 @@ async function toggleLike(id){
   }
 }
 async function addComment(id, body){
+  if(READONLY) return;
   const {error}=await sb.from('comments').insert({ id:'c'+Date.now()+Math.random().toString(36).slice(2,6), record_id:id, who, body, created_at:Date.now() });
   if(error){ console.error(error); throw error; }
   pushNotify('comment', id, body);   // コメントを相手に通知
@@ -898,6 +918,7 @@ function compressImage(file, maxDim=1400, quality=0.82){
 /* ============ 記録モーダル ============ */
 let editingId=null, formPhotos=[], formTags=[];
 function openRecord(rec){
+  if(READONLY) return;   // 閲覧専用モードでは投稿・編集を開かせない
   editingId = rec? rec.id : null;
   formPhotos = rec? [...(rec.photos||[])] : [];
   formTags = rec? [...(rec.tags||[])] : [];
@@ -1196,6 +1217,7 @@ function updateReplyPlaceholder(){
   if(inp && r) inp.placeholder=`「${r.name}」にひとこと…`;
 }
 async function onReact(id, emoji, slide){
+  if(READONLY) return;   // 閲覧専用モードではリアクションを記録しない
   if(!who){ ensureWho(()=>onReact(id,emoji,slide)); return; }
   haptic(true);
   const mine=allReactions.find(x=>x.record_id===id && x.who===who && x.emoji===emoji);
@@ -1215,7 +1237,7 @@ async function onReact(id, emoji, slide){
   if(popEmoji) row.querySelectorAll('.st-rx').forEach(b=>{ if(b.dataset.e===popEmoji) b.classList.add('pop'); });
 }
 function openStory(){
-  ensureWho(()=>{
+  const run=()=>{
     let list=allRecords.filter(r=>(r.photos||[]).length);   // 写真がある料理を中心に
     if(!list.length) list=allRecords.slice();
     if(!list.length){ toast('まだ記録がありません'); return; }
@@ -1227,7 +1249,8 @@ function openStory(){
     $('#story').classList.add('show'); document.body.style.overflow='hidden';
     requestAnimationFrame(()=>{ $('#stTrack').scrollLeft=0; });
     if(!storyBound){ bindStoryControls(); storyBound=true; }
-  });
+  };
+  if(READONLY){ run(); } else { ensureWho(run); }   // 家族は名前選択なしで思い出を見られる
 }
 function closeStory(){ $('#story').classList.remove('show'); document.body.style.overflow=''; }
 function bindStoryControls(){
