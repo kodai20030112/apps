@@ -279,6 +279,8 @@
   .seg.result button.on[data-res=pending] { background: var(--gray); border-color: var(--gray); color: #fff; }
   .seg.result button.on[data-res=pass] { background: var(--green); border-color: var(--green); color: #fff; }
   .seg.result button.on[data-res=fail] { background: var(--red); border-color: var(--red); color: #fff; }
+  .seg.phase button { font-size: 13px; padding: 11px 2px; }
+  .seg.phase button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 
   .sheet-act { display: flex; gap: 10px; margin-top: 24px; }
   .sheet-act button { flex: 1; border: none; cursor: pointer; font-family: inherit; font-size: 16px; font-weight: 600; border-radius: 13px; padding: 13px; }
@@ -374,6 +376,7 @@ function migrate(){
     if(typeof iv.phase!=='number') iv.phase = parseInt(iv.phase,10) || 1;
     iv.questions.forEach(q=>{ if(!('answer' in q)) q.answer=''; if(!('competency' in q)) q.competency=''; });
   });
+  db.othersQ.forEach(o=>{ if(typeof o.phase!=='number') o.phase = parseInt(o.phase,10) || 0; });
 }
 function loadLocal(){ try{ const s=localStorage.getItem(KEY); if(s) db=Object.assign(blank(), JSON.parse(s)); }catch(e){} }
 
@@ -534,7 +537,8 @@ function renderOthers(){
   }
   const items = db.othersQ.slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
   el.innerHTML = items.map(x=>{
-    const tags = (x.competency ? '<span class="comp-chip">'+esc(x.competency)+'</span>' : '')+
+    const tags = (x.phase ? '<span class="phase-badge">Phase '+x.phase+'</span>' : '')+
+      (x.competency ? '<span class="comp-chip">'+esc(x.competency)+'</span>' : '')+
       (x.position ? '<span class="pos-chip">'+esc(x.position)+'</span>' : '');
     return '<div class="note" data-oid="'+x.id+'">'+
       (tags ? '<div class="n-top">'+tags+'</div>' : '')+
@@ -738,6 +742,10 @@ function buildSheetBody(){
   if(t==='others'){
     return '<label>質問内容</label>'+
       '<textarea id="f-otext" placeholder="他の人が過去のInterviewで聞かれた質問"></textarea>'+
+      '<label>どのPhaseで聞かれた？（任意）</label>'+
+      '<div class="seg phase" id="f-ophase">'+
+        [0,1,2,3].map(p=>'<button data-ophase="'+p+'"'+(sel.ophase===p?' class="on"':'')+'>'+(p===0?'指定なし':'Phase '+p)+'</button>').join('')+
+      '</div>'+
       pickerWrap('competency','コンピテンシー（任意）')+
       pickerWrap('position','ポジション（任意）')+
       '<label>誰から聞いた？（任意）</label>'+
@@ -776,6 +784,7 @@ function openSheet(type, ctx){
     title = x ? 'みんなの質問を編集' : 'みんなの質問を追加';
     sel.competency = x ? (x.competency||'') : '';
     sel.position = x ? (x.position||'') : '';
+    sel.ophase = x ? (x.phase||0) : 0;
     sheetCtx._x = x || null;
   } else if(type==='advice'){
     const x = ctx.id ? db.advice.find(i=>i.id===ctx.id) : null;
@@ -822,6 +831,8 @@ document.getElementById('sheet').addEventListener('click', e=>{
   if(step){ sel.phase = Math.min(20, Math.max(1, sel.phase + parseInt(step.dataset.step,10))); document.getElementById('phaseVal').textContent='Phase '+sel.phase; return; }
   const res = e.target.closest('[data-res]');
   if(res){ sel.result = res.dataset.res; document.querySelectorAll('#f-result button').forEach(b=>b.classList.toggle('on', b===res)); return; }
+  const oph = e.target.closest('[data-ophase]');
+  if(oph){ sel.ophase = parseInt(oph.dataset.ophase,10); document.querySelectorAll('#f-ophase button').forEach(b=>b.classList.toggle('on', b===oph)); return; }
 });
 document.getElementById('sheet').addEventListener('keydown', e=>{
   const ni = e.target.closest('.pnew-input'); if(ni && e.key==='Enter'){ e.preventDefault(); const p=ni.closest('[data-pnew]').dataset.pnew; addPickValue(p); }
@@ -866,8 +877,8 @@ document.getElementById('sheetSave').onclick = ()=>{
     const text = (document.getElementById('f-otext').value||'').trim();
     if(!text){ toast('質問内容を入力してください'); return; }
     const source = (document.getElementById('f-osrc').value||'').trim();
-    if(sheetCtx._x){ Object.assign(sheetCtx._x, { text, source, competency:sel.competency||'', position:sel.position||'' }); }
-    else { db.othersQ.push({ id:uid(), text, source, competency:sel.competency||'', position:sel.position||'', ts:Date.now() }); }
+    if(sheetCtx._x){ Object.assign(sheetCtx._x, { text, source, competency:sel.competency||'', position:sel.position||'', phase:sel.ophase||0 }); }
+    else { db.othersQ.push({ id:uid(), text, source, competency:sel.competency||'', position:sel.position||'', phase:sel.ophase||0, ts:Date.now() }); }
   } else if(t==='advice'){
     const text = (document.getElementById('f-atext').value||'').trim();
     if(!text){ toast('アドバイス内容を入力してください'); return; }
