@@ -315,6 +315,23 @@ h1{font-size:22px;font-weight:600;text-align:center;margin:4px 0 2px}
   </div>
 </div>
 
+<!-- モーダル: 期間移動 -->
+<div class="modal-back" id="moveTxModal">
+  <div class="modal">
+    <h3>📅 別の期間へ移動</h3>
+    <p class="modal-sub" id="moveTxSub" style="white-space:pre-line"></p>
+    <div id="moveTxCycleList" style="display:flex;flex-direction:column;gap:8px"></div>
+    <div class="form-row" style="margin-top:14px"><label>その他の期間を指定（締め開始の月）</label>
+      <div style="display:flex;gap:8px">
+        <input type="month" id="moveTxMonthInput" style="flex:1">
+        <button class="btn btn-primary" onclick="moveTxToCustom()">移動</button>
+      </div>
+      <div class="muted" style="font-size:11px;margin-top:4px">指定した月の7日〜翌月6日のサイクルへ移動します</div>
+    </div>
+    <div class="actions"><button class="btn" onclick="closeMoveTxModal()">キャンセル</button></div>
+  </div>
+</div>
+
 <datalist id="peopleList"></datalist>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -327,7 +344,7 @@ const STATE_TABLE='credit_state', STATE_ID='kodai';
 const sb=(window.supabase&&window.supabase.createClient)?supabase.createClient(SUPABASE_URL,SUPABASE_ANON):null;
 let online=null, lastPushed='', pendingSync=false, saveTimer=null;
 let data={months:{},amazonOrders:[],loans:[],payments:[],people:[]};
-let state={currentTab:'credit',currentMonth:null,currentFilter:'all',currentSort:'date-desc',currentAmzFilter:'all',loanFromTxTarget:null,editingLoanId:null,paymentTargetLoanId:null,editingAmazonId:null,expandedTxIds:new Set(),expandedLoanIds:new Set(),expandedPersonNames:new Set()};
+let state={currentTab:'credit',currentMonth:null,currentFilter:'all',currentSort:'date-desc',currentAmzFilter:'all',loanFromTxTarget:null,moveTxTarget:null,editingLoanId:null,paymentTargetLoanId:null,editingAmazonId:null,expandedTxIds:new Set(),expandedLoanIds:new Set(),expandedPersonNames:new Set()};
 
 function load(){
   try{
@@ -554,21 +571,36 @@ function cycleLabel(key,withYear){
 async function handleCreditCSV(file){
   const txs=await parseCreditCSV(file);
   if(!txs||txs.length===0)return;
-  const byMonth={};
-  txs.forEach(t=>{const k=cycleStartFromDate(t.date);if(k)(byMonth[k]=byMonth[k]||[]).push(t);});
-  const keys=Object.keys(byMonth);
-  if(keys.length===0){alert('日付が認識できる明細がありません');return;}
+  // 既存明細の紐付け・手動移動(cycleOverride)を id で引き継ぐ
+  const oldById={};
+  Object.values(data.months).forEach(m=>m.transactions.forEach(t=>{oldById[t.id]=t;}));
+  const byNatural={};   // 日付どおりのサイクルに入る明細（バケットを上書き）
+  const moved=[];       // 手動移動済みの明細（移動先へ個別にupsert）
+  const inCsv=new Set();
+  txs.forEach(t=>{
+    inCsv.add(t.id);
+    const old=oldById[t.id];
+    if(old){if(old.linkedAmazonId)t.linkedAmazonId=old.linkedAmazonId;if(old.cycleOverride)t.cycleOverride=old.cycleOverride;}
+    if(t.cycleOverride){moved.push(t);return;}
+    const k=cycleStartFromDate(t.date);if(k)(byNatural[k]=byNatural[k]||[]).push(t);
+  });
+  const keys=Object.keys(byNatural);
+  if(keys.length===0&&moved.length===0){alert('日付が認識できる明細がありません');return;}
+  // 日付どおりのバケットは上書き。ただし他所から移動してきた明細（今回のCSVに無いもの）は残す
   keys.forEach(mk=>{
-    const ex=data.months[mk];
-    const newTxs=byMonth[mk];
-    if(ex){
-      const oldMap={};ex.transactions.forEach(t=>{oldMap[t.id]=t;});
-      newTxs.forEach(t=>{if(oldMap[t.id]?.linkedAmazonId)t.linkedAmazonId=oldMap[t.id].linkedAmazonId;});
-    }
-    data.months[mk]={transactions:newTxs};
+    const keepMovedIn=(data.months[mk]?.transactions||[]).filter(t=>t.cycleOverride===mk&&!inCsv.has(t.id));
+    data.months[mk]={transactions:[...byNatural[mk],...keepMovedIn]};
+  });
+  // 移動済み明細は移動先バケットへupsert（バケットの他の中身は消さない）
+  moved.forEach(t=>{
+    const mk=t.cycleOverride;
+    if(!data.months[mk])data.months[mk]={transactions:[]};
+    const arr=data.months[mk].transactions;
+    const i=arr.findIndex(x=>x.id===t.id);
+    if(i>=0)arr[i]=t;else arr.push(t);
   });
   autoLinkAmazon();save();
-  state.currentMonth=keys.sort().pop();
+  state.currentMonth=[...keys,...moved.map(t=>t.cycleOverride)].sort().pop();
   render();
 }
 
@@ -677,6 +709,48 @@ function getPersonStats(){
 }
 function addPersonName(n){if(n&&!data.people.includes(n))data.people.push(n);}
 function findTx(id){for(const m of Object.values(data.months)){const t=m.transactions.find(x=>x.id===id);if(t)return t;}return null;}
+function findTxLocation(id){for(const[key,m]of Object.entries(data.months)){const idx=m.transactions.findIndex(x=>x.id===id);if(idx>=0)return{key,idx,tx:m.transactions[idx]};}return null;}
+
+// 明細を別の締めサイクルへ手動移動（日付t.dateは変えず cycleOverride で管理）
+function openMoveTxModal(txId){
+  const loc=findTxLocation(txId);if(!loc)return;
+  state.moveTxTarget=txId;
+  const t=loc.tx;
+  document.getElementById('moveTxSub').textContent=`${t.description} ／ ${t.date} ／ ¥${t.amount.toLocaleString()}\n現在: ${cycleLabel(loc.key,true)}`;
+  const natural=cycleStartFromDate(t.date);
+  const keys=new Set(Object.keys(data.months));
+  if(natural)keys.add(natural);
+  keys.delete(loc.key);
+  const sorted=[...keys].sort().reverse();
+  const list=document.getElementById('moveTxCycleList');
+  list.innerHTML=sorted.length?sorted.map(k=>{
+    const isNat=k===natural;
+    return `<button class="btn" style="justify-content:flex-start;text-align:left" onclick="moveTxToCycle('${txId}','${k}')">${cycleLabel(k,true)}${isNat?' <span class="muted" style="font-size:11px">（本来の期間）</span>':''}</button>`;
+  }).join(''):'<div class="muted" style="font-size:12px">他の期間がありません。下から月を指定してください。</div>';
+  const m=loc.key.match(/^(\d{4})-(\d{2})/);
+  document.getElementById('moveTxMonthInput').value=m?m[1]+'-'+m[2]:'';
+  document.getElementById('moveTxModal').classList.add('show');
+}
+function closeMoveTxModal(){document.getElementById('moveTxModal').classList.remove('show');state.moveTxTarget=null;}
+function moveTxToCustom(){
+  const ym=document.getElementById('moveTxMonthInput').value;
+  if(!ym){alert('月を選択してください');return;}
+  moveTxToCycle(state.moveTxTarget,ym+'-07');
+}
+function moveTxToCycle(txId,targetKey){
+  const loc=findTxLocation(txId);if(!loc){closeMoveTxModal();return;}
+  if(loc.key===targetKey){closeMoveTxModal();return;}
+  const t=loc.tx;
+  data.months[loc.key].transactions.splice(loc.idx,1);
+  const natural=cycleStartFromDate(t.date);
+  if(targetKey===natural)delete t.cycleOverride;else t.cycleOverride=targetKey;
+  if(!data.months[targetKey])data.months[targetKey]={transactions:[]};
+  data.months[targetKey].transactions.push(t);
+  if(data.months[loc.key].transactions.length===0)delete data.months[loc.key];
+  save();closeMoveTxModal();
+  if(!data.months[state.currentMonth])state.currentMonth=targetKey;
+  render();
+}
 function escapeHtml(s){if(s==null)return'';return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function escapeJs(s){return String(s).replace(/['\\]/g,c=>'\\'+c);}
 
@@ -810,6 +884,7 @@ function renderTxRow(t){
       <div class="tx-actions">
         <button class="btn-mini primary" onclick="event.stopPropagation();openLoanFromTxModal('${t.id}')">${loans.length>0?'+ 立て替えを追加':'立て替えに送る'}</button>
         ${loans.length>0?`<button class="btn-mini" onclick="event.stopPropagation();switchTab('loans')">台帳で見る</button>`:''}
+        <button class="btn-mini" onclick="event.stopPropagation();openMoveTxModal('${t.id}')">📅 期間移動${t.cycleOverride?' <span style="opacity:.7">（移動済）</span>':''}</button>
       </div>
     </div>
     <div class="amount ${fullyLoaned?'struck':''}">¥${t.amount.toLocaleString()}</div>
