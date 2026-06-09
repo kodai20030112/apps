@@ -153,8 +153,16 @@
   }
 
   /* ===== アイデア ===== */
-  .filters { display: flex; gap: 7px; flex-wrap: wrap; margin: 14px 0 0; }
-  .filters.kind { margin-top: 8px; }
+  .idea-tools {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 14px; padding: 13px 13px 3px; margin: 14px 0 16px;
+  }
+  .ffield { margin-bottom: 12px; }
+  .ffield .flabel {
+    display: block; font-size: 11px; font-weight: 700; color: var(--sub);
+    margin: 0 2px 7px; letter-spacing: .06em;
+  }
+  .filters { display: flex; gap: 7px; flex-wrap: wrap; }
   .fchip {
     border: 1px solid var(--line); background: var(--card); color: var(--sub);
     border-radius: 999px; padding: 6px 13px; font-size: 13px; font-weight: 600;
@@ -164,6 +172,7 @@
   .fchip.kc.on { background: var(--accent); border-color: var(--accent); }
 
   .idea {
+    display: flex; align-items: flex-start; gap: 12px;
     background: var(--card); border: 1px solid var(--line);
     border-radius: 16px; padding: 14px 15px; margin-bottom: 10px;
     border-left: 4px solid var(--gray);
@@ -172,7 +181,15 @@
   .idea.p-mid { border-left-color: var(--orange); }
   .idea.p-low { border-left-color: var(--gray); }
   .idea.s-done { opacity: .64; }
-  .idea .i-top { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-bottom: 7px; }
+  .idea .i-check {
+    flex: 0 0 auto; width: 24px; height: 24px; margin-top: 1px;
+    border-radius: 50%; border: 2px solid var(--line);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 14px; transition: all .15s;
+  }
+  .idea .i-check.on { background: var(--green); border-color: var(--green); }
+  .idea .i-main { flex: 1; min-width: 0; }
+  .idea .i-top { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-bottom: 11px; }
   .pill {
     border: none; cursor: pointer; font-family: inherit;
     border-radius: 999px; padding: 4px 11px; font-size: 12px; font-weight: 700;
@@ -564,14 +581,16 @@ function renderIdeas(){
   const active = db.ideas.filter(x=>x.status!=='done');
   const sfilters = [['all','すべて',active.length],['backlog','バックログ',db.ideas.filter(x=>x.status==='backlog').length],
     ['doing','進行中',db.ideas.filter(x=>x.status==='doing').length],['done','完了（アーカイブ）',db.ideas.filter(x=>x.status==='done').length]];
-  let html = '<div class="filters">'+sfilters.map(([v,l,n])=>
+  let html = '<div class="idea-tools">';
+  html += '<div class="ffield"><span class="flabel">状態</span><div class="filters">'+sfilters.map(([v,l,n])=>
     '<button class="fchip'+(ideaStatusFilter===v?' on':'')+'" data-sfilter="'+v+'">'+l+(n?' '+n:'')+'</button>'
-  ).join('')+'</div>';
+  ).join('')+'</div></div>';
   // 種類フィルタ
-  const kf = [['all','すべての種類']].concat(Object.keys(KINDS).map(k=>[k, KINDS[k].emoji+' '+KINDS[k].label]));
-  html += '<div class="filters kind">'+kf.map(([v,l])=>
+  const kf = [['all','すべて']].concat(Object.keys(KINDS).map(k=>[k, KINDS[k].emoji+' '+KINDS[k].label]));
+  html += '<div class="ffield"><span class="flabel">種類</span><div class="filters kind">'+kf.map(([v,l])=>
     '<button class="fchip kc'+(ideaKindFilter===v?' on':'')+'" data-kfilter="'+v+'">'+l+'</button>'
-  ).join('')+'</div>';
+  ).join('')+'</div></div>';
+  html += '</div>';
 
   let items = db.ideas.slice();
   if(ideaStatusFilter==='all') items = items.filter(x=>x.status!=='done');
@@ -597,20 +616,24 @@ function renderIdeas(){
 }
 function ideaHTML(x){
   const k = KINDS[x.kind] || KINDS.other;
+  const done = x.status==='done';
   return '<div class="idea p-'+x.priority+' s-'+x.status+'" data-id="'+x.id+'">'+
-    '<div class="i-top">'+
-      '<span class="kchip '+k.cls+'">'+k.emoji+' '+k.short+'</span>'+
-      '<button class="pill prio p-'+x.priority+'" data-act="cyclePrio">優先度 '+PRIO[x.priority]+'</button>'+
-      '<button class="pill status s-'+x.status+'" data-act="cycleStatus">'+STAT[x.status]+'</button>'+
-      (x.tag ? '<span class="tag">'+esc(x.tag)+'</span>' : '')+
-    '</div>'+
-    '<div class="i-title">'+esc(x.title)+'</div>'+
-    (x.memo ? '<div class="i-memo">'+esc(x.memo)+'</div>' : '')+
-    '<div class="i-act">'+
-      (x.status==='done'
-        ? '<button data-act="restore">↩︎ 戻す</button>'
-        : '<button data-act="edit">編集</button>')+
-      '<button class="danger" data-act="del">削除</button>'+
+    '<div class="i-check'+(done?' on':'')+'" data-act="toggleDone" title="'+(done?'未完了に戻す':'完了にする')+'">'+(done?'✓':'')+'</div>'+
+    '<div class="i-main">'+
+      '<div class="i-top">'+
+        '<span class="kchip '+k.cls+'">'+k.emoji+' '+k.short+'</span>'+
+        '<button class="pill prio p-'+x.priority+'" data-act="cyclePrio">優先度 '+PRIO[x.priority]+'</button>'+
+        '<button class="pill status s-'+x.status+'" data-act="cycleStatus">'+STAT[x.status]+'</button>'+
+        (x.tag ? '<span class="tag">'+esc(x.tag)+'</span>' : '')+
+      '</div>'+
+      '<div class="i-title">'+esc(x.title)+'</div>'+
+      (x.memo ? '<div class="i-memo">'+esc(x.memo)+'</div>' : '')+
+      '<div class="i-act">'+
+        (x.status==='done'
+          ? '<button data-act="restore">↩︎ 戻す</button>'
+          : '<button data-act="edit">編集</button>')+
+        '<button class="danger" data-act="del">削除</button>'+
+      '</div>'+
     '</div>'+
   '</div>';
 }
@@ -733,7 +756,12 @@ document.getElementById('panel-idea').addEventListener('click', e=>{
   const card = e.target.closest('.idea'); if(!card) return;
   const x = db.ideas.find(i=>i.id===card.dataset.id); if(!x) return;
   const act = e.target.closest('[data-act]')?.dataset.act;
-  if(act==='cyclePrio'){ x.priority = ({high:'mid',mid:'low',low:'high'})[x.priority]; x.updated=Date.now(); save(); render(); }
+  if(act==='toggleDone'){
+    if(x.status==='done'){ x.status = x.prevStatus || 'backlog'; }
+    else { x.prevStatus = x.status; x.status = 'done'; }
+    x.updated=Date.now(); save(); render();
+  }
+  else if(act==='cyclePrio'){ x.priority = ({high:'mid',mid:'low',low:'high'})[x.priority]; x.updated=Date.now(); save(); render(); }
   else if(act==='cycleStatus'){ x.status = ({backlog:'doing',doing:'done',done:'backlog'})[x.status]; x.updated=Date.now(); save(); render(); }
   else if(act==='restore'){ x.status='backlog'; x.updated=Date.now(); save(); render(); }
   else if(act==='edit'){ openSheet(x); }
