@@ -214,7 +214,8 @@
   }
   .idea .i-title { font-size: 16px; font-weight: 600; word-break: break-word; }
   .idea.s-done .i-title { text-decoration: line-through; }
-  .idea .i-memo { font-size: 13.5px; color: var(--sub); margin-top: 5px; white-space: pre-wrap; word-break: break-word; }
+  .idea .i-memo { font-size: 13.5px; color: var(--sub); margin-top: 5px; white-space: pre-wrap; word-break: break-word; cursor: pointer; }
+  .idea .i-memo:active { background: var(--accent-soft); border-radius: 8px; }
   .idea .i-act { display: flex; gap: 14px; margin-top: 11px; align-items: center; }
   .idea .i-act button {
     border: none; background: none; cursor: pointer; font-family: inherit;
@@ -392,6 +393,23 @@ const KEY = 'yarukoto_db_v1';
 function uid(){ return Date.now().toString(36) + Math.floor(Math.random()*1e6).toString(36); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1700); }
+async function copyText(text){
+  const s = String(text==null?'':text);
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){ await navigator.clipboard.writeText(s); return true; }
+  }catch(e){}
+  // フォールバック（iOS Safari / 非セキュアコンテキスト用）
+  try{
+    const ta = document.createElement('textarea');
+    ta.value = s; ta.setAttribute('readonly','');
+    ta.style.position='fixed'; ta.style.top='0'; ta.style.left='0'; ta.style.opacity='0';
+    document.body.appendChild(ta);
+    ta.select(); ta.setSelectionRange(0, s.length);
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  }catch(e){ return false; }
+}
 const DOW = ['日','月','火','水','木','金','土'];
 function todayYmd(){ const d=new Date(); d.setHours(0,0,0,0); return d; }
 function parseYmd(s){ if(!s) return null; const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
@@ -627,11 +645,12 @@ function ideaHTML(x){
         (x.tag ? '<span class="tag">'+esc(x.tag)+'</span>' : '')+
       '</div>'+
       '<div class="i-title">'+esc(x.title)+'</div>'+
-      (x.memo ? '<div class="i-memo">'+esc(x.memo)+'</div>' : '')+
+      (x.memo ? '<div class="i-memo" data-act="copyMemo" title="タップでコピー">'+esc(x.memo)+'</div>' : '')+
       '<div class="i-act">'+
         (x.status==='done'
           ? '<button data-act="restore">↩︎ 戻す</button>'
           : '<button data-act="edit">編集</button>')+
+        (x.memo ? '<button data-act="copyMemo">📋 メモをコピー</button>' : '')+
         '<button class="danger" data-act="del">削除</button>'+
       '</div>'+
     '</div>'+
@@ -765,6 +784,7 @@ document.getElementById('panel-idea').addEventListener('click', e=>{
   else if(act==='cycleStatus'){ x.status = ({backlog:'doing',doing:'done',done:'backlog'})[x.status]; x.updated=Date.now(); save(); render(); }
   else if(act==='restore'){ x.status='backlog'; x.updated=Date.now(); save(); render(); }
   else if(act==='edit'){ openSheet(x); }
+  else if(act==='copyMemo'){ copyText(x.memo).then(ok=>toast(ok?'📋 メモをコピーしました':'コピーできませんでした')); }
   else if(act==='del'){ db.ideas.splice(db.ideas.indexOf(x),1); save(); render(); }
 });
 
