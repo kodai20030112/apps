@@ -444,11 +444,22 @@
     var has = total > 0;
     var nps = has ? (net * 100) / total : 0;
 
-    var hlTitle = "", hlBig = "", hlSub = "", hlBg = "#f0f7ff", hlAccent = "#0071e3";
+    var hlTitle = "", hlBig = "", hlSub = "", hlBg = "#f0f7ff", hlAccent = "#0071e3", paceText = "";
     if (!has) { hlBig = "—"; hlSub = "回答を入力すると計算されます"; }
     else if (nps >= G) { hlBg = "#effaf1"; hlAccent = "#34c759"; hlTitle = "目標達成中です"; hlBig = "達成 🎉"; hlSub = "現在 " + formatScore(nps) + " ／ 目標 " + G; }
     else if (G >= 100) { hlBg = "#fff6e9"; hlAccent = "#ff9f0a"; hlTitle = "目標が100の場合"; hlBig = "到達不可"; hlSub = "Passive(4)やDetractor(3〜1)が1件でもあると、Promoterをいくつ足しても100には届きません"; }
-    else { var k = Math.ceil((G * total - 100 * net) / (100 - G)); if (k < 0) k = 0; hlTitle = "目標達成まで、Promoter（5）があと"; hlBig = k + " 個"; hlSub = "残りの回答がすべて Promoter だった場合の最小数 ・ 達成後の回答数 " + (total + k) + " 件"; }
+    else {
+      var k = Math.ceil((G * total - 100 * net) / (100 - G)); if (k < 0) k = 0;
+      hlTitle = "目標達成まで、Promoter（5）があと"; hlBig = k + " 個";
+      hlSub = "残りの回答がすべて Promoter だった場合の最小数 ・ 達成後の回答数 " + (total + k) + " 件";
+      // クォーター終了日から逆算したペース（画面と同じ計算）を画像にも出す
+      var days = getDaysLeft();
+      if (k > 0 && days !== null) {
+        if (days < 0) paceText = "クォーターは終了済みです";
+        else if (days === 0) paceText = "本日が最終日 ・ 今日中に Promoter（5）を " + k + " 個";
+        else paceText = "残り " + days + " 日 ・ 1週間あたり 約 " + fmtPace(k / (days / 7)) + " 個 ／ 1日あたり 約 " + fmtPace(k / days) + " 個 のペースで Promoter（5）を創出";
+      }
+    }
 
     var W = 540, PAD = 24, IN = 20, GAP = 12, CW = W - PAD * 2;
     var mc = document.createElement("canvas").getContext("2d");
@@ -463,7 +474,11 @@
     var c2 = IN * 2 + 28 + rows.length * 30 + 10 + 18;
     mc.font = imgFont("500", 13);
     var subLines = wrapPara(mc, hlSub, CW - IN * 2);
-    var c3 = IN + (hlTitle ? 24 : 0) + 48 + subLines.length * 20 + IN;
+    // ペース行（クォーター終了日から逆算した 1週間/1日あたりの必要数）も画像に出す
+    mc.font = imgFont("700", 13);
+    var paceLines = paceText ? wrapPara(mc, paceText, CW - IN * 2) : [];
+    var c3 = IN + (hlTitle ? 24 : 0) + 48 + subLines.length * 20
+      + (paceLines.length ? (10 + paceLines.length * 20) : 0) + IN;
     var footerH = 38;
     var totalH = Math.ceil(60 + c1 + GAP + c2 + GAP + c3 + GAP + footerH);
 
@@ -526,6 +541,11 @@
     if (hlTitle) { ctx.fillStyle = "#6e6e73"; ctx.font = imgFont("500", 13); ctx.fillText(hlTitle, PAD + IN, cy); cy += 24; }
     ctx.fillStyle = hlAccent; ctx.font = imgFont("800", 32); ctx.fillText(hlBig, PAD + IN, cy); cy += 48;
     ctx.fillStyle = "#6e6e73"; ctx.font = imgFont("500", 13); subLines.forEach(function (l) { ctx.fillText(l, PAD + IN, cy); cy += 20; });
+    // ペース行（クォーター終了日から逆算した 1週間/1日あたりの必要数）
+    if (paceLines.length) {
+      cy += 10; ctx.fillStyle = hlAccent; ctx.font = imgFont("700", 13);
+      paceLines.forEach(function (l) { ctx.fillText(l, PAD + IN, cy); cy += 20; });
+    }
     y = c3Y + c3 + GAP;
 
     // フッター

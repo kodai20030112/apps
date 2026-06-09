@@ -79,22 +79,26 @@ Deno.serve(async (req) => {
 });
 
 // ---- データ → プロンプト ----
+// メールは個人のNPS/KPI数値の報告ではなく、チームでの取り組み（Personal Action）と
+// 協働・進捗を共有するもの。送られてくる data は actions[] が中心。
 function buildPrompt(d: any, lang: "ja" | "en"): string {
   const facts = factLines(d, lang);
 
   if (lang === "en") {
     return [
       "You are a retail team member writing a short weekly Recap email to your leader/manager.",
+      "This email shares the TEAM / collaborative initiatives you worked on this week — NOT personal NPS or KPI scores.",
       "Write a professional but warm email in natural English based ONLY on the data below.",
       "",
       "Guidelines:",
       "- Output ONLY the email: first line is `Subject: ...`, then a blank line, then the body.",
       "- Greet the manager by name if provided.",
-      "- Lead with what went well (metrics that beat the previous quarter / goals hit).",
-      "- Honestly acknowledge metrics that missed, and add a brief, concrete focus for next week.",
+      "- Center the email on the actions/initiatives: for each, describe what was done, who collaborated, and what progress or impact came of it — in flowing sentences, not a list.",
+      "- Lead with the initiatives that moved forward. If something is still in progress, note a brief, concrete focus for next week.",
+      "- Do NOT report or invent metric numbers (no NPS/KPI figures); keep it about the team's actions and growth.",
       "- If a personal goal is provided, tie the closing back to it.",
       "- Keep it concise (about 150-220 words). Sign off with the sender's first name.",
-      "- Do NOT invent numbers that are not in the data. Do not use markdown bullets or asterisks.",
+      "- Do not use markdown bullets or asterisks.",
       "",
       "DATA:",
       facts,
@@ -103,16 +107,18 @@ function buildPrompt(d: any, lang: "ja" | "en"): string {
 
   return [
     "あなたはApple Retailのチームメンバーで、上長(Leader)宛てに週次Recapの共有メールを書きます。",
+    "このメールは個人のNPSやKPIの数字の報告ではなく、今週チームで取り組んだアクション（協働・進捗）を共有するものです。",
     "以下のデータ「だけ」を根拠に、丁寧だが堅すぎない自然な日本語のビジネスメールを書いてください。",
     "",
     "ルール:",
     "- 出力はメール本文のみ。1行目は『件名: ...』、次に空行、その後に本文。",
     "- 宛名（上長名）があれば冒頭に入れる。",
-    "- まず良かった点（前Q超え・Goal達成）に触れる。",
-    "- 未達の項目は正直に認め、来週の具体的なフォーカスを短く添える。",
+    "- アクション（取り組み）を中心に書く。各アクションについて『何をしたか・誰と協働したか・どんな進捗や手応えがあったか』を、箇条書きにせず自然な文章でまとめる。",
+    "- まず前進した取り組みに触れる。まだ途中のものがあれば、来週の具体的なフォーカスを短く添える。",
+    "- NPSやKPIなどの数値は報告しない（創作もしない）。あくまでチームの取り組みと成長の話にする。",
     "- 自分のゴールがあれば締めでそこに結びつける。",
-    "- 150〜250字程度で簡潔に。最後は送信者の名前で締める。",
-    "- データに無い数字を創作しない。箇条書き記号(*や•)やMarkdownは使わない。",
+    "- 180〜320字程度で簡潔に。最後は送信者の名前で締める。",
+    "- 箇条書き記号(*や•)やMarkdownは使わない。",
     "",
     "データ:",
     facts,
@@ -127,37 +133,23 @@ function factLines(d: any, lang: "ja" | "en"): string {
   if (d.cm) L.push((ja ? "宛先(上長): " : "Manager: ") + d.cm);
   L.push((ja ? "期間: " : "Period: ") + period);
   if (d.myGoal) L.push((ja ? "自分のゴール: " : "Personal goal: ") + d.myGoal);
-
-  const npsLine = (label: string, n: any) => {
-    if (!n || n.total === 0 || n.current === null || n.current === undefined) {
-      return `${label}: ${ja ? "回答なし" : "no responses"}`;
-    }
-    const cur = (n.current > 0 ? "+" : "") + n.current;
-    const st = n.achieved
-      ? (ja ? "Goal達成" : "goal achieved")
-      : (n.need != null
-          ? (ja ? `Goalまであと${n.need} Promoter` : `${n.need} promoters short of goal`)
-          : (ja ? "Goal未達" : "below goal"));
-    return `${label}: ${cur} (Goal ${n.goal}) — ${st} ${ja ? "／回答数" : "/ responses"} ${n.total}`;
-  };
-  L.push(npsLine(ja ? "Personal NPS" : "Personal NPS", d.personalNps));
-  L.push(npsLine(ja ? "Store NPS" : "Store NPS", d.storeNps));
-
-  if (Array.isArray(d.kpis) && d.kpis.length) {
-    L.push(ja ? "KPI:" : "KPIs:");
-    for (const k of d.kpis) {
-      if (k.value == null && k.bench == null) continue;
-      const unit = k.unit || "";
-      const st = k.value == null || k.bench == null
-        ? "-"
-        : (k.achieved ? (ja ? "達成" : "achieved") : (ja ? "未達" : "missed"));
-      L.push(`  - ${k.label}: ${k.value ?? "-"}${unit} (${ja ? "前Q" : "prev Q"} ${k.bench ?? "-"}${unit}) ${st}`);
-    }
-  }
+  L.push("");
 
   if (Array.isArray(d.actions) && d.actions.length) {
-    const names = d.actions.map((a: any) => a.name).filter(Boolean);
-    if (names.length) L.push((ja ? "今週のアクション: " : "Actions this week: ") + names.join(", "));
+    L.push(ja ? "今週のチーム/協働アクション:" : "Team / collaborative actions this week:");
+    d.actions.forEach((a: any, i: number) => {
+      const title = (a.name || "").trim() || (ja ? "（無題のアクション）" : "(untitled action)");
+      L.push(`${i + 1}. ${title}`);
+      if (Array.isArray(a.collaborators) && a.collaborators.length) {
+        L.push(`   ${ja ? "協働メンバー: " : "Collaborators: "}${a.collaborators.join(", ")}`);
+      }
+      const prog = ja
+        ? ((a.ja || "").trim() || (a.en || "").trim())
+        : ((a.en || "").trim() || (a.ja || "").trim());
+      if (prog) L.push(`   ${ja ? "進捗: " : "Progress: "}${prog}`);
+    });
+  } else {
+    L.push(ja ? "（今週のアクションは未登録）" : "(no actions recorded this week)");
   }
   return L.join("\n");
 }

@@ -38,6 +38,8 @@
     width:100%; font-size:16px; padding:10px 12px; border:1px solid var(--line);
     border-radius:10px; background:#fafafa; font-family:inherit; color:var(--text);
   }
+  /* iOS Safari の type=date は既定だと固有幅で枠からはみ出すため appearance を解除して幅100%に従わせる */
+  .field input[type=date]{ -webkit-appearance:none; appearance:none; min-width:0; min-height:44px; }
   .field input:focus, .field select:focus{outline:none; border-color:var(--blue); background:#fff;}
 
   .week-bar{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
@@ -714,6 +716,14 @@
     return '<span class="nps-pace">残り '+days+' 日でこのペースなら<br>'+
       '1日あたり <strong>約 '+fmtPace(perDay)+'</strong> 件 ／ 1週間あたり <strong>約 '+fmtPace(perWeek)+'</strong> 件</span>';
   }
+  // 画像書き出し用：同じペース計算をプレーンテキストで返す（HTMLタグなし）
+  function buildPaceText(k){
+    var days=getQuarterDaysLeft();
+    if(days===null || k<=0) return "";
+    if(days<0) return "クォーターは終了済みです";
+    if(days===0) return "本日が最終日 ・ 今日中に Promoter を "+k+" 個";
+    return "残り "+days+" 日 ・ 1週間あたり 約 "+fmtPace(k/(days/7))+" 個 ／ 1日あたり 約 "+fmtPace(k/days)+" 個 のペースで Promoter を創出";
+  }
   function updateQDaysLeft(){
     var days=getQuarterDaysLeft();
     if(!el.qDaysLeft) return;
@@ -858,7 +868,7 @@
       photosDiv.innerHTML="";
       a.photos.forEach(function(src,pi){
         var t=document.createElement("div"); t.className="thumb";
-        t.innerHTML='<img src="'+src+'"><button type="button" data-pi="'+pi+'">×</button>';
+        t.innerHTML='<img crossorigin="anonymous" src="'+src+'"><button type="button" data-pi="'+pi+'">×</button>';
         photosDiv.appendChild(t);
       });
     }
@@ -1092,21 +1102,22 @@
     return { current:nps, goal:G, total:total, achieved:nps>=G, need:need };
   }
 
+  // メールはチーム/協働アクション（Personal Action）の内容を中心に書く。
+  // 個人のNPS/KPIスコアは送らない（ユーザー指定: 個人の成績ではなくチームの内容を共有する）。
   function collectMailData(){
     var s = cur();
-    var kpis = KPIS.map(function(m){
-      var v = num(s.kpi[m.key].v), b = prevRefInfo(m.key).val;
-      return { label:m.name, value:v, bench:b, unit:m.unit||"",
-               achieved:(v!==null && b!==null) ? (v>=b) : false };
-    });
     return {
       name:(state.name||"").trim(), cm:(state.cm||"").trim(),
       fy:state.fy||"", q:state.q||"", week:state.w||"",
       myGoal:(state.myGoal||"").trim(),
-      personalNps:npsForMail(s,false),
-      storeNps:npsForMail(s,true),
-      kpis:kpis,
-      actions:(s.actions||[]).map(function(a){ return { name:(a.name||"").trim() }; }).filter(function(a){ return a.name; })
+      actions:(s.actions||[]).map(function(a){
+        return {
+          name:(a.name||"").trim(),
+          collaborators:(a.collaborators||[]).slice(),
+          ja:(a.ja||"").trim(),
+          en:(a.en||"").trim()
+        };
+      }).filter(function(a){ return a.name || a.ja || a.en; })
     };
   }
 
@@ -1651,7 +1662,14 @@
 
     // NPSカード
     var c=npsCalc(s); var G=clamp(num(s.nps.goal)||0,-100,100);
-    var npsH=300;
+    // need 内容（とペース）を先に決めてカード高さを算出
+    var needTxt, needBg, needAccent, npsPaceTxt="";
+    if(c.total===0){ needTxt="回答を入力すると計算されます"; needBg="#f0f7ff"; needAccent="#6e6e73"; }
+    else if(c.nps>=G){ needTxt="Goal達成中 🎉"; needBg="#effaf1"; needAccent="#34c759"; }
+    else if(G>=100){ needTxt="到達不可（Passive/Detractorあり）"; needBg="#fff6e9"; needAccent="#ff9f0a"; }
+    else{ var k=Math.ceil((G*c.total-100*c.net)/(100-G)); if(k<0)k=0; needTxt="Goal "+G+" まで Promoter あと "+k+" 個"; needBg="#f0f7ff"; needAccent="#0071e3"; npsPaceTxt=buildPaceText(k); }
+    var needH = npsPaceTxt ? 122 : 72;
+    var npsH=202+needH+26;
     ctx.fillStyle="#fff"; rr(PAD,ly,leftW,npsH,18); ctx.fill();
     ctx.fillStyle="#6e6e73"; ctx.font=imgFont("700",16); ctx.fillText("NPS", PAD+26, ly+22);
     // big score
@@ -1672,14 +1690,15 @@
       ctx.textBaseline="top";
       cx+=w+12;
     });
-    // need
-    var needTxt, needBg, needAccent;
-    if(c.total===0){ needTxt="回答を入力すると計算されます"; needBg="#f0f7ff"; needAccent="#6e6e73"; }
-    else if(c.nps>=G){ needTxt="Goal達成中 🎉"; needBg="#effaf1"; needAccent="#34c759"; }
-    else if(G>=100){ needTxt="到達不可（Passive/Detractorあり）"; needBg="#fff6e9"; needAccent="#ff9f0a"; }
-    else{ var k=Math.ceil((G*c.total-100*c.net)/(100-G)); if(k<0)k=0; needTxt="Goal "+G+" まで Promoter あと "+k+" 個"; needBg="#f0f7ff"; needAccent="#0071e3"; }
-    rr(PAD+26, ly+202, leftW-52, 72, 14); ctx.fillStyle=needBg; ctx.fill();
+    // need ＋ ペース（クォーター終了日から逆算した 1週間/1日あたりの必要数）
+    rr(PAD+26, ly+202, leftW-52, needH, 14); ctx.fillStyle=needBg; ctx.fill();
     ctx.fillStyle=needAccent; ctx.font=imgFont("800",26); ctx.fillText(needTxt, PAD+46, ly+224);
+    if(npsPaceTxt){
+      ctx.fillStyle="#0058b0"; ctx.font=imgFont("700",18);
+      var plines=wrapText(ctx, npsPaceTxt, leftW-52-40);
+      var py=ly+264;
+      plines.forEach(function(l){ ctx.fillText(l, PAD+46, py); py+=24; });
+    }
 
     // ===== 右カラム：グラフ（4KPIを小型グリッド＋NPS総計）=====
     var chTitleY=bodyY;
@@ -1757,7 +1776,15 @@
     var ly=bodyY+44, s=cur();
     var p=s.storeNps.promoter||0, pa=s.storeNps.passive||0, d=s.storeNps.detractor||0;
     var total=p+pa+d, net=p-d, nps=total>0?(net*100)/total:null;
-    var G=clamp(num(s.storeNps.goal)||0,-100,100), npsH=300;
+    var G=clamp(num(s.storeNps.goal)||0,-100,100);
+    // need 内容（とペース）を先に決めてカード高さを算出
+    var needTxt, needBg, needAccent, npsPaceTxt="";
+    if(total===0){ needTxt="回答を入力すると計算されます"; needBg="#f0f7ff"; needAccent="#6e6e73"; }
+    else if(nps>=G){ needTxt="Goal達成中 🎉"; needBg="#effaf1"; needAccent="#34c759"; }
+    else if(G>=100){ needTxt="到達不可（Passive/Detractorあり）"; needBg="#fff6e9"; needAccent="#ff9f0a"; }
+    else{ var k=Math.ceil((G*total-100*net)/(100-G)); if(k<0)k=0; needTxt="Goal "+G+" まで Promoter あと "+k+" 個"; needBg="#f0f7ff"; needAccent="#0071e3"; npsPaceTxt=buildPaceText(k); }
+    var needH = npsPaceTxt ? 122 : 72;
+    var npsH=202+needH+26;
     ctx.fillStyle="#fff"; rr(PAD,ly,leftW,npsH,18); ctx.fill();
     ctx.fillStyle="#6e6e73"; ctx.font=imgFont("700",16); ctx.fillText("NPS（ストア）", PAD+26, ly+22);
     ctx.fillStyle=(nps!==null&&nps>=G)?"#34c759":"#1d1d1f"; ctx.font=imgFont("800",56);
@@ -1773,13 +1800,14 @@
       ctx.fillStyle="#1d1d1f"; ctx.fillText(t, cx+30, ly+169); ctx.textBaseline="top";
       cx+=w+12;
     });
-    var needTxt, needBg, needAccent;
-    if(total===0){ needTxt="回答を入力すると計算されます"; needBg="#f0f7ff"; needAccent="#6e6e73"; }
-    else if(nps>=G){ needTxt="Goal達成中 🎉"; needBg="#effaf1"; needAccent="#34c759"; }
-    else if(G>=100){ needTxt="到達不可（Passive/Detractorあり）"; needBg="#fff6e9"; needAccent="#ff9f0a"; }
-    else{ var k=Math.ceil((G*total-100*net)/(100-G)); if(k<0)k=0; needTxt="Goal "+G+" まで Promoter あと "+k+" 個"; needBg="#f0f7ff"; needAccent="#0071e3"; }
-    rr(PAD+26, ly+202, leftW-52, 72, 14); ctx.fillStyle=needBg; ctx.fill();
+    rr(PAD+26, ly+202, leftW-52, needH, 14); ctx.fillStyle=needBg; ctx.fill();
     ctx.fillStyle=needAccent; ctx.font=imgFont("800",26); ctx.fillText(needTxt, PAD+46, ly+224);
+    if(npsPaceTxt){
+      ctx.fillStyle="#0058b0"; ctx.font=imgFont("700",18);
+      var plines=wrapText(ctx, npsPaceTxt, leftW-52-40);
+      var py=ly+264;
+      plines.forEach(function(l){ ctx.fillText(l, PAD+46, py); py+=24; });
+    }
     var scTitleY=ly+npsH+24;
     ctx.fillStyle="#1d1d1f"; ctx.font=imgFont("700",18); ctx.textAlign="left";
     ctx.fillText("Store NPS 13週トレンド（W1〜W13）", PAD, scTitleY);
@@ -1835,15 +1863,25 @@
     if(L.jaLines.length){ ctx.fillStyle="#6e6e73"; ctx.font=imgFont("700",13); ctx.fillText("進捗（日本語）",textX,yy); yy+=18; ctx.fillStyle="#1d1d1f"; ctx.font=imgFont("500",16); L.jaLines.forEach(function(l){ ctx.fillText(l,textX,yy); yy+=22; }); }
     if(L.enLines.length){ ctx.fillStyle="#6e6e73"; ctx.font=imgFont("700",13); yy+=4; ctx.fillText("Progress (English)",textX,yy); yy+=18; ctx.fillStyle="#3a3a3c"; ctx.font=imgFont("500",16); L.enLines.forEach(function(l){ ctx.fillText(l,textX,yy); yy+=22; }); }
   }
+  // 写真を canvas 用に先読み。クラウド同期後の写真は外部URL(https)になり、
+  // crossOrigin を付けないと canvas が汚染され toBlob/toDataURL が失敗して画像が一切出せなくなる。
+  // → http(s) の写真には crossOrigin="anonymous" を付け、Supabase ストレージの CORS で汚染を回避する。
+  function preloadPhotos(arr){
+    var imgMap={}, loads=[];
+    (arr||[]).forEach(function(a){ (a.photos||[]).forEach(function(src){
+      loads.push(new Promise(function(res){
+        var im=new Image();
+        if(/^https?:/i.test(src)) im.crossOrigin="anonymous";
+        im.onload=function(){ imgMap[src]=im; res(); };
+        im.onerror=function(){ res(); };
+        im.src=src;
+      }));
+    }); });
+    return Promise.all(loads).then(function(){ return imgMap; });
+  }
   function exportImage2(){
     var arr=cur().actions;
-    // 写真を先読み
-    var loads=[];
-    var imgMap={};
-    arr.forEach(function(a){ a.photos.forEach(function(src){
-      loads.push(new Promise(function(res){ var im=new Image(); im.onload=function(){ imgMap[src]=im; res(); }; im.onerror=function(){ res(); }; im.src=src; }));
-    }); });
-    Promise.all(loads).then(function(){ drawPage2(arr, imgMap); });
+    preloadPhotos(arr).then(function(imgMap){ drawPage2(arr, imgMap); });
   }
   // 2ページ目の1枚を描いた canvas を返す（画像保存・PDF共用）
   // idx:このページの0始まり番号 / totalPages:2ページ目の総枚数 / dtxt:日付
@@ -1891,13 +1929,10 @@
   function exportPDF(){
     if(window.Career)Career.log({action:"recap",summary:"週次Recapを作成・出力",dedupeMs:300000});
     var arr=cur().actions;
-    var loads=[], imgMap={};
-    arr.forEach(function(a){ a.photos.forEach(function(src){
-      loads.push(new Promise(function(res){ var im=new Image(); im.onload=function(){ imgMap[src]=im; res(); }; im.onerror=function(){ res(); }; im.src=src; }));
-    }); });
+    var imgMap={};
     setPdfBtnBusy(true);
-    Promise.all(loads)
-      .then(function(){ return loadTeamData(false); })   // Team Growth ページ用にメンバーデータも読む
+    preloadPhotos(arr)
+      .then(function(m){ imgMap=m; return loadTeamData(false); })   // Team Growth ページ用にメンバーデータも読む
       .then(function(){ return loadJsPDF(); })
       .then(function(){ buildPDF(arr, imgMap); })
       .catch(function(){ alert("PDF生成に必要なライブラリの読み込みに失敗しました。ネットワーク接続をご確認のうえ再度お試しください。"); })
