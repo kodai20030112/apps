@@ -1921,7 +1921,7 @@
     pages.forEach(function(pg, idx){
       var cv=renderP2Canvas(pg, idx, totalPages, dtxt, imgMap);
       var fname=imgFileName(2+idx);   // 全ページ通し番号（1ページ目=001、ここは002〜）
-      cv.toBlob(function(b){ if(!b){ done++; return; } results[idx]={url:URL.createObjectURL(b), blob:b, fname:fname}; done++; if(done===totalPages){ showImageSheetMulti(results.filter(Boolean), "2ページ目（16:9）"); } }, "image/png");
+      cv.toBlob(function(b){ if(!b){ done++; return; } results[idx]={url:URL.createObjectURL(b), blob:b, fname:fname}; done++; if(done===totalPages){ var p2title = totalPages>1 ? "2ページ目（16:9）" : ("2ページ目（16:9） ・ "+pad3(2)+"/"+pad3(totalSheets())+"枚"); showImageSheetMulti(results.filter(Boolean), p2title); } }, "image/png");
     });
   }
 
