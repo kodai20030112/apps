@@ -235,6 +235,37 @@
   .fitem .fmeta .dl.soon{color:#9a6b00;background:var(--warm)}
   .fitem .fmeta .dl.future{color:var(--accent);background:var(--accent-soft)}
   .fitem .fmeta .dl.none{color:var(--sub);background:#f1f1f3}
+
+  /* ---- 目標NPS（メンバー詳細） ---- */
+  .npstarget-line{margin-top:14px;padding-top:13px;border-top:1px solid var(--line);font-size:13px;color:var(--sub);display:flex;align-items:center;gap:8px}
+  .npstarget-line b{color:var(--ink);font-size:15px;font-weight:800}
+  .npstarget-edit{margin-left:auto;background:var(--accent-soft);border:0;color:var(--accent);font-size:13px;font-weight:700;border-radius:999px;padding:5px 14px;cursor:pointer;font-family:inherit}
+  .npstarget-edit:active{transform:scale(.96)}
+
+  /* ---- NPSカウンター（会話エディタ） ---- */
+  .npscounter{margin-top:10px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}
+  .npscounter>summary{list-style:none;cursor:pointer;padding:12px 14px;font-size:14px;font-weight:700;color:var(--accent);display:flex;align-items:center;gap:8px}
+  .npscounter>summary::-webkit-details-marker{display:none}
+  .npscounter>summary .chev{margin-left:auto;color:#c4c4c9;font-size:18px;transition:transform .2s}
+  .npscounter[open]>summary .chev{transform:rotate(90deg)}
+  .npsc-body{padding:2px 14px 14px;border-top:1px solid var(--line)}
+  .npsc-row{display:flex;align-items:center;gap:9px;padding:11px 0;border-bottom:1px solid var(--line)}
+  .npsc-row:last-of-type{border-bottom:none}
+  .npsc-row .lab{flex:1;min-width:0}
+  .npsc-row .lab .n{font-size:18px;font-weight:800;color:var(--ink)}
+  .npsc-row .lab .t{display:block;font-size:11px;color:var(--sub)}
+  .npsc-row.p5 .lab .n{color:var(--good)}
+  .npsc-row.det .lab .n{color:var(--danger)}
+  .npsc-step{width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:#fff;font-size:22px;line-height:1;color:var(--ink);display:flex;align-items:center;justify-content:center;flex:0 0 auto;cursor:pointer;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+  .npsc-step:active{background:#eee}
+  .npsc-cnt{width:58px;text-align:center;font-size:18px;padding:8px 4px;border:1px solid var(--line);border-radius:10px;font-family:inherit;color:var(--ink)}
+  .npsc-cnt:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .npsc-result{margin-top:13px;background:var(--accent-soft);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:13px}
+  .npsc-result .big{font-size:30px;font-weight:800;line-height:1;color:var(--accent);flex:0 0 auto}
+  .npsc-result .big.done{color:var(--good)}
+  .npsc-result .meta{font-size:12px;color:var(--sub);line-height:1.55}
+  .npsc-result .meta b{color:var(--ink);font-weight:700}
+  .npsc-reset{margin-top:9px;background:none;border:0;color:var(--accent);font-size:13px;cursor:pointer;font-family:inherit;padding:4px 2px}
 </style>
 <script src="career.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -428,6 +459,8 @@ function renderMember(){
         <input type="range" class="slider" id="progSlider" min="0" max="100" step="5" value="${p}">
         <div class="smeta" style="color:var(--sub);font-size:12px">スライドして達成度を更新（体感でOK）</div>
       </div>
+      <div class="npstarget-line">🎯 目標NPS：<b>${typeof m.npsTarget==="number"?m.npsTarget:"未設定"}</b>
+        <button class="npstarget-edit" onclick="editNpsTargetSheet('${m.id}')">${typeof m.npsTarget==="number"?"変更":"設定"}</button></div>
       <button class="btn ghost edit" onclick="editGoalSheet('${m.id}')">${m.goal?"ゴールを編集":"ゴールを設定する"}</button>
     </div>`;
 
@@ -697,6 +730,25 @@ function renderEditor(){
     <div class="field">
       <label>📊 この時点の数値メモ<span class="hint">NPS実数値など。成長グラフに点として残ります（任意）</span></label>
       <input type="number" id="f_nps" inputmode="decimal" step="any" value="${typeof data.nps==="number"?data.nps:""}" placeholder="例：70">
+      <details class="npscounter" id="npsCounter"${(data.npsCounts&&((+data.npsCounts.p5||0)+(+data.npsCounts.p4||0)+(+data.npsCounts.det||0)>0))?" open":""}>
+        <summary>🧮 NPSカウンターで計算する<span class="chev">›</span></summary>
+        <div class="npsc-body">
+          <div class="npsc-row p5"><div class="lab"><span class="n">5</span><span class="t">Promoter ＋100</span></div>
+            <button type="button" class="npsc-step" data-nstep="dec" data-nk="p5" aria-label="減らす">−</button>
+            <input class="npsc-cnt" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" data-nk="p5" value="0">
+            <button type="button" class="npsc-step" data-nstep="inc" data-nk="p5" aria-label="増やす">＋</button></div>
+          <div class="npsc-row p4"><div class="lab"><span class="n">4</span><span class="t">Passive 0</span></div>
+            <button type="button" class="npsc-step" data-nstep="dec" data-nk="p4" aria-label="減らす">−</button>
+            <input class="npsc-cnt" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" data-nk="p4" value="0">
+            <button type="button" class="npsc-step" data-nstep="inc" data-nk="p4" aria-label="増やす">＋</button></div>
+          <div class="npsc-row det"><div class="lab"><span class="n">3〜1</span><span class="t">Detractor −100</span></div>
+            <button type="button" class="npsc-step" data-nstep="dec" data-nk="det" aria-label="減らす">−</button>
+            <input class="npsc-cnt" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" data-nk="det" value="0">
+            <button type="button" class="npsc-step" data-nstep="inc" data-nk="det" aria-label="増やす">＋</button></div>
+          <div class="npsc-result" id="npscResult"></div>
+          <div style="text-align:right"><button type="button" class="npsc-reset" id="npscReset">カウントをリセット</button></div>
+        </div>
+      </details>
     </div>
 
     <div class="gstep"><span class="gn">1</span><span class="ge">🎯</span><span class="gt">ゴール</span></div>
@@ -758,6 +810,39 @@ function renderEditor(){
   `;
 
   ["f_goal","f_reality","f_keep","f_more","f_insight"].forEach(id=>{const e=$("#"+id);autoGrow(e);e.addEventListener("input",()=>autoGrow(e));});
+
+  /* NPSカウンター：5/4/3〜1 を数えてNPSを自動計算し、上の数値メモへ反映 */
+  const npsCounts={p5:0,p4:0,det:0};
+  if(data.npsCounts){npsCounts.p5=+data.npsCounts.p5||0;npsCounts.p4=+data.npsCounts.p4||0;npsCounts.det=+data.npsCounts.det||0;}
+  function npscSyncInputs(){document.querySelectorAll(".npsc-cnt").forEach(inp=>{inp.value=npsCounts[inp.dataset.nk]||0;});}
+  function npscRender(writeNps){
+    const total=npsCounts.p5+npsCounts.p4+npsCounts.det, net=npsCounts.p5-npsCounts.det;
+    const nps= total ? Math.round(net*1000/total)/10 : null;
+    const box=$("#npscResult");
+    if(total===0){box.innerHTML=`<div class="meta">回答を ＋ で数えると、NPSが自動で計算されて上の「数値メモ」に入ります。</div>`;return;}
+    if(writeNps)$("#f_nps").value=nps;
+    const tgt=(typeof m.npsTarget==="number")?m.npsTarget:null;
+    let goalLine;
+    if(tgt===null){goalLine=`<span style="color:var(--accent)">メンバー詳細で「目標NPS」を決めると、達成まであと何個かを表示します</span>`;}
+    else if(nps>=tgt){goalLine=`<b style="color:var(--good)">🎉 目標 ${tgt} を達成中</b>`;}
+    else if(tgt>=100){goalLine=`目標100は、5以外が1件でもあると到達できません`;}
+    else{let k=Math.ceil((tgt*total-100*net)/(100-tgt));if(k<0)k=0;goalLine=`目標 ${tgt} まで Promoter（5）あと <b>${k}個</b>`;}
+    const cls=(tgt!==null&&nps>=tgt)?" done":"";
+    box.innerHTML=`<div class="big${cls}">${nps>0?"+":""}${nps}</div><div class="meta">現在のNPS ・ 回答 <b>${total}</b>件<br>${goalLine}</div>`;
+  }
+  npscSyncInputs();npscRender(false);
+  $("#npsCounter").addEventListener("click",e=>{
+    const b=e.target.closest(".npsc-step");if(!b)return;
+    const k=b.dataset.nk, d=b.dataset.nstep==="inc"?1:-1;
+    npsCounts[k]=Math.max(0,(npsCounts[k]||0)+d);
+    npscSyncInputs();npscRender(true);
+  });
+  $("#npsCounter").addEventListener("input",e=>{
+    const inp=e.target.closest(".npsc-cnt");if(!inp)return;
+    const n=parseInt(inp.value,10);
+    npsCounts[inp.dataset.nk]=isNaN(n)||n<0?0:n;npscRender(true);
+  });
+  $("#npscReset").onclick=()=>{npsCounts.p5=0;npsCounts.p4=0;npsCounts.det=0;npscSyncInputs();npscRender(false);};
 
   /* ideas list */
   function renderIdeas(){
@@ -836,6 +921,7 @@ function renderEditor(){
       id:workingId,
       date:$("#f_date").value||todayStr(),
       nps:npsVal,
+      npsCounts:(npsCounts.p5||npsCounts.p4||npsCounts.det)?{p5:npsCounts.p5,p4:npsCounts.p4,det:npsCounts.det}:null,
       progressAt:progAt,
       goal:$("#f_goal").value.trim(),
       reality:$("#f_reality").value.trim(),
@@ -1034,6 +1120,21 @@ function editGoalSheet(id){
   setTimeout(()=>{const t=$("#g_text");t.focus();autoGrow(t);t.addEventListener("input",()=>autoGrow(t));},50);
   $("#g_save").onclick=()=>{m.goal=$("#g_text").value.trim();m.updatedAt=Date.now();save();closeSheet();render();toast("保存しました");};
 }
+function editNpsTargetSheet(id){
+  const m=memberById(id);if(!m)return;
+  const set=typeof m.npsTarget==="number";
+  const cur=set?m.npsTarget:70;
+  openSheet(`<h3>🎯 目標NPS</h3><p class="sub">このメンバーで目指すNPSスコア（−100〜100）。一度決めたら基本そのままでOK。会話の「NPSカウンター」で「あと何個」の目安になります。</p>
+    <div class="field"><input type="number" id="nt_val" min="-100" max="100" step="1" inputmode="numeric" value="${cur}"></div>
+    <div class="sheet-actions">${set?'<button class="btn line" id="nt_clear">未設定に戻す</button>':'<button class="btn line" onclick="closeSheet()">キャンセル</button>'}<button class="btn" id="nt_save">保存</button></div>`);
+  setTimeout(()=>{const v=$("#nt_val");v.focus();v.select&&v.select();},50);
+  $("#nt_save").onclick=()=>{
+    let v=parseInt($("#nt_val").value,10);
+    if(isNaN(v)){toast("数値を入れてね");return;}
+    m.npsTarget=Math.max(-100,Math.min(100,v));m.updatedAt=Date.now();save();closeSheet();render();toast("目標NPSを保存しました");
+  };
+  const clr=$("#nt_clear");if(clr)clr.onclick=()=>{delete m.npsTarget;m.updatedAt=Date.now();save();closeSheet();render();toast("未設定に戻しました");};
+}
 function confirmSheet(title,sub,onYes){
   openSheet(`<h3>${esc(title)}</h3><p class="sub">${esc(sub)}</p>
     <div class="sheet-actions"><button class="btn line" onclick="closeSheet()">やめる</button><button class="btn danger" id="c_yes">削除する</button></div>`);
@@ -1107,18 +1208,20 @@ function transferSheet(){
 /* ---------- CSV ---------- */
 function csvCell(v){return '"'+String(v==null?"":v).replace(/"/g,'""')+'"';}
 function exportCSV(){
-  const head=["メンバー","叶えたいゴール","達成度(%)","日付","NPS実数値","今回のゴール","現状","Success","Opportunity","本人のアイデア","もらったアドバイス","今日からできること","期限","アクション"];
+  const head=["メンバー","叶えたいゴール","達成度(%)","目標NPS","日付","NPS実数値","NPS内訳(5/4/3〜1)","今回のゴール","現状","Success","Opportunity","本人のアイデア","もらったアドバイス","今日からできること","期限","アクション"];
   const rows=[head];
   DB.members.forEach(m=>{
     const pg=m.progress||0;
-    if(!m.sessions.length){rows.push([m.name,m.goal,pg,"","","","","","","","","","",""]);return;}
+    const tgt=typeof m.npsTarget==="number"?m.npsTarget:"";
+    if(!m.sessions.length){rows.push([m.name,m.goal,pg,tgt,"","","","","","","","","","","",""]);return;}
     [...m.sessions].sort((a,b)=>a.date<b.date?-1:1).forEach(s=>{
       const fb=s.feedback||{};const act=s.action||{};
       const ideas=(s.memberIdeas||[]).filter(Boolean).join(" / ");
       const adv=(s.advice||[]).filter(a=>a.text).map(a=>a.by?`${a.text}（${a.by}）`:a.text).join(" / ");
       const todos=(act.todos||[]).filter(t=>t.text).map(t=>`${t.done?"✓":"□"} ${t.text}`).join(" / ");
       const npsCell=typeof s.nps==="number"?s.nps:"";
-      rows.push([m.name,m.goal,pg,s.date,npsCell,s.goal||"",s.reality||"",fb.keep||"",fb.more||"",ideas,adv,s.insight||"",act.deadline||"",todos]);
+      const nc=s.npsCounts;const ncCell=nc?`5:${nc.p5||0} 4:${nc.p4||0} 3〜1:${nc.det||0}`:"";
+      rows.push([m.name,m.goal,pg,tgt,s.date,npsCell,ncCell,s.goal||"",s.reality||"",fb.keep||"",fb.more||"",ideas,adv,s.insight||"",act.deadline||"",todos]);
     });
   });
   const csv="﻿"+rows.map(r=>r.map(csvCell).join(",")).join("\r\n");
@@ -1129,7 +1232,7 @@ function exportCSV(){
   toast("CSVを書き出しました");
 }
 
-window.go=go;window.closeSheet=closeSheet;window.editGoalSheet=editGoalSheet;window.transferSheet=transferSheet;
+window.go=go;window.closeSheet=closeSheet;window.editGoalSheet=editGoalSheet;window.editNpsTargetSheet=editNpsTargetSheet;window.transferSheet=transferSheet;
 render();
 bootstrapCloud();
 document.addEventListener("visibilitychange",function(){

@@ -90,7 +90,7 @@ function buildPrompt(d: any, lang: "ja" | "en"): string {
       "Guidelines:",
       "- Output ONLY the email: first line is `Subject: ...`, then a blank line, then the body.",
       "- Greet the manager by name if provided.",
-      "- Lead with what went well (metrics that beat benchmark / goals hit).",
+      "- Lead with what went well (metrics that beat the previous quarter / goals hit).",
       "- Honestly acknowledge metrics that missed, and add a brief, concrete focus for next week.",
       "- If a personal goal is provided, tie the closing back to it.",
       "- Keep it concise (about 150-220 words). Sign off with the sender's first name.",
@@ -108,7 +108,7 @@ function buildPrompt(d: any, lang: "ja" | "en"): string {
     "ルール:",
     "- 出力はメール本文のみ。1行目は『件名: ...』、次に空行、その後に本文。",
     "- 宛名（上長名）があれば冒頭に入れる。",
-    "- まず良かった点（ベンチ超え・Goal達成）に触れる。",
+    "- まず良かった点（前Q超え・Goal達成）に触れる。",
     "- 未達の項目は正直に認め、来週の具体的なフォーカスを短く添える。",
     "- 自分のゴールがあれば締めでそこに結びつける。",
     "- 150〜250字程度で簡潔に。最後は送信者の名前で締める。",
@@ -151,7 +151,7 @@ function factLines(d: any, lang: "ja" | "en"): string {
       const st = k.value == null || k.bench == null
         ? "-"
         : (k.achieved ? (ja ? "達成" : "achieved") : (ja ? "未達" : "missed"));
-      L.push(`  - ${k.label}: ${k.value ?? "-"}${unit} (${ja ? "ベンチ" : "bench"} ${k.bench ?? "-"}${unit}) ${st}`);
+      L.push(`  - ${k.label}: ${k.value ?? "-"}${unit} (${ja ? "前Q" : "prev Q"} ${k.bench ?? "-"}${unit}) ${st}`);
     }
   }
 

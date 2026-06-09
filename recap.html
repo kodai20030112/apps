@@ -58,6 +58,11 @@
   .kpi .badge{font-size:11px; font-weight:700; padding:4px 9px; border-radius:999px; white-space:nowrap;}
   .kpi.achieve .badge{background:#fff; color:var(--achieve-tx);}
   .kpi.miss .badge{background:#fff; color:var(--miss-tx);}
+  .kpi .prevauto{min-width:46px; text-align:center; font-size:16px; font-weight:600;}
+  .kpi .verdict{display:flex; flex-direction:column; align-items:flex-end; gap:3px;}
+  .kpi .delta{font-size:11px; font-weight:700; color:var(--sub); white-space:nowrap;}
+  .kpi.achieve .delta{color:var(--achieve-tx);}
+  .kpi.miss .delta{color:var(--miss-tx);}
 
   /* NPS */
   .nps-tallies .tally{display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--line);}
@@ -140,14 +145,15 @@
     .card{padding:18px 16px; border-radius:16px;}
     h1{font-size:22px;}
 
-    /* KPI: 名前を上段フル幅、下段に「自分 / ベンチマーク」を2列で */
+    /* KPI: 名前を上段フル幅、下段に「自分 / 前Q」を2列で */
     .kpi{flex-wrap:wrap; row-gap:12px; padding:14px;}
     .kpi .name{flex:1 1 100%; min-width:0; font-size:15px;}
     .kpi .io{flex:1 1 42%; flex-wrap:wrap; gap:4px 6px; min-width:0;}
     .kpi .io label{flex:1 1 100%; white-space:nowrap;}
     .kpi input{width:auto; flex:1 1 40px; min-width:0; text-align:center;}
+    .kpi .prevauto{flex:1 1 40px; align-self:center;}
     .kpi .unit{flex:0 0 auto; width:auto;}
-    .kpi .badge{margin-left:auto; align-self:center;}
+    .kpi .verdict{flex:1 1 100%; flex-direction:row; justify-content:flex-end; align-items:center; gap:8px;}
 
     /* NPS カウンター行 */
     .tally{gap:8px;}
@@ -237,7 +243,7 @@
 
   <!-- KPI -->
   <div class="card">
-    <h2>KPI（自分の数値 / ベンチマーク）</h2>
+    <h2>KPI（自分の数値 / 前クオーター）</h2>
     <div id="kpiList"></div>
   </div>
 
@@ -261,7 +267,7 @@
     <h2>13週トレンド（W1〜W13）</h2>
     <div class="chip-row" id="metricChips"></div>
     <div class="chart-box"><canvas class="chart" id="liveChart" width="1400" height="460"></canvas></div>
-    <p style="font-size:12px;color:var(--sub);margin:10px 0 0;">入力すると現在の週が自動保存され、各週の点が積み上がります。点線はベンチマーク／Goal。</p>
+    <p style="font-size:12px;color:var(--sub);margin:10px 0 0;">入力すると現在の週が自動保存され、各週の点が積み上がります。点線は前Q／Goal。</p>
   </div>
 
   <div class="actions">
@@ -549,13 +555,14 @@
       row.innerHTML =
         '<span class="name">'+m.name+'</span>'+
         '<div class="io"><label>自分</label><input type="number" inputmode="decimal" data-k="'+m.key+'" data-f="v"><span class="unit">'+m.unit+'</span></div>'+
-        '<div class="io"><label>ベンチマーク</label><input type="number" inputmode="decimal" data-k="'+m.key+'" data-f="b"><span class="unit">'+m.unit+'</span></div>'+
-        '<span class="badge"></span>';
+        '<div class="io"><label>前Q</label><input class="previn" type="number" inputmode="decimal" data-k="'+m.key+'" data-f="p"><span class="prevauto"></span><span class="unit">'+m.unit+'</span></div>'+
+        '<div class="verdict"><span class="badge"></span><span class="delta"></span></div>';
       el.kpiList.appendChild(row);
     });
     el.kpiList.addEventListener("input", function(e){
       var inp=e.target.closest("input"); if(!inp) return;
-      cur().kpi[inp.dataset.k][inp.dataset.f] = inp.value;
+      if(inp.dataset.f==="p"){ ensurePrevRef()[inp.dataset.k] = inp.value; }
+      else { cur().kpi[inp.dataset.k][inp.dataset.f] = inp.value; }
       renderKpi(); renderChart(); save();
     });
   }
@@ -599,12 +606,48 @@
 
   /* ---------- render ---------- */
   function num(x){ var n=parseFloat(x); return isNaN(n)?null:n; }
+  function fmtNum(n){ return String(Math.round(n*10)/10); }
+  function fmtDelta(d){ var r=Math.round(d*10)/10; return (r>0?"+":(r<0?"−":"±"))+Math.abs(r); }
+
+  // 前クオーター(直前のFY/Q)のキー。例: FY2026Q3 → FY2026Q2、FY2026Q1 → FY2025Q4
+  function prevFyqKey(){
+    var fy=parseInt(state.fy,10), q=parseInt(state.q,10);
+    if(isNaN(fy)||isNaN(q)) return null;
+    if(q>1) return "FY"+fy+"Q"+(q-1);
+    return "FY"+(fy-1)+"Q4";
+  }
+  // 前クオーターに保存済みのデータから、そのKPIの最終週(最も後ろの入力済み週)の値を拾う
+  function autoPrevRef(mkey){
+    var pk=prevFyqKey(); if(!pk) return null;
+    var pd=state.data[pk]; if(!pd) return null;
+    for(var w=13;w>=1;w--){
+      var s=pd[w]; if(!s||!s.kpi||!s.kpi[mkey]) continue;
+      var v=num(s.kpi[mkey].v); if(v!==null) return v;
+    }
+    return null;
+  }
+  // 現在のクオーターに紐づく前Q手入力値の入れ物（自動取得できない時のフォールバック用）
+  function ensurePrevRef(){
+    var qd=quarter();
+    if(!qd.prevRef || typeof qd.prevRef!=="object") qd.prevRef={};
+    KPIS.forEach(function(m){ if(qd.prevRef[m.key]==null) qd.prevRef[m.key]=""; });
+    return qd.prevRef;
+  }
+  // 比較に使う前Q基準値。自動取得を優先し、無ければ手入力を使う
+  function prevRefInfo(mkey){
+    var auto=autoPrevRef(mkey);
+    if(auto!==null) return {val:auto, source:"auto"};
+    var m=num(ensurePrevRef()[mkey]);
+    if(m!==null) return {val:m, source:"manual"};
+    return {val:null, source:"none"};
+  }
 
   function loadWeekIntoInputs(){
     var s=cur();
+    var pr=ensurePrevRef();
     KPIS.forEach(function(m){
       el.kpiList.querySelector('input[data-k="'+m.key+'"][data-f="v"]').value = s.kpi[m.key].v;
-      el.kpiList.querySelector('input[data-k="'+m.key+'"][data-f="b"]').value = s.kpi[m.key].b;
+      el.kpiList.querySelector('input[data-k="'+m.key+'"][data-f="p"]').value = pr[m.key] || "";
     });
     syncNpsInputs();
     el.goal.value = s.nps.goal;
@@ -623,12 +666,23 @@
     var s=cur();
     KPIS.forEach(function(m){
       var row=el.kpiList.querySelector('.kpi[data-key="'+m.key+'"]');
-      var v=num(s.kpi[m.key].v), b=num(s.kpi[m.key].b);
-      var badge=row.querySelector(".badge");
+      var v=num(s.kpi[m.key].v);
+      var info=prevRefInfo(m.key), ref=info.val;
+      var badge=row.querySelector(".badge"), delta=row.querySelector(".delta");
+      var prevauto=row.querySelector(".prevauto"), previn=row.querySelector(".previn");
+      // 前Q値: 自動取得できれば読み取り専用で表示、無ければ手入力欄を出す
+      if(info.source==="auto"){
+        prevauto.textContent=fmtNum(ref); prevauto.style.display="";
+        previn.style.display="none";
+      }else{
+        prevauto.textContent=""; prevauto.style.display="none";
+        previn.style.display="";
+      }
       row.classList.remove("achieve","miss");
-      if(v===null||b===null){ badge.textContent=""; return; }
-      if(v>=b){ row.classList.add("achieve"); badge.textContent="Achieved"; }
+      if(v===null||ref===null){ badge.textContent=""; delta.textContent=""; return; }
+      if(v>=ref){ row.classList.add("achieve"); badge.textContent="Achieved"; }
       else{ row.classList.add("miss"); badge.textContent="In Progress"; }
+      delta.textContent="前Q比 "+fmtDelta(v-ref)+m.unit;
     });
   }
   function npsCalc(s){
@@ -906,7 +960,6 @@
       if(meta.kind==="kpi"){
         if(!s.kpi){ arr.push(null); continue; }
         arr.push(num(s.kpi[mkey].v));
-        var b=num(s.kpi[mkey].b); if(b!==null) bench=b; // 最新の基準を採用
       }else{
         var obj = isStore ? s.storeNps : s.nps;
         if(!obj){ arr.push(null); continue; }
@@ -915,6 +968,8 @@
         var g=num(obj.goal); if(g!==null) bench=g;
       }
     }
+    // KPIの基準線は前クオーターの値（クオーター内で一定）
+    if(meta.kind==="kpi") bench=prevRefInfo(mkey).val;
     return {arr:arr, bench:bench, meta:meta};
   }
 
@@ -1040,7 +1095,7 @@
   function collectMailData(){
     var s = cur();
     var kpis = KPIS.map(function(m){
-      var v = num(s.kpi[m.key].v), b = num(s.kpi[m.key].b);
+      var v = num(s.kpi[m.key].v), b = prevRefInfo(m.key).val;
       return { label:m.name, value:v, bench:b, unit:m.unit||"",
                achieved:(v!==null && b!==null) ? (v>=b) : false };
     });
@@ -1570,10 +1625,10 @@
     // KPIカード
     var kpiH=64+KPIS.length*64;
     ctx.fillStyle="#fff"; rr(PAD,ly,leftW,kpiH,18); ctx.fill();
-    ctx.fillStyle="#6e6e73"; ctx.font=imgFont("700",16); ctx.fillText("KPI", PAD+26, ly+22);
+    ctx.fillStyle="#6e6e73"; ctx.font=imgFont("700",16); ctx.fillText("KPI（自分 / 前Q）", PAD+26, ly+22);
     var s=cur(); var ky=ly+58;
     KPIS.forEach(function(m){
-      var v=num(s.kpi[m.key].v), b=num(s.kpi[m.key].b);
+      var v=num(s.kpi[m.key].v), b=prevRefInfo(m.key).val;
       var ok = (v!==null&&b!==null&&v>=b);
       var miss = (v!==null&&b!==null&&v<b);
       var bg = ok?"#d6ecff":(miss?"#fff2cc":"#f5f5f7");

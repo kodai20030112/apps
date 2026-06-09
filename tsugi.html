@@ -154,6 +154,7 @@
     background: var(--bg); font-size: 22px; cursor: pointer; padding: 0;
   }
   .emoji-picker button.sel { border-color: var(--accent); background: #e7f7f3; }
+  .emoji-picker button.add-emoji { border-style: dashed; color: var(--accent); font-weight: 700; }
   .hint { font-size: 11.5px; color: var(--sub); margin-top: 6px; }
   .preview-next { font-size: 13px; color: var(--accent); font-weight: 600; margin-top: 6px; min-height: 18px; }
   /* 予約トグル（iOS標準風スイッチ） */
@@ -218,6 +219,7 @@
     <div class="field">
       <label>アイコン</label>
       <div class="emoji-picker" id="emojiPicker"></div>
+      <div class="hint">「＋」から好きな絵文字や記号を追加できます。追加したアイコンは長押し（PCは右クリック）で削除。</div>
     </div>
 
     <div class="field">
@@ -539,6 +541,16 @@ function addToCalendar(id) {
 
 /* ============ 追加 / 編集シート ============ */
 const EMOJIS = ["🗓️", "💈", "✂️", "💆", "🪒", "💅", "🦷", "🩺", "💊", "🚗", "🧹", "🐶", "🌷", "🧴", "👓", "🛏️", "💸", "📦"];
+/* ユーザーが自分で足したアイコンは DB に保存（クラウド同期＆永続化）。 */
+function customEmojis() { return Array.isArray(DB.customEmojis) ? DB.customEmojis : (DB.customEmojis = []); }
+function allEmojis() { const seen = new Set(EMOJIS); return EMOJIS.concat(customEmojis().filter(e => !seen.has(e))); }
+/* 入力を「アイコン1個ぶん」に整える（複雑な絵文字も壊さず、暴走入力は防ぐ） */
+function trimEmoji(v) {
+  v = String(v || "").trim();
+  if (!v) return "";
+  const cps = [...v];
+  return cps.length > 12 ? cps.slice(0, 12).join("") : v;
+}
 let editingId = null;
 let pickedEmoji = EMOJIS[0];
 
@@ -586,14 +598,49 @@ fNeedsBooking.addEventListener("change", () => {
 });
 
 function buildEmojiPicker() {
-  emojiPicker.innerHTML = EMOJIS.map(em =>
-    '<button type="button" data-em="' + em + '" class="' + (em === pickedEmoji ? "sel" : "") + '">' + em + '</button>'
-  ).join("");
+  emojiPicker.innerHTML = allEmojis().map(em =>
+    '<button type="button" data-em="' + esc(em) + '" class="' + (em === pickedEmoji ? "sel" : "") + '">' + em + '</button>'
+  ).join("") +
+  '<button type="button" data-add="1" class="add-emoji" aria-label="アイコンを追加">＋</button>';
 }
+function addCustomEmoji() {
+  const v = trimEmoji(prompt("好きな絵文字や記号を入力してください（例：🐱 ⭐️ ♨️）"));
+  if (!v) return;
+  if (!allEmojis().includes(v)) { customEmojis().push(v); save(); }
+  pickedEmoji = v;
+  buildEmojiPicker();
+}
+function removeCustomEmoji(em) {
+  if (!confirm("このアイコン「" + em + "」を一覧から削除しますか？")) return;
+  DB.customEmojis = customEmojis().filter(x => x !== em);
+  if (pickedEmoji === em) pickedEmoji = EMOJIS[0];
+  save(); buildEmojiPicker();
+}
+let _emojiLongPressed = false, _emojiPressTimer = null;
 emojiPicker.addEventListener("click", e => {
+  if (_emojiLongPressed) { _emojiLongPressed = false; return; }   // 長押しで削除した直後のクリックは無視
+  if (e.target.closest("[data-add]")) { addCustomEmoji(); return; }
   const b = e.target.closest("[data-em]"); if (!b) return;
   pickedEmoji = b.getAttribute("data-em");
   buildEmojiPicker();
+});
+/* 追加したアイコンだけ長押し / 右クリックで削除 */
+function emojiPressStart(e) {
+  const b = e.target.closest("[data-em]"); if (!b) return;
+  const em = b.getAttribute("data-em");
+  if (!customEmojis().includes(em)) return;
+  _emojiPressTimer = setTimeout(() => { _emojiPressTimer = null; _emojiLongPressed = true; removeCustomEmoji(em); }, 550);
+}
+function emojiPressCancel() { if (_emojiPressTimer) { clearTimeout(_emojiPressTimer); _emojiPressTimer = null; } }
+emojiPicker.addEventListener("touchstart", emojiPressStart, { passive: true });
+emojiPicker.addEventListener("touchend", emojiPressCancel);
+emojiPicker.addEventListener("touchmove", emojiPressCancel, { passive: true });
+emojiPicker.addEventListener("contextmenu", e => {
+  const b = e.target.closest("[data-em]"); if (!b) return;
+  const em = b.getAttribute("data-em");
+  if (!customEmojis().includes(em)) return;
+  e.preventDefault();
+  removeCustomEmoji(em);
 });
 
 function formNextDate() {

@@ -31,6 +31,7 @@ APPS = {
     "copybox":     ("📋", "#7fa8ff", "#4d6fe0"),
     "tabinoki":    ("🌴", "#3fd4c4", "#0d9488"),
     "yarukoto":    ("✅", "#7c8bff", "#4f5edb"),
+    "interview":   ("🎤", "#7b8cff", "#4f5bd5"),
 }
 
 

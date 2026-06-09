@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="apple-touch-icon" href="icons/icon-interview.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Interviewノート">
+<meta name="theme-color" content="#f5f5f7">
+<title>Interviewノート — 昇進面接の質問・回答・フィードバック</title>
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --card: #ffffff;
+    --text: #1d1d1f;
+    --sub: #6e6e73;
+    --line: #e3e3e6;
+    --blue: #0071e3;
+    --green: #34c759;
+    --red: #ff3b30;
+    --orange: #ff9500;
+    --gray: #8e8e93;
+    --purple: #8b5cf6;
+    --chip: #f0f0f2;
+    --accent: #4f5bd5;
+    --accent-soft: #ecedfb;
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: calc(120px + env(safe-area-inset-bottom));
+  }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 0 16px; }
+
+  /* ===== ヘッダー ===== */
+  header { padding: 24px 4px 6px; text-align: center; }
+  .logo { font-size: 34px; line-height: 1; }
+  h1 { font-size: 23px; font-weight: 700; letter-spacing: -.02em; margin: 6px 0 2px; }
+  .tagline { color: var(--sub); font-size: 13px; }
+  .sync {
+    display: inline-flex; align-items: center; gap: 5px; margin-top: 7px;
+    font-size: 11.5px; font-weight: 600; color: var(--sub);
+    background: var(--card); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 11px; cursor: default;
+  }
+  .sync .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gray); }
+  .sync.ok .dot { background: var(--green); }
+  .sync.off .dot { background: var(--orange); }
+  .sync.local .dot { background: var(--gray); }
+
+  /* ===== タブ ===== */
+  .tabs {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; gap: 6px; padding: 12px 0 10px;
+    background: linear-gradient(var(--bg) 78%, rgba(245,245,247,0));
+  }
+  .tab {
+    flex: 1; border: none; cursor: pointer; font: inherit;
+    background: var(--card); color: var(--sub);
+    border: 1px solid var(--line); border-radius: 14px;
+    padding: 9px 2px 8px; font-size: 13px; font-weight: 600;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    transition: all .15s;
+  }
+  .tab .ti { font-size: 18px; }
+  .tab .tn { font-size: 11px; }
+  .tab .tc { font-size: 11px; font-weight: 700; opacity: .6; }
+  .tab.on { background: var(--accent); color: #fff; border-color: var(--accent); box-shadow: 0 6px 16px rgba(79,91,213,.32); }
+  .tab.on .tc { opacity: .85; }
+
+  /* ===== パネル共通 ===== */
+  .panel { display: none; }
+  .panel.on { display: block; }
+  .empty {
+    text-align: center; color: var(--sub); font-size: 14px;
+    padding: 48px 20px; line-height: 1.8;
+  }
+  .empty .e-ico { font-size: 40px; display: block; margin-bottom: 10px; opacity: .8; }
+
+  .sec-label {
+    font-size: 12px; font-weight: 700; color: var(--sub);
+    margin: 18px 4px 9px; display: flex; align-items: center; gap: 6px;
+  }
+  .sec-label .badge {
+    margin-left: auto; font-weight: 700; color: var(--sub);
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 999px; padding: 1px 9px; font-size: 11px;
+  }
+
+  /* ===== 面接カード ===== */
+  .iv-card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 16px; margin-bottom: 10px; overflow: hidden;
+  }
+  .iv-card.r-fail { border-left: 4px solid var(--red); }
+  .iv-card.r-pass { border-left: 4px solid var(--green); }
+  .iv-head { display: flex; align-items: center; gap: 11px; padding: 14px 14px; cursor: pointer; }
+  .iv-main { flex: 1; min-width: 0; }
+  .iv-pos { font-size: 16px; font-weight: 700; letter-spacing: -.01em; word-break: break-word; }
+  .iv-meta { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-top: 6px; }
+  .phase-badge { background: var(--accent-soft); color: var(--accent); font-weight: 700; border-radius: 999px; padding: 2px 10px; font-size: 12px; }
+  .date-txt { font-size: 12.5px; color: var(--sub); font-weight: 600; }
+  .res-badge { border-radius: 999px; padding: 2px 10px; font-size: 11.5px; font-weight: 700; }
+  .res-badge.pending { background: #ececef; color: #636366; }
+  .res-badge.pass { background: #e2f6e6; color: #1a8a3a; }
+  .res-badge.fail { background: #ffe5e3; color: #d70015; }
+  .iv-counts { font-size: 11.5px; color: var(--sub); }
+  .iv-chevron { color: #c7c7cc; font-size: 22px; line-height: 1; flex: 0 0 auto; transition: transform .2s; }
+  .iv-card.open .iv-chevron { transform: rotate(90deg); }
+  .iv-body { display: none; padding: 2px 14px 14px; }
+  .iv-card.open .iv-body { display: block; }
+
+  /* 質問 */
+  .q {
+    border-top: 1px solid var(--line); padding: 13px 0 12px;
+  }
+  .q-top { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-bottom: 6px; }
+  .comp-chip {
+    background: var(--accent-soft); color: var(--accent);
+    border-radius: 999px; padding: 3px 11px; font-size: 12px; font-weight: 700;
+  }
+  .comp-chip.none { background: var(--chip); color: var(--sub); }
+  .q-act { margin-left: auto; display: flex; gap: 12px; }
+  .q-act button { border: none; background: none; cursor: pointer; font-family: inherit; font-size: 12.5px; font-weight: 600; color: var(--accent); padding: 0; }
+  .q-act button.del { color: #c7c7cc; }
+  .q-text { font-size: 15px; font-weight: 600; word-break: break-word; }
+  .q-ans {
+    font-size: 13.5px; color: var(--text); white-space: pre-wrap; word-break: break-word;
+    margin-top: 7px; background: var(--bg); border-radius: 10px; padding: 9px 11px;
+  }
+  .q-ans .a-lbl { font-size: 11px; font-weight: 700; color: var(--sub); display: block; margin-bottom: 3px; }
+  .q-ans.empty { color: var(--sub); font-style: normal; }
+  .add-q {
+    width: 100%; margin-top: 13px; border: 1px dashed var(--line); background: var(--bg);
+    color: var(--accent); font-family: inherit; font-size: 14px; font-weight: 600;
+    border-radius: 12px; padding: 11px; cursor: pointer;
+  }
+
+  /* フィードバック */
+  .fb-sect {
+    margin-top: 14px; background: var(--bg); border-radius: 14px; padding: 13px 13px 11px;
+  }
+  .fb-sect.fail { background: #fff3f2; }
+  .fb-head { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 9px; }
+  .fb-head .hint { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--sub); }
+  .fb-point {
+    display: flex; align-items: flex-start; gap: 9px;
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 11px; padding: 9px 10px; margin-bottom: 7px;
+  }
+  .fb-point .fb-dot { color: var(--red); font-size: 13px; line-height: 1.5; flex: 0 0 auto; }
+  .fb-sect.pass .fb-point .fb-dot, .fb-sect.pending .fb-point .fb-dot { color: var(--accent); }
+  .fb-point .fb-txt { flex: 1; min-width: 0; font-size: 13.5px; white-space: pre-wrap; word-break: break-word; }
+  .fb-point .fb-del { border: none; background: none; cursor: pointer; color: #c7c7cc; font-size: 17px; line-height: 1; padding: 0 2px; flex: 0 0 auto; }
+  .fb-add { display: flex; gap: 8px; margin-top: 3px; }
+  .fb-add input {
+    flex: 1; min-width: 0; font: inherit; font-size: 15px;
+    border: 1px solid var(--line); background: var(--card);
+    border-radius: 10px; padding: 9px 11px;
+  }
+  .fb-add input:focus { outline: none; border-color: var(--accent); }
+  .fb-add button {
+    flex: 0 0 auto; border: none; background: var(--accent); color: #fff;
+    font-family: inherit; font-size: 18px; font-weight: 600;
+    border-radius: 10px; width: 44px; cursor: pointer;
+  }
+
+  .iv-foot { display: flex; gap: 16px; margin-top: 15px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .iv-foot button { border: none; background: none; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 600; color: var(--accent); padding: 0; }
+  .iv-foot button.del { color: #c7c7cc; margin-left: auto; }
+
+  /* ===== みんなの質問 / アドバイス カード ===== */
+  .note {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 16px; padding: 14px 15px; margin-bottom: 10px;
+  }
+  .note .n-top { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-bottom: 8px; }
+  .pos-chip { background: var(--chip); color: #5b606b; border-radius: 999px; padding: 3px 11px; font-size: 12px; font-weight: 700; }
+  .note .n-text { font-size: 15px; font-weight: 600; word-break: break-word; white-space: pre-wrap; }
+  .note .n-src { font-size: 12.5px; color: var(--sub); margin-top: 8px; display: flex; align-items: center; gap: 5px; }
+  .note .n-act { display: flex; gap: 14px; margin-top: 11px; align-items: center; }
+  .note .n-act button { border: none; background: none; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 600; color: var(--accent); padding: 0; }
+  .note .n-act button.del { color: #c7c7cc; margin-left: auto; }
+
+  /* ===== 設定（マスタ） ===== */
+  .master-box { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 6px 14px 14px; margin-bottom: 14px; }
+  .master-box h3 { font-size: 15px; font-weight: 700; margin: 12px 2px 4px; }
+  .master-box .mdesc { font-size: 12px; color: var(--sub); margin: 0 2px 12px; }
+  .m-item { display: flex; align-items: center; gap: 10px; padding: 10px 2px; border-top: 1px solid var(--line); }
+  .m-item .m-name { flex: 1; min-width: 0; font-size: 15px; word-break: break-word; }
+  .m-item button { border: none; background: none; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 600; color: var(--accent); padding: 0; }
+  .m-item button.del { color: #c7c7cc; }
+  .m-empty { color: var(--sub); font-size: 13px; padding: 12px 2px; border-top: 1px solid var(--line); }
+  .m-add { display: flex; gap: 8px; margin-top: 12px; }
+  .m-add input {
+    flex: 1; min-width: 0; font: inherit; font-size: 15px;
+    border: 1px solid var(--line); background: var(--bg);
+    border-radius: 11px; padding: 10px 12px;
+  }
+  .m-add input:focus { outline: none; border-color: var(--accent); background: #fff; }
+  .m-add button {
+    flex: 0 0 auto; border: none; background: var(--accent); color: #fff;
+    font-family: inherit; font-size: 14px; font-weight: 600;
+    border-radius: 11px; padding: 0 16px; cursor: pointer;
+  }
+
+  /* ===== 下部の追加バー ===== */
+  .addbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+    padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
+    background: rgba(255,255,255,.86); backdrop-filter: saturate(180%) blur(18px);
+    -webkit-backdrop-filter: saturate(180%) blur(18px);
+    border-top: 1px solid var(--line);
+  }
+  .addbar.hidden { display: none; }
+  .addbar-inner { max-width: 640px; margin: 0 auto; }
+  .addbar .add {
+    width: 100%; border: none; cursor: pointer; font-family: inherit;
+    background: var(--accent); color: #fff; font-size: 16px; font-weight: 600;
+    border-radius: 13px; padding: 14px; display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .addbar .add:active { transform: scale(.98); }
+
+  /* ===== 入力シート ===== */
+  .sheet-bg {
+    position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.32);
+    display: none; align-items: flex-end; justify-content: center;
+  }
+  .sheet-bg.on { display: flex; }
+  .sheet {
+    background: var(--card); width: 100%; max-width: 640px;
+    border-radius: 22px 22px 0 0; padding: 20px 18px calc(20px + env(safe-area-inset-bottom));
+    max-height: 92vh; overflow-y: auto;
+  }
+  .sheet h3 { font-size: 18px; font-weight: 700; margin: 0 0 2px; }
+  .sheet .sub { font-size: 12.5px; color: var(--sub); margin: 0 0 4px; }
+  .sheet label { display: block; font-size: 12.5px; font-weight: 700; color: var(--sub); margin: 16px 2px 7px; }
+  .sheet input[type=text], .sheet input[type=date], .sheet textarea {
+    width: 100%; font: inherit; font-size: 16px;
+    border: 1px solid var(--line); background: var(--bg);
+    border-radius: 12px; padding: 11px 13px;
+  }
+  .sheet input:focus, .sheet textarea:focus { outline: none; border-color: var(--accent); background: #fff; }
+  .sheet textarea { min-height: 80px; resize: vertical; }
+
+  /* ピッカー（コンピテンシー/ポジション選択） */
+  .picker { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+  .pchip {
+    border: 1px solid var(--line); background: var(--bg); color: var(--sub);
+    border-radius: 999px; padding: 7px 13px; font-size: 13.5px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+  }
+  .pchip.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .pchip.add { color: var(--accent); border-style: dashed; }
+  .pick-empty { font-size: 13px; color: var(--sub); }
+  .pnew { display: flex; gap: 6px; width: 100%; margin-top: 7px; }
+  .pnew[hidden] { display: none; }
+  .pnew input { flex: 1; }
+  .pnew .pnew-ok { flex: 0 0 auto; border: none; background: var(--accent); color: #fff; font-family: inherit; font-weight: 600; border-radius: 10px; padding: 0 15px; cursor: pointer; }
+
+  /* ステッパー */
+  .stepper { display: inline-flex; align-items: center; gap: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .stepper button { border: none; background: none; cursor: pointer; font-family: inherit; font-size: 20px; font-weight: 600; color: var(--accent); width: 46px; height: 44px; }
+  .stepper .stepval { font-size: 15px; font-weight: 700; min-width: 96px; text-align: center; }
+
+  .seg { display: flex; gap: 7px; }
+  .seg button {
+    flex: 1; border: 1px solid var(--line); background: var(--bg); cursor: pointer;
+    font-family: inherit; font-size: 14px; font-weight: 600; color: var(--sub);
+    border-radius: 11px; padding: 11px 4px;
+  }
+  .seg.result button.on[data-res=pending] { background: var(--gray); border-color: var(--gray); color: #fff; }
+  .seg.result button.on[data-res=pass] { background: var(--green); border-color: var(--green); color: #fff; }
+  .seg.result button.on[data-res=fail] { background: var(--red); border-color: var(--red); color: #fff; }
+
+  .sheet-act { display: flex; gap: 10px; margin-top: 24px; }
+  .sheet-act button { flex: 1; border: none; cursor: pointer; font-family: inherit; font-size: 16px; font-weight: 600; border-radius: 13px; padding: 13px; }
+  .sheet-act .save { background: var(--accent); color: #fff; }
+  .sheet-act .cancel { background: var(--chip); color: var(--text); }
+
+  .toast {
+    position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom));
+    transform: translateX(-50%) translateY(12px); z-index: 60;
+    background: rgba(30,30,32,.94); color: #fff; font-size: 13px; font-weight: 600;
+    padding: 9px 16px; border-radius: 999px; opacity: 0; pointer-events: none;
+    transition: opacity .2s, transform .2s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">🎤</div>
+    <h1>Interviewノート</h1>
+    <p class="tagline">昇進面接の質問・回答・フィードバックを記録</p>
+    <div class="sync local" id="syncChip"><span class="dot"></span><span id="syncText">この端末に保存</span></div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab on" data-tab="iv"><span class="ti">🎤</span><span class="tn">面接</span><span class="tc" id="c-iv"></span></button>
+    <button class="tab" data-tab="others"><span class="ti">👥</span><span class="tn">みんなの質問</span><span class="tc" id="c-others"></span></button>
+    <button class="tab" data-tab="advice"><span class="ti">💡</span><span class="tn">アドバイス</span><span class="tc" id="c-advice"></span></button>
+    <button class="tab" data-tab="master"><span class="ti">⚙️</span><span class="tn">設定</span></button>
+  </nav>
+
+  <section class="panel on" id="panel-iv"></section>
+  <section class="panel" id="panel-others"></section>
+  <section class="panel" id="panel-advice"></section>
+  <section class="panel" id="panel-master"></section>
+</div>
+
+<div class="addbar" id="addbar"><div class="addbar-inner" id="addbarInner"></div></div>
+
+<!-- 入力シート -->
+<div class="sheet-bg" id="sheetBg">
+  <div class="sheet" id="sheet">
+    <h3 id="sheetTitle"></h3>
+    <p class="sub" id="sheetSub" hidden></p>
+    <div id="sheetBody"></div>
+    <div class="sheet-act">
+      <button class="cancel" id="sheetCancel">キャンセル</button>
+      <button class="save" id="sheetSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ===================== Supabase（たびのき等と同じプロジェクト） ===================== */
+const SUPABASE_URL  = 'https://okbjqtdirrathscctyvx.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rYmpxdGRpcnJhdGhzY2N0eXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMjI4NTIsImV4cCI6MjA5NTg5ODg1Mn0.T-1AOK6vCD6uGdqrVGXjPui3L6WPSNrnygS-IHyfZ6Y';
+const sb = (window.supabase && window.supabase.createClient) ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON) : null;
+const STATE_TABLE = 'interview_state';
+const STATE_ID = 'kodai';
+const KEY = 'interview_db_v1';
+
+/* ===================== ユーティリティ ===================== */
+function uid(){ return Date.now().toString(36) + Math.floor(Math.random()*1e6).toString(36); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1700); }
+const DOW = ['日','月','火','水','木','金','土'];
+function todayYmd(){ const d=new Date(); const m=String(d.getMonth()+1).padStart(2,'0'); const dd=String(d.getDate()).padStart(2,'0'); return d.getFullYear()+'-'+m+'-'+dd; }
+function fmtDate(s){ if(!s) return '日付未設定'; const [y,m,d]=s.split('-').map(Number); const dt=new Date(y,m-1,d); return y+'/'+m+'/'+d+'('+DOW[dt.getDay()]+')'; }
+const RESULT = { pending:'結果待ち', pass:'合格', fail:'不合格' };
+
+/* ===================== 状態 ===================== */
+function blank(){ return { interviews:[], positions:[], competencies:[], othersQ:[], advice:[] }; }
+let db = blank();
+let online = null;
+let lastPushed = '';
+let tab = 'iv';
+let openIv = new Set();   // 展開中の面接カードID
+
+/* シート用の一時状態 */
+let sheetType = null, sheetCtx = {}, sel = {};
+
+/* ===================== 永続化・同期 ===================== */
+function migrate(){
+  ['interviews','positions','competencies','othersQ','advice'].forEach(k=>{ if(!Array.isArray(db[k])) db[k]=[]; });
+  db.interviews.forEach(iv=>{
+    if(!Array.isArray(iv.questions)) iv.questions = [];
+    if(!Array.isArray(iv.feedback)) iv.feedback = [];
+    if(!iv.result) iv.result = 'pending';
+    if(typeof iv.phase!=='number') iv.phase = parseInt(iv.phase,10) || 1;
+    iv.questions.forEach(q=>{ if(!('answer' in q)) q.answer=''; if(!('competency' in q)) q.competency=''; });
+  });
+}
+function loadLocal(){ try{ const s=localStorage.getItem(KEY); if(s) db=Object.assign(blank(), JSON.parse(s)); }catch(e){} }
+
+let saveTimer=null;
+function save(){
+  localStorage.setItem(KEY, JSON.stringify(db));
+  if(!sb) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async()=>{
+    const payload = JSON.stringify(db);
+    lastPushed = payload;
+    const { error } = await sb.from(STATE_TABLE)
+      .upsert({ id:STATE_ID, state: db, updated_at:new Date().toISOString() });
+    if(error){ online=false; } else if(online!==true){ online=true; }
+    renderSync();
+  }, 350);
+}
+async function loadRemote(){
+  if(!sb){ online=false; return; }
+  const { data, error } = await sb.from(STATE_TABLE).select('state').eq('id', STATE_ID).maybeSingle();
+  if(error){ online=false; renderSync(); return; }
+  online = true;
+  if(data && data.state && typeof data.state==='object'){
+    db = Object.assign(blank(), data.state);
+    migrate();
+    localStorage.setItem(KEY, JSON.stringify(db));
+    render();
+  } else {
+    if(db.interviews.length || db.othersQ.length || db.advice.length || db.positions.length || db.competencies.length) save();
+  }
+  renderSync();
+}
+function subscribeRealtime(){
+  if(!sb) return;
+  sb.channel('interview-rt')
+    .on('postgres_changes', { event:'*', schema:'public', table:STATE_TABLE, filter:'id=eq.'+STATE_ID },
+      (payload)=>{
+        const incoming = JSON.stringify((payload.new && payload.new.state) || {});
+        if(incoming === lastPushed) return;
+        if(payload.new && payload.new.state){
+          db = Object.assign(blank(), payload.new.state);
+          migrate();
+          localStorage.setItem(KEY, JSON.stringify(db));
+          render();
+          toast('🔄 他の端末から更新');
+        }
+      })
+    .subscribe();
+}
+function renderSync(){
+  const chip = document.getElementById('syncChip');
+  const txt = document.getElementById('syncText');
+  chip.classList.remove('ok','off','local');
+  if(!sb){ chip.classList.add('local'); txt.textContent='この端末に保存'; return; }
+  if(online===true){ chip.classList.add('ok'); txt.textContent='クラウド同期中'; }
+  else if(online===false){ chip.classList.add('off'); txt.textContent='オフライン（この端末に保存）'; }
+  else { chip.classList.add('local'); txt.textContent='接続中…'; }
+}
+
+/* ===================== 描画 ===================== */
+const panels = { iv:'panel-iv', others:'panel-others', advice:'panel-advice', master:'panel-master' };
+
+function render(){
+  renderCounts();
+  renderInterviews();
+  renderOthers();
+  renderAdvice();
+  renderMaster();
+  renderAddbar();
+}
+function renderCounts(){
+  document.getElementById('c-iv').textContent = db.interviews.length || '';
+  document.getElementById('c-others').textContent = db.othersQ.length || '';
+  document.getElementById('c-advice').textContent = db.advice.length || '';
+}
+
+/* ---- 面接 ---- */
+function sortedInterviews(){
+  return db.interviews.slice().sort((a,b)=>{
+    const ad=a.date||'', bd=b.date||'';
+    if(ad!==bd) return ad<bd?1:-1;           // 日付の新しい順
+    if(a.phase!==b.phase) return b.phase-a.phase;
+    return (b.ts||0)-(a.ts||0);
+  });
+}
+function renderInterviews(){
+  const el = document.getElementById('panel-iv');
+  if(!db.interviews.length){
+    el.innerHTML = '<div class="empty"><span class="e-ico">🎤</span>'+
+      '下のボタンから<br>最初の面接（Phase）を追加しよう</div>';
+    return;
+  }
+  el.innerHTML = sortedInterviews().map(ivHTML).join('');
+}
+function ivHTML(iv){
+  const open = openIv.has(iv.id);
+  const qn = iv.questions.length, fn = iv.feedback.length;
+  let body = '';
+  if(open){
+    const qs = iv.questions.map(q=>{
+      const comp = q.competency
+        ? '<span class="comp-chip">'+esc(q.competency)+'</span>'
+        : '<span class="comp-chip none">コンピテンシー未設定</span>';
+      const ans = q.answer
+        ? '<div class="q-ans"><span class="a-lbl">自分の回答メモ</span>'+esc(q.answer)+'</div>'
+        : '<div class="q-ans empty">回答メモはまだありません</div>';
+      return '<div class="q" data-q="'+q.id+'">'+
+        '<div class="q-top">'+comp+
+          '<span class="q-act"><button data-act="editQ">編集</button>'+
+          '<button class="del" data-act="delQ">削除</button></span></div>'+
+        '<div class="q-text">'+esc(q.text)+'</div>'+ans+
+      '</div>';
+    }).join('');
+    const fbCls = iv.result==='fail' ? 'fail' : iv.result;
+    const fbPoints = iv.feedback.map(f=>
+      '<div class="fb-point" data-fb="'+f.id+'"><span class="fb-dot">●</span>'+
+        '<span class="fb-txt">'+esc(f.text)+'</span>'+
+        '<button class="fb-del" data-act="delFb">×</button></div>'
+    ).join('');
+    body = '<div class="iv-body">'+
+      qs+
+      '<button class="add-q" data-act="addQ">＋ 質問を追加</button>'+
+      '<div class="fb-sect '+fbCls+'">'+
+        '<div class="fb-head">💬 フィードバックセッション'+
+          (iv.result==='fail' ? '<span class="hint">不合格 → 言われたことを記録</span>' : '<span class="hint">言われたこと・気づき</span>')+'</div>'+
+        fbPoints+
+        '<div class="fb-add"><input type="text" placeholder="言われたことを入力…" data-fbinput="'+iv.id+'" enterkeyhint="done">'+
+          '<button data-act="addFb">＋</button></div>'+
+      '</div>'+
+      '<div class="iv-foot"><button data-act="editIv">面接情報を編集</button>'+
+        '<button class="del" data-act="delIv">この面接を削除</button></div>'+
+    '</div>';
+  }
+  return '<div class="iv-card r-'+iv.result+(open?' open':'')+'" data-iv="'+iv.id+'">'+
+    '<div class="iv-head" data-act="toggleIv">'+
+      '<div class="iv-main">'+
+        '<div class="iv-pos">'+esc(iv.position||'（ポジション未設定）')+'</div>'+
+        '<div class="iv-meta">'+
+          '<span class="phase-badge">Phase '+iv.phase+'</span>'+
+          '<span class="date-txt">'+fmtDate(iv.date)+'</span>'+
+          '<span class="res-badge '+iv.result+'">'+RESULT[iv.result]+'</span>'+
+        '</div>'+
+        '<div class="iv-meta"><span class="iv-counts">質問 '+qn+' 件'+(fn?' ・ FB '+fn+' 件':'')+'</span></div>'+
+      '</div>'+
+      '<span class="iv-chevron">›</span>'+
+    '</div>'+
+    body+
+  '</div>';
+}
+
+/* ---- みんなの質問 ---- */
+function renderOthers(){
+  const el = document.getElementById('panel-others');
+  if(!db.othersQ.length){
+    el.innerHTML = '<div class="empty"><span class="e-ico">👥</span>'+
+      '他の人が過去のInterviewで<br>聞かれた質問を残しておこう</div>';
+    return;
+  }
+  const items = db.othersQ.slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
+  el.innerHTML = items.map(x=>{
+    const tags = (x.competency ? '<span class="comp-chip">'+esc(x.competency)+'</span>' : '')+
+      (x.position ? '<span class="pos-chip">'+esc(x.position)+'</span>' : '');
+    return '<div class="note" data-oid="'+x.id+'">'+
+      (tags ? '<div class="n-top">'+tags+'</div>' : '')+
+      '<div class="n-text">'+esc(x.text)+'</div>'+
+      (x.source ? '<div class="n-src">👤 '+esc(x.source)+'</div>' : '')+
+      '<div class="n-act"><button data-act="editO">編集</button>'+
+        '<button class="del" data-act="delO">削除</button></div>'+
+    '</div>';
+  }).join('');
+}
+
+/* ---- アドバイス ---- */
+function renderAdvice(){
+  const el = document.getElementById('panel-advice');
+  if(!db.advice.length){
+    el.innerHTML = '<div class="empty"><span class="e-ico">💡</span>'+
+      '他の人から受けた<br>アドバイスを書き留めよう</div>';
+    return;
+  }
+  const items = db.advice.slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
+  el.innerHTML = items.map(x=>{
+    return '<div class="note" data-aid="'+x.id+'">'+
+      (x.tag ? '<div class="n-top"><span class="pos-chip">'+esc(x.tag)+'</span></div>' : '')+
+      '<div class="n-text">'+esc(x.text)+'</div>'+
+      (x.source ? '<div class="n-src">👤 '+esc(x.source)+'</div>' : '')+
+      '<div class="n-act"><button data-act="editA">編集</button>'+
+        '<button class="del" data-act="delA">削除</button></div>'+
+    '</div>';
+  }).join('');
+}
+
+/* ---- 設定（マスタ） ---- */
+function renderMaster(){
+  const el = document.getElementById('panel-master');
+  el.innerHTML =
+    masterBox('応募ポジション', 'positions', '面接の入力時にここから選べます。', '例：Specialist、Genius、Lead…') +
+    masterBox('コンピテンシー', 'competencies', '質問の方向性（評価観点）。質問の入力時にここから選べます。', '例：Results、Collaboration…');
+}
+function masterBox(title, k, desc, ph){
+  const list = db[k];
+  let items;
+  if(!list.length){
+    items = '<div class="m-empty">まだありません。下から追加してください。</div>';
+  } else {
+    items = list.map((v,i)=>
+      '<div class="m-item" data-mk="'+k+'" data-mi="'+i+'">'+
+        '<span class="m-name">'+esc(v)+'</span>'+
+        '<button data-act="renameM">名前変更</button>'+
+        '<button class="del" data-act="delM">削除</button>'+
+      '</div>'
+    ).join('');
+  }
+  return '<div class="master-box">'+
+    '<h3>'+title+'</h3><p class="mdesc">'+desc+'</p>'+
+    items+
+    '<div class="m-add"><input type="text" placeholder="'+ph+'" data-madd="'+k+'" autocomplete="off">'+
+      '<button data-act="addM" data-mk="'+k+'">追加</button></div>'+
+  '</div>';
+}
+
+/* ---- 追加バー ---- */
+function renderAddbar(){
+  const bar = document.getElementById('addbar');
+  const el = document.getElementById('addbarInner');
+  if(tab==='master'){ bar.classList.add('hidden'); return; }
+  bar.classList.remove('hidden');
+  const map = { iv:['＋ 面接（Phase）を追加','interview'], others:['＋ 質問を追加','others'], advice:['＋ アドバイスを追加','advice'] };
+  const [label,type] = map[tab];
+  el.innerHTML = '<button class="add" id="openAdd">'+label+'</button>';
+  document.getElementById('openAdd').onclick = ()=>openSheet(type, {});
+}
+
+/* ===================== タブ切替 ===================== */
+document.querySelectorAll('.tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    tab = btn.dataset.tab;
+    document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on', b===btn));
+    Object.entries(panels).forEach(([k,id])=>document.getElementById(id).classList.toggle('on', k===tab));
+    renderAddbar();
+    window.scrollTo({ top:0 });
+  });
+});
+
+/* ===================== 面接パネル操作 ===================== */
+document.getElementById('panel-iv').addEventListener('click', e=>{
+  const card = e.target.closest('.iv-card'); if(!card) return;
+  const iv = db.interviews.find(i=>i.id===card.dataset.iv); if(!iv) return;
+  const act = e.target.closest('[data-act]')?.dataset.act;
+  if(!act) return;
+  if(act==='toggleIv'){ if(openIv.has(iv.id)) openIv.delete(iv.id); else openIv.add(iv.id); renderInterviews(); return; }
+  if(act==='addQ'){ openSheet('question', { ivId:iv.id }); return; }
+  if(act==='editIv'){ openSheet('interview', { id:iv.id }); return; }
+  if(act==='delIv'){ if(confirm('この面接（質問・FB含む）を削除しますか？')){ db.interviews.splice(db.interviews.indexOf(iv),1); openIv.delete(iv.id); save(); render(); } return; }
+  if(act==='addFb'){
+    const inp = card.querySelector('[data-fbinput]'); const v=(inp.value||'').trim();
+    if(!v) return;
+    iv.feedback.push({ id:uid(), text:v, ts:Date.now() });
+    save(); renderInterviews(); return;
+  }
+  const q = e.target.closest('.q');
+  if(act==='editQ' && q){ openSheet('question', { ivId:iv.id, qId:q.dataset.q }); return; }
+  if(act==='delQ' && q){ const idx=iv.questions.findIndex(x=>x.id===q.dataset.q); if(idx>=0){ iv.questions.splice(idx,1); save(); renderInterviews(); } return; }
+  const fb = e.target.closest('.fb-point');
+  if(act==='delFb' && fb){ const idx=iv.feedback.findIndex(x=>x.id===fb.dataset.fb); if(idx>=0){ iv.feedback.splice(idx,1); save(); renderInterviews(); } return; }
+});
+/* フィードバック入力でEnter追加 */
+document.getElementById('panel-iv').addEventListener('keydown', e=>{
+  const inp = e.target.closest('[data-fbinput]'); if(!inp || e.key!=='Enter') return;
+  const iv = db.interviews.find(i=>i.id===inp.dataset.fbinput); if(!iv) return;
+  const v=(inp.value||'').trim(); if(!v) return;
+  iv.feedback.push({ id:uid(), text:v, ts:Date.now() });
+  save(); renderInterviews();
+});
+
+/* ===================== みんなの質問 / アドバイス操作 ===================== */
+document.getElementById('panel-others').addEventListener('click', e=>{
+  const card = e.target.closest('.note'); if(!card) return;
+  const x = db.othersQ.find(i=>i.id===card.dataset.oid); if(!x) return;
+  const act = e.target.closest('[data-act]')?.dataset.act;
+  if(act==='editO') openSheet('others', { id:x.id });
+  else if(act==='delO'){ db.othersQ.splice(db.othersQ.indexOf(x),1); save(); render(); }
+});
+document.getElementById('panel-advice').addEventListener('click', e=>{
+  const card = e.target.closest('.note'); if(!card) return;
+  const x = db.advice.find(i=>i.id===card.dataset.aid); if(!x) return;
+  const act = e.target.closest('[data-act]')?.dataset.act;
+  if(act==='editA') openSheet('advice', { id:x.id });
+  else if(act==='delA'){ db.advice.splice(db.advice.indexOf(x),1); save(); render(); }
+});
+
+/* ===================== 設定（マスタ）操作 ===================== */
+document.getElementById('panel-master').addEventListener('click', e=>{
+  const act = e.target.closest('[data-act]')?.dataset.act;
+  if(act==='addM'){
+    const k = e.target.closest('[data-mk]').dataset.mk;
+    const inp = document.querySelector('[data-madd="'+k+'"]');
+    const v = (inp.value||'').trim(); if(!v) return;
+    if(db[k].includes(v)){ toast('すでにあります'); inp.value=''; return; }
+    db[k].push(v); save(); renderMaster();
+    return;
+  }
+  const item = e.target.closest('.m-item'); if(!item) return;
+  const k = item.dataset.mk, i = parseInt(item.dataset.mi,10);
+  if(act==='renameM'){
+    const cur = db[k][i];
+    const nv = prompt('名前を変更', cur);
+    if(nv && nv.trim() && nv.trim()!==cur){ db[k][i]=nv.trim(); save(); renderMaster(); }
+  } else if(act==='delM'){
+    if(confirm('「'+db[k][i]+'」を一覧から削除しますか？\n（記録済みの面接・質問はそのまま残ります）')){ db[k].splice(i,1); save(); renderMaster(); }
+  }
+});
+document.getElementById('panel-master').addEventListener('keydown', e=>{
+  const inp = e.target.closest('[data-madd]'); if(!inp || e.key!=='Enter') return;
+  const k = inp.dataset.madd; const v=(inp.value||'').trim(); if(!v) return;
+  if(db[k].includes(v)){ toast('すでにあります'); inp.value=''; return; }
+  db[k].push(v); save(); renderMaster();
+});
+
+/* ===================== 入力シート ===================== */
+const sheetBg = document.getElementById('sheetBg');
+
+function pickerWrap(pname, labelTxt){
+  return '<label>'+labelTxt+'</label><div id="pick-'+pname+'">'+pickerHTML(pname)+'</div>';
+}
+function pickerHTML(pname){
+  const list = pname==='competency' ? db.competencies : db.positions;
+  const cur = sel[pname]||'';
+  let chips = list.map(v=>'<button class="pchip'+(v===cur?' on':'')+'" data-pick="'+pname+'" data-val="'+esc(v)+'">'+esc(v)+'</button>').join('');
+  if(!list.length) chips = '<span class="pick-empty">まだありません。＋新規で追加</span>';
+  return '<div class="picker" data-pname="'+pname+'">'+chips+
+    '<button class="pchip add" data-pickadd="'+pname+'">＋ 新規</button>'+
+    '<span class="pnew" data-pnew="'+pname+'" hidden>'+
+      '<input type="text" class="pnew-input" placeholder="'+(pname==='competency'?'コンピテンシー名':'ポジション名')+'" autocomplete="off">'+
+      '<button class="pnew-ok" data-pickok="'+pname+'">追加</button>'+
+    '</span></div>';
+}
+function renderPick(pname){ document.getElementById('pick-'+pname).innerHTML = pickerHTML(pname); }
+
+function buildSheetBody(){
+  const t = sheetType;
+  if(t==='interview'){
+    return pickerWrap('position','応募ポジション')+
+      '<label>面接の段階（Phase）</label>'+
+      '<div class="stepper"><button data-step="-1">−</button>'+
+        '<span class="stepval" id="phaseVal">Phase '+sel.phase+'</span>'+
+        '<button data-step="1">＋</button></div>'+
+      '<label>面接日</label>'+
+      '<input type="date" id="f-date" value="'+esc(sel.date)+'">'+
+      '<label>結果</label>'+
+      '<div class="seg result" id="f-result">'+
+        ['pending','pass','fail'].map(r=>'<button data-res="'+r+'"'+(sel.result===r?' class="on"':'')+'>'+RESULT[r]+'</button>').join('')+
+      '</div>';
+  }
+  if(t==='question'){
+    return pickerWrap('competency','コンピテンシー（質問の方向性）')+
+      '<label>質問内容</label>'+
+      '<textarea id="f-qtext" placeholder="面接で聞かれた質問を入力"></textarea>'+
+      '<label>自分の回答メモ（ざっくりでOK）</label>'+
+      '<textarea id="f-qans" placeholder="どう答えたか・話したポイントなど"></textarea>';
+  }
+  if(t==='others'){
+    return '<label>質問内容</label>'+
+      '<textarea id="f-otext" placeholder="他の人が過去のInterviewで聞かれた質問"></textarea>'+
+      pickerWrap('competency','コンピテンシー（任意）')+
+      pickerWrap('position','ポジション（任意）')+
+      '<label>誰から聞いた？（任意）</label>'+
+      '<input type="text" id="f-osrc" placeholder="例：同僚の◯◯さん" autocomplete="off">';
+  }
+  if(t==='advice'){
+    return '<label>アドバイス内容</label>'+
+      '<textarea id="f-atext" placeholder="他の人から受けたアドバイス"></textarea>'+
+      '<label>誰から？（任意）</label>'+
+      '<input type="text" id="f-asrc" placeholder="例：マネージャー、先輩◯◯さん" autocomplete="off">'+
+      '<label>タグ（任意）</label>'+
+      '<input type="text" id="f-atag" placeholder="例：STARで話す、結論から…" autocomplete="off">';
+  }
+  return '';
+}
+
+function openSheet(type, ctx){
+  sheetType = type; sheetCtx = ctx || {}; sel = {};
+  let title='', sub='';
+  if(type==='interview'){
+    const iv = ctx.id ? db.interviews.find(i=>i.id===ctx.id) : null;
+    title = iv ? '面接を編集' : '面接（Phase）を追加';
+    sel.position = iv ? (iv.position||'') : '';
+    sel.phase = iv ? iv.phase : (suggestPhase(sel.position) || 1);
+    sel.date = iv ? (iv.date||todayYmd()) : todayYmd();
+    sel.result = iv ? iv.result : 'pending';
+  } else if(type==='question'){
+    const iv = db.interviews.find(i=>i.id===ctx.ivId);
+    const q = ctx.qId ? iv.questions.find(x=>x.id===ctx.qId) : null;
+    title = q ? '質問を編集' : '質問を追加';
+    sub = iv ? esc(iv.position||'')+'  Phase '+iv.phase : '';
+    sel.competency = q ? (q.competency||'') : '';
+    sheetCtx._q = q || null;
+  } else if(type==='others'){
+    const x = ctx.id ? db.othersQ.find(i=>i.id===ctx.id) : null;
+    title = x ? 'みんなの質問を編集' : 'みんなの質問を追加';
+    sel.competency = x ? (x.competency||'') : '';
+    sel.position = x ? (x.position||'') : '';
+    sheetCtx._x = x || null;
+  } else if(type==='advice'){
+    const x = ctx.id ? db.advice.find(i=>i.id===ctx.id) : null;
+    title = x ? 'アドバイスを編集' : 'アドバイスを追加';
+    sheetCtx._x = x || null;
+  }
+  document.getElementById('sheetTitle').textContent = title;
+  const subEl = document.getElementById('sheetSub');
+  if(sub){ subEl.textContent = sub; subEl.hidden=false; } else subEl.hidden=true;
+  document.getElementById('sheetBody').innerHTML = buildSheetBody();
+  // 既存値をテキスト欄へ
+  if(type==='question' && sheetCtx._q){ document.getElementById('f-qtext').value=sheetCtx._q.text||''; document.getElementById('f-qans').value=sheetCtx._q.answer||''; }
+  if(type==='others' && sheetCtx._x){ document.getElementById('f-otext').value=sheetCtx._x.text||''; document.getElementById('f-osrc').value=sheetCtx._x.source||''; }
+  if(type==='advice' && sheetCtx._x){ document.getElementById('f-atext').value=sheetCtx._x.text||''; document.getElementById('f-asrc').value=sheetCtx._x.source||''; document.getElementById('f-atag').value=sheetCtx._x.tag||''; }
+  sheetBg.classList.add('on');
+  setTimeout(()=>{ const f=document.querySelector('#sheetBody textarea, #sheetBody input[type=text]'); if(f && type!=='interview') f.focus(); }, 80);
+}
+/* 同じポジションの既存面接から次のPhaseを提案 */
+function suggestPhase(pos){
+  if(!pos) return 1;
+  const same = db.interviews.filter(i=>i.position===pos);
+  if(!same.length) return 1;
+  return Math.max.apply(null, same.map(i=>i.phase)) + 1;
+}
+function closeSheet(){ sheetBg.classList.remove('on'); sheetType=null; sheetCtx={}; sel={}; }
+document.getElementById('sheetCancel').onclick = closeSheet;
+sheetBg.addEventListener('click', e=>{ if(e.target===sheetBg) closeSheet(); });
+
+/* シート内クリック（ピッカー・ステッパー・結果） */
+document.getElementById('sheet').addEventListener('click', e=>{
+  const pick = e.target.closest('[data-pick]');
+  if(pick){
+    const p=pick.dataset.pick; sel[p]=pick.dataset.val; renderPick(p);
+    if(p==='position' && sheetType==='interview' && !sheetCtx.id){
+      sel.phase = suggestPhase(sel.position); const pv=document.getElementById('phaseVal'); if(pv) pv.textContent='Phase '+sel.phase;
+    }
+    return;
+  }
+  const padd = e.target.closest('[data-pickadd]');
+  if(padd){ const p=padd.dataset.pickadd; const box=document.querySelector('[data-pnew="'+p+'"]'); if(box){ box.hidden=false; box.querySelector('input').focus(); } return; }
+  const pok = e.target.closest('[data-pickok]');
+  if(pok){ addPickValue(pok.dataset.pickok); return; }
+  const step = e.target.closest('[data-step]');
+  if(step){ sel.phase = Math.min(20, Math.max(1, sel.phase + parseInt(step.dataset.step,10))); document.getElementById('phaseVal').textContent='Phase '+sel.phase; return; }
+  const res = e.target.closest('[data-res]');
+  if(res){ sel.result = res.dataset.res; document.querySelectorAll('#f-result button').forEach(b=>b.classList.toggle('on', b===res)); return; }
+});
+document.getElementById('sheet').addEventListener('keydown', e=>{
+  const ni = e.target.closest('.pnew-input'); if(ni && e.key==='Enter'){ e.preventDefault(); const p=ni.closest('[data-pnew]').dataset.pnew; addPickValue(p); }
+});
+function addPickValue(pname){
+  const box = document.querySelector('[data-pnew="'+pname+'"]');
+  const inp = box.querySelector('input');
+  const v = (inp.value||'').trim(); if(!v) return;
+  const listKey = pname==='competency' ? 'competencies' : 'positions';
+  if(!db[listKey].includes(v)) db[listKey].push(v);
+  sel[pname] = v;
+  save();
+  renderPick(pname);
+  if(pname==='position' && sheetType==='interview' && !sheetCtx.id){
+    sel.phase = suggestPhase(v); const pv=document.getElementById('phaseVal'); if(pv) pv.textContent='Phase '+sel.phase;
+  }
+}
+
+/* 保存 */
+document.getElementById('sheetSave').onclick = ()=>{
+  const t = sheetType;
+  if(t==='interview'){
+    const date = document.getElementById('f-date').value || '';
+    if(!sel.position){ toast('ポジションを選んでください'); return; }
+    if(sheetCtx.id){
+      const iv = db.interviews.find(i=>i.id===sheetCtx.id);
+      Object.assign(iv, { position:sel.position, phase:sel.phase, date, result:sel.result, updated:Date.now() });
+    } else {
+      const id = uid();
+      db.interviews.push({ id, position:sel.position, phase:sel.phase, date, result:sel.result, questions:[], feedback:[], ts:Date.now(), updated:Date.now() });
+      openIv.add(id);
+    }
+  } else if(t==='question'){
+    const text = (document.getElementById('f-qtext').value||'').trim();
+    if(!text){ toast('質問内容を入力してください'); return; }
+    const answer = (document.getElementById('f-qans').value||'').trim();
+    const iv = db.interviews.find(i=>i.id===sheetCtx.ivId);
+    if(sheetCtx._q){ Object.assign(sheetCtx._q, { text, answer, competency:sel.competency||'' }); }
+    else { iv.questions.push({ id:uid(), text, answer, competency:sel.competency||'', ts:Date.now() }); }
+    openIv.add(iv.id);
+  } else if(t==='others'){
+    const text = (document.getElementById('f-otext').value||'').trim();
+    if(!text){ toast('質問内容を入力してください'); return; }
+    const source = (document.getElementById('f-osrc').value||'').trim();
+    if(sheetCtx._x){ Object.assign(sheetCtx._x, { text, source, competency:sel.competency||'', position:sel.position||'' }); }
+    else { db.othersQ.push({ id:uid(), text, source, competency:sel.competency||'', position:sel.position||'', ts:Date.now() }); }
+  } else if(t==='advice'){
+    const text = (document.getElementById('f-atext').value||'').trim();
+    if(!text){ toast('アドバイス内容を入力してください'); return; }
+    const source = (document.getElementById('f-asrc').value||'').trim();
+    const tag = (document.getElementById('f-atag').value||'').trim();
+    if(sheetCtx._x){ Object.assign(sheetCtx._x, { text, source, tag }); }
+    else { db.advice.push({ id:uid(), text, source, tag, ts:Date.now() }); }
+  }
+  save(); closeSheet(); render();
+};
+
+/* ===================== 起動 ===================== */
+loadLocal();
+migrate();
+render();
+renderSync();
+if(sb){ loadRemote(); subscribeRealtime(); }
+</script>
+<!-- tsumiki-back-button -->
+<style>
+  #tsumikiEdge{position:fixed; top:0; bottom:0; left:0; width:22px; z-index:999;}
+  #tsumikiPeek{
+    position:fixed; top:50%; left:0; z-index:1001; margin-top:-23px;
+    width:46px; height:46px; display:flex; align-items:center; justify-content:center;
+    background:rgba(255,255,255,.92);
+    -webkit-backdrop-filter:saturate(180%) blur(14px); backdrop-filter:saturate(180%) blur(14px);
+    border:1px solid rgba(0,0,0,.06); border-radius:50%;
+    box-shadow:0 6px 20px rgba(0,0,0,.18);
+    color:#0071e3; font-size:24px; font-weight:600; line-height:1;
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Helvetica Neue",Arial,sans-serif;
+    transform:translateX(-70px) scale(.8); opacity:0; pointer-events:none;
+  }
+</style>
+<div id="tsumikiEdge"></div>
+<div id="tsumikiPeek">‹</div>
+<script>
+  (function(){
+    var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+      || window.navigator.standalone === true;
+    var fromTsumiki = false;
+    try{
+      if(document.referrer){
+        var r = new URL(document.referrer);
+        fromTsumiki = (r.origin === location.origin);
+      }
+    }catch(e){}
+    if(!(standalone && fromTsumiki)) return;
+
+    var peek = document.getElementById('tsumikiPeek');
+    var edge = document.getElementById('tsumikiEdge');
+
+    function goBack(){ location.href = 'index.html'; }
+
+    var sx=0, sy=0, prog=0, dragging=false, W=window.innerWidth;
+    var TRIGGER = Math.min(120, W*0.32);
+    window.addEventListener('resize', function(){ W=window.innerWidth; TRIGGER=Math.min(120, W*0.32); });
+
+    function reset(){
+      dragging = false; prog = 0;
+      peek.style.transition = 'transform .25s ease, opacity .25s ease';
+      peek.style.transform = 'translateX(-70px) scale(.8)';
+      peek.style.opacity = 0;
+    }
+    function start(e){
+      var t = e.touches ? e.touches[0] : e;
+      if(t.clientX > 26) return;
+      sx = t.clientX; sy = t.clientY; prog = 0; dragging = true;
+      peek.style.transition = 'none';
+    }
+    function move(e){
+      if(!dragging) return;
+      var t = e.touches ? e.touches[0] : e;
+      var dx = t.clientX - sx, dy = t.clientY - sy;
+      if(Math.abs(dy) > Math.abs(dx) + 12){ reset(); return; }
+      if(dx < 0) dx = 0;
+      prog = Math.min(dx / TRIGGER, 1);
+      peek.style.transform = 'translateX(' + (-70 + prog*82) + 'px) scale(' + (0.8 + prog*0.2) + ')';
+      peek.style.opacity = prog;
+      if(dx > 6 && e.cancelable) e.preventDefault();
+    }
+    function end(){
+      if(!dragging) return;
+      dragging = false;
+      if(prog >= 0.999){
+        peek.style.transition = 'transform .25s ease, opacity .25s ease';
+        peek.style.transform = 'translateX(20px) scale(1.05)';
+        peek.style.opacity = 1;
+        goBack();
+      }else{
+        reset();
+      }
+    }
+    edge.addEventListener('touchstart', start, {passive:true});
+    window.addEventListener('touchmove', move, {passive:false});
+    window.addEventListener('touchend', end, {passive:true});
+    window.addEventListener('touchcancel', end, {passive:true});
+  })();
+</script>
+<!-- /tsumiki-back-button -->
+</body>
+</html>
