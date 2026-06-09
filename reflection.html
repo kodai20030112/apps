@@ -126,6 +126,9 @@
 
   /* ---------- Competency cards ---------- */
   .pos-head { font-size: 13px; font-weight: 700; color: var(--ink-2); text-transform: uppercase; letter-spacing: .06em; margin: 22px 0 10px; }
+  .palette-head { font-size: 13px; font-weight: 800; letter-spacing: .04em; margin: 18px 0 10px; display: flex; align-items: center; gap: 6px;
+    color: #6741d9; padding-top: 14px; border-top: 1px dashed var(--line); }
+  .bs-q .lead-q { display: block; font-weight: 600; }
   .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   @media (max-width: 420px) { .card-grid { grid-template-columns: 1fr; } }
   .cmp-card {
@@ -564,6 +567,48 @@ const COMPETENCIES = {
       "他の人の関心と自分の関心のバランスをとる。",
       "目標に対して協力して貢献することが、周囲から高く認知されるよう促す。"
     ]
+  },
+
+  /* ---- Leadership Palette（コンピテンシーとは別軸。bulletsの代わりにquestionsを持つ） ---- */
+  foster_trust: {
+    en: "Foster Trust", jp: "信頼を育む", emoji: "🤲", color: "#2b8a3e", kind: "leadership",
+    desc: "自分の専門知識を総動員し、引き受けたことを守り通し、間違いを素直に認めることで信頼が育まれます。信頼を深めることにより、他者をそれぞれの体験の中で成長させ、率直で建設的なフィードバックを継続的に提供することが可能になります。",
+    questions: [
+      "職場でどのように信頼関係にもとづく環境を築いていますか？そうした環境をうまく構築できた事例について教えてください。",
+      "仕事において守れない約束をしてしまった時のことを教えてください。その結果、どうなりましたか？",
+      "仕事で信頼していた人に失望した時のことを教えてください。その経験から学んだことは何ですか？",
+      "自分に対する信頼を失う行為をしてしまった時のことを教えてください。どのようにしてその信頼を回復しましたか？"
+    ]
+  },
+  make_action_meaningful: {
+    en: "Make Action Meaningful", jp: "行動に意義を持たせる", emoji: "🧭", color: "#6741d9", kind: "leadership",
+    desc: "目の前の作業がより大きな構想につながっていることをチームメンバーが理解することで、それぞれの行動がより有意義なものになります。作業の量や範囲に関係なく、貢献していることへの誇りを彼らに認識させることが目的です。",
+    questions: [
+      "自分の仕事を通じて有意義な影響を与えたと感じた時のことを教えてください。",
+      "同僚や直属の部下が、あなたの目標、グループ、会社とのつながりをより感じられるように後押しした時のことを教えてください。",
+      "自分の仕事とのつながりを感じられなかった時のことを教えてください。どのように対応しましたか？",
+      "自分の仕事によって違いを生み出せると感じられる環境を作るために、どのようなことを行いましたか？"
+    ]
+  },
+  listen_challenge_commit: {
+    en: "Listen, Challenge, and Commit", jp: "耳を傾け、意見を伝え、責任を持つ", emoji: "👂", color: "#0c8599", kind: "leadership",
+    desc: "健全な議論は、まず相手の意見を聞くことから始まります。多様な相手の立場を理解することで、自分の意見をぶつけ、実りある議論を交わすことができます。ただし、一度決定したら、それが自分の意見でなくても、その成り行きに最後まで責任を持つ必要があります。",
+    questions: [
+      "ほかの人の話を聞くのが難しいと感じた時のことを教えてください。どのように対応しましたか？",
+      "同意できなかった決定に従わざるを得なかった経験について教えてください。それに対してどのように対処しましたか？",
+      "あなたやチームに直接影響を与える業務上の決定に異議を唱えたのはいつですか？異議を唱えた内容とその結果について教えてください。",
+      "ほかの人たちが望まない方向性に同意してもらうために、その人たちを説得しなければならなかった時のことを教えてください。どのようにして協力を得ましたか？"
+    ]
+  },
+  obsess_customer_experience: {
+    en: "Obsess over Customer Experience", jp: "カスタマーエクスペリエンスにこだわる", emoji: "✨", color: "#c2255c", kind: "leadership",
+    desc: "カスタマーエクスペリエンスへのこだわりを培う方法の1つは、Appleの製品とサービスを、お客様と同様に体験することです。そうすることで、お客様の期待以上の体験を提供できるようになります。",
+    questions: [
+      "優れたカスタマーエクスペリエンスとは、どのようなものであると考えていますか？生活の中で実感した時のことも聞かせてください。",
+      "自分が担当する製品をお客様が使っているところを見た時のことを話してください。",
+      "カスタマーエクスペリエンスが適切でなかったために、プロジェクトの進行を止めなければならなかった時のことを教えてください。",
+      "自分の仕事の中で、素晴らしいカスタマーエクスペリエンスに貢献できていると考えている要素について教えてください。"
+    ]
   }
 };
 
@@ -573,12 +618,13 @@ const POSITIONS = [
   { id: "expert", name: "Expert",
     competencyIds: ["communicates_effectively", "drives_results", "values_differences", "customer_focus", "tech_savvy"] },
   { id: "creative_pro", name: "Creative Pro",
-    competencyIds: ["business_insight", "collaborates", "customer_focus", "tech_savvy", "values_differences"] }
+    competencyIds: ["business_insight", "collaborates", "customer_focus", "tech_savvy", "values_differences"],
+    leadershipIds: ["foster_trust", "make_action_meaningful", "listen_challenge_commit", "obsess_customer_experience"] }
 ];
 
 /* チップ用のユニークなコンピテンシー一覧（POSITIONSで使われている順） */
 const ALL_CMP_IDS = (() => { const seen = new Set(), out = [];
-  POSITIONS.forEach(p => p.competencyIds.forEach(id => { if (!seen.has(id)) { seen.add(id); out.push(id); } }));
+  POSITIONS.forEach(p => [...p.competencyIds, ...(p.leadershipIds||[])].forEach(id => { if (!seen.has(id)) { seen.add(id); out.push(id); } }));
   return out; })();
 
 /* STARS の5項目定義 */
@@ -722,7 +768,7 @@ function getFilteredStories(){
   let list = [...stories].sort((a,b)=> (b.updatedAt||b.createdAt) - (a.updatedAt||a.createdAt));
   if (activeFilter.startsWith("pos:")){
     const p = POSITIONS.find(x=>x.id===activeFilter.slice(4));
-    const ids = p ? p.competencyIds : [];
+    const ids = p ? [...p.competencyIds, ...(p.leadershipIds||[])] : [];
     list = list.filter(s=> ids.includes(s.cmpId));
   }
   else if (activeFilter!=="all") list = list.filter(s=> s.cmpId===activeFilter);
@@ -730,19 +776,29 @@ function getFilteredStories(){
 }
 
 /* ========================= SELECT ========================= */
+/* コンピテンシーカード1枚のHTML（選択画面・選び直しモーダルで共用） */
+function cmpCardHTML(id, posId, currentId){
+  const c = COMPETENCIES[id];
+  const cur = id===currentId;
+  return `<div class="cmp-card ${cur?'current':''}" data-id="${id}" data-pos="${posId}" style="--cmp:${c.color}">
+    ${cur?'<span class="cmp-current-tag">いま選択中</span>':''}
+    <div class="cmp-emoji">${c.emoji}</div>
+    <div class="cmp-jp">${c.jp}</div>
+    <div class="cmp-en">${c.en}</div>
+    <div class="cmp-desc">${c.desc}</div>
+  </div>`;
+}
+/* 1ポジション分（コンピテンシー＋Leadership Palette）のHTML */
+function positionCardsHTML(p, currentId){
+  const grid = ids => `<div class="card-grid">${ids.map(id=>cmpCardHTML(id, p.id, currentId)).join("")}</div>`;
+  const lead = (p.leadershipIds && p.leadershipIds.length)
+    ? `<div class="palette-head">🎨 Leadership Palette</div>${grid(p.leadershipIds)}`
+    : "";
+  return `<div class="pos-head">${p.name}</div>${grid(p.competencyIds)}${lead}`;
+}
 function renderSelect(){
   const host = document.getElementById("cmpCards");
-  host.innerHTML = POSITIONS.map(p=>`
-    <div class="pos-head">${p.name}</div>
-    <div class="card-grid">
-      ${p.competencyIds.map(id=>{ const c = COMPETENCIES[id]; return `
-        <div class="cmp-card" data-id="${id}" data-pos="${p.id}" style="--cmp:${c.color}">
-          <div class="cmp-emoji">${c.emoji}</div>
-          <div class="cmp-jp">${c.jp}</div>
-          <div class="cmp-en">${c.en}</div>
-          <div class="cmp-desc">${c.desc}</div>
-        </div>`; }).join("")}
-    </div>`).join("");
+  host.innerHTML = POSITIONS.map(p=>positionCardsHTML(p)).join("");
   host.querySelectorAll(".cmp-card").forEach(el=> el.onclick = ()=> startDraft(el.dataset.id, el.dataset.pos));
 }
 
@@ -794,8 +850,8 @@ function renderEdit(){
       </div>
       <div class="pinned-body" id="pinnedBody">
         <div>${c.desc}</div>
-        <div class="lbl" style="margin-top:8px">優れたスキルレベル</div>
-        <ul>${c.bullets.map(b=>`<li>${b}</li>`).join("")}</ul>
+        <div class="lbl" style="margin-top:8px">${c.kind==="leadership" ? "強みと課題を見つめる問い" : "優れたスキルレベル"}</div>
+        <ul>${(c.kind==="leadership" ? c.questions : c.bullets).map(b=>`<li>${b}</li>`).join("")}</ul>
       </div>
     </div>`;
   const head = document.getElementById("pinnedHead");
@@ -835,18 +891,7 @@ function renderEdit(){
 
 /* 記入の途中でコンピテンシーを選び直す（書いた内容はそのまま引き継ぐ） */
 function openChangeCmp(){
-  const bodyHTML = POSITIONS.map(p=>`
-    <div class="pos-head">${p.name}</div>
-    <div class="card-grid">
-      ${p.competencyIds.map(id=>{ const c = COMPETENCIES[id]; const cur = id===draft.cmpId; return `
-        <div class="cmp-card ${cur?'current':''}" data-id="${id}" data-pos="${p.id}" style="--cmp:${c.color}">
-          ${cur?'<span class="cmp-current-tag">いま選択中</span>':''}
-          <div class="cmp-emoji">${c.emoji}</div>
-          <div class="cmp-jp">${c.jp}</div>
-          <div class="cmp-en">${c.en}</div>
-          <div class="cmp-desc">${c.desc}</div>
-        </div>`; }).join("")}
-    </div>`).join("");
+  const bodyHTML = POSITIONS.map(p=>positionCardsHTML(p, draft.cmpId)).join("");
   openModal({
     title: "コンピテンシーを選び直す",
     desc: "書いた内容（STARSやアイデア出し）はそのまま引き継がれます。",
@@ -886,8 +931,12 @@ function renderBrainstorm(c){
     `<button class="bs-send-btn" data-act="send" data-key="${f.key}" data-i="${i}" data-j="${j}">${SEND_LABEL[f.key]}</button>`
   ).join("");
 
-  const branches = c.bullets.map((b,i)=>{
-    const q = bsQuestion(b,i);
+  const isLead = c.kind==="leadership";
+  const prompts = isLead ? c.questions : c.bullets;
+  const branches = prompts.map((b,i)=>{
+    const qHTML = isLead
+      ? `<span class="ask lead-q">${escapeHtml(b)}</span>`
+      : (()=>{ const q = bsQuestion(b,i); return `<span class="quote">「${escapeHtml(q.quote)}」</span><span class="ask">${q.ask}</span>`; })();
     const ideas = draft.brainstorm[i] || [];
     const leaves = ideas.map((tx,j)=>`
       <div class="bs-leaf">
@@ -898,7 +947,7 @@ function renderBrainstorm(c){
         <button class="bs-leaf-del" data-act="del" data-i="${i}" data-j="${j}" title="削除">✕</button>
       </div>`).join("");
     return `<div class="bs-branch">
-      <div class="bs-q"><span class="quote">「${escapeHtml(q.quote)}」</span><span class="ask">${q.ask}</span></div>
+      <div class="bs-q">${qHTML}</div>
       <div class="bs-leaves">${leaves}</div>
       <div class="bs-add">
         <input type="text" data-i="${i}" placeholder="思いついたことをメモ…">
@@ -914,7 +963,7 @@ function renderBrainstorm(c){
         <span class="bs-title">${c.jp} のアイデア出し <span class="en">${c.en}</span></span>
         <span class="bs-toggle" id="bsToggle">${open?"閉じる ▴":"ひらく ▾"}</span>
       </div>
-      <p class="bs-sub">「優れたスキルレベル」を問いに変えました。思い当たる出来事をメモして、STARSへ流し込もう。</p>
+      <p class="bs-sub">${isLead ? "強みと課題を見つめる問いです。思い当たる出来事をメモして、STARSへ流し込もう。" : "「優れたスキルレベル」を問いに変えました。思い当たる出来事をメモして、STARSへ流し込もう。"}</p>
       <div class="bs-body ${open?'open':''}" id="bsBody">${branches}</div>
     </div>`;
 

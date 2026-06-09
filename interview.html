@@ -247,6 +247,13 @@
     border: 1px solid var(--line); background: var(--bg);
     border-radius: 12px; padding: 11px 13px;
   }
+  /* iOSのdate入力はネイティブ描画だと余白を無視して枠が縁に張り付くため、他のテキスト欄と同じ箱に正規化 */
+  .sheet input[type=date] {
+    -webkit-appearance: none; appearance: none;
+    min-height: 46px; line-height: 1.2;
+  }
+  .sheet input[type=date]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+  .sheet input[type=date]::-webkit-calendar-picker-indicator { margin-left: 4px; }
   .sheet input:focus, .sheet textarea:focus { outline: none; border-color: var(--accent); background: #fff; }
   .sheet textarea { min-height: 80px; resize: vertical; }
 

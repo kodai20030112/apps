@@ -52,15 +52,37 @@
   footer{text-align:center; color:var(--sub); font-size:12px; margin-top:36px; line-height:1.8;}
   /* 今週のWork ダッシュボード */
   .dash{margin-top:22px; background:var(--card); border:1px solid var(--line);
-    border-radius:var(--radius); padding:18px 18px 8px;}
+    border-radius:var(--radius); padding:18px 18px 10px;}
+  .dash-head{display:flex; align-items:center; gap:8px;}
   .dash h2{font-size:17px; font-weight:700; letter-spacing:-.01em;
     display:flex; align-items:center; gap:8px;}
-  .dash .ds{color:var(--sub); font-size:13px; margin-top:3px;}
-  .dstats{display:flex; gap:10px; margin:14px 0 4px;}
-  .dstat{flex:1; background:var(--bg); border-radius:14px; padding:12px 14px;}
-  .dstat b{font-size:25px; font-weight:700; display:block; letter-spacing:-.02em; line-height:1.1;}
-  .dstat span{font-size:12px; color:var(--sub);}
-  .feed-title{font-size:12px; color:var(--sub); font-weight:600; margin:16px 4px 4px;}
+  .dash .ds{margin-left:auto; font-size:11px; font-weight:600; color:var(--sub);
+    background:var(--bg); border-radius:999px; padding:4px 10px; display:flex; align-items:center; gap:5px;}
+  .ds .dot{width:7px; height:7px; border-radius:50%; background:#34c759;}
+  .ds.off .dot{background:#c7c7cc;}
+  /* ヒーロー統計 */
+  .dstats{display:flex; gap:10px; margin:16px 0 4px;}
+  .dstat{flex:1; background:var(--bg); border-radius:16px; padding:13px 12px 12px; text-align:center;}
+  .dstat .di{font-size:18px; line-height:1;}
+  .dstat b{font-size:28px; font-weight:800; display:block; letter-spacing:-.03em; line-height:1.05;
+    margin-top:6px; color:var(--accent);}
+  .dstat b small{font-size:15px; font-weight:700;}
+  .dstat span{font-size:11px; color:var(--sub); display:block; margin-top:2px;}
+  .dstat.warm b{color:#ff9500;}
+  /* 週の活動バーチャート */
+  .bwrap-sec{margin:20px 2px 4px;}
+  .bchart{display:flex; gap:7px; align-items:flex-end; height:92px;}
+  .bcol{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; gap:6px;}
+  .bnum{font-size:11px; font-weight:700; color:var(--sub); height:13px; line-height:1;}
+  .btrack{flex:1; width:100%; display:flex; align-items:flex-end; justify-content:center;}
+  .bar{width:72%; max-width:26px; min-height:5px; border-radius:7px;
+    background:linear-gradient(180deg,#5aa6ff,#0071e3); transition:height .4s cubic-bezier(.2,.8,.2,1);}
+  .bar.empty{background:var(--line); min-height:5px;}
+  .bar.future{opacity:.35;}
+  .bcol.today .bar{background:linear-gradient(180deg,#ffc04d,#ff9500);}
+  .blbl{font-size:11px; color:var(--sub); line-height:1;}
+  .bcol.today .blbl{color:#ff9500; font-weight:800;}
+  .feed-title{font-size:12px; color:var(--sub); font-weight:600; margin:18px 4px 4px;}
   a.fitem{display:flex; align-items:center; gap:11px; padding:11px 6px;
     text-decoration:none; color:var(--ink); border-top:1px solid var(--line);}
   a.fitem:first-of-type{border-top:none;}
@@ -173,8 +195,30 @@
 
     const sow = startOfWeek();
     const week = items.filter(e => (e.ts||0) >= sow);
-    const achThisWeek = week.filter(e => e.action !== "visit").length;
+    const ach = week.filter(e => e.action !== "visit");
+    const achThisWeek = ach.length;
     const activeDays = new Set(week.map(e => new Date(e.ts).toDateString())).size;
+
+    /* 月〜日それぞれの実績数 */
+    const dayCounts = [0,0,0,0,0,0,0];
+    ach.forEach(e=>{ dayCounts[(new Date(e.ts).getDay()+6)%7]++; });
+    const maxDay = Math.max(1, ...dayCounts);
+    const todayIdx = (new Date().getDay()+6)%7;
+    const dayLabels = ["月","火","水","木","金","土","日"];
+    const bars = dayCounts.map((c,i)=>{
+      const h = c ? Math.round(14 + (c/maxDay)*60) : 5;       // 5〜74px
+      const cls = i>todayIdx ? "bar future" : (c ? "bar" : "bar empty");
+      return '<div class="bcol'+(i===todayIdx?" today":"")+'">'+
+        '<div class="bnum">'+(c||"")+'</div>'+
+        '<div class="btrack"><div class="'+cls+'" style="height:'+h+'px"></div></div>'+
+        '<div class="blbl">'+dayLabels[i]+'</div></div>';
+    }).join("");
+
+    /* 連続活動日数（実績がある日を今日からさかのぼって数える） */
+    const achDays = new Set(items.filter(e=>e.action!=="visit")
+      .map(e=>new Date(e.ts).toDateString()));
+    let streak = 0; const cur = new Date(); cur.setHours(0,0,0,0);
+    while(achDays.has(cur.toDateString())){ streak++; cur.setDate(cur.getDate()-1); }
 
     let recent = items.filter(e => e.action !== "visit").slice(0,5);
     if(!recent.length) recent = items.slice(0,5);
@@ -192,12 +236,17 @@
 
     const dash = document.getElementById("dash");
     dash.innerHTML =
-      '<h2>📊 今週のWork</h2>'+
-      '<p class="ds">'+(res.connected ? "クラウド同期中" : "この端末の記録")+'</p>'+
-      '<div class="dstats">'+
-        '<div class="dstat"><b>'+achThisWeek+'</b><span>今週の実績</span></div>'+
-        '<div class="dstat"><b>'+activeDays+'<small style="font-size:15px">日</small></b><span>活動した日</span></div>'+
+      '<div class="dash-head">'+
+        '<h2>📊 今週のWork</h2>'+
+        '<span class="ds'+(res.connected?"":" off")+'"><span class="dot"></span>'+
+          (res.connected ? "クラウド同期中" : "この端末の記録")+'</span>'+
       '</div>'+
+      '<div class="dstats">'+
+        '<div class="dstat"><div class="di">🎯</div><b>'+achThisWeek+'</b><span>今週の実績</span></div>'+
+        '<div class="dstat warm"><div class="di">🔥</div><b>'+streak+'<small>日</small></b><span>連続活動</span></div>'+
+        '<div class="dstat"><div class="di">📅</div><b>'+activeDays+'<small>日</small></b><span>活動した日</span></div>'+
+      '</div>'+
+      '<div class="bwrap-sec"><div class="bchart">'+bars+'</div></div>'+
       '<p class="feed-title">最近の足跡</p>'+ rows;
     dash.hidden = false;
   })();
