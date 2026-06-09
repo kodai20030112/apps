@@ -387,30 +387,49 @@ function migrate(){
 }
 function loadLocal(){ try{ const s=localStorage.getItem(KEY); if(s) db=Object.assign(blank(), JSON.parse(s)); }catch(e){} }
 
-let saveTimer=null;
+let saveTimer=null, pendingSync=false;
 function save(){
+  db.updatedAt = Date.now();               // 更新時刻を記録（古いクラウドデータで上書きされるのを防ぐ）
   localStorage.setItem(KEY, JSON.stringify(db));
   if(!sb) return;
+  pendingSync = true;
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(async()=>{
-    const payload = JSON.stringify(db);
-    lastPushed = payload;
+  saveTimer = setTimeout(flushSave, 350);
+}
+// クラウドへ即送信（デバウンス完了時・アプリを閉じる直前に呼ぶ）
+async function flushSave(){
+  if(!sb || !pendingSync) return;
+  clearTimeout(saveTimer);
+  const payload = JSON.stringify(db);
+  lastPushed = payload;
+  pendingSync = false;
+  try{
     const { error } = await sb.from(STATE_TABLE)
       .upsert({ id:STATE_ID, state: db, updated_at:new Date().toISOString() });
-    if(error){ online=false; } else if(online!==true){ online=true; }
-    renderSync();
-  }, 350);
+    if(error){ online=false; pendingSync=true; } else if(online!==true){ online=true; }
+  }catch(e){ online=false; pendingSync=true; }
+  renderSync();
 }
+// アプリを閉じる/バックグラウンドにする直前に、未送信の変更を取りこぼさず送る
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') flushSave(); });
+window.addEventListener('pagehide', ()=>{ flushSave(); });
 async function loadRemote(){
   if(!sb){ online=false; return; }
   const { data, error } = await sb.from(STATE_TABLE).select('state').eq('id', STATE_ID).maybeSingle();
   if(error){ online=false; renderSync(); return; }
   online = true;
   if(data && data.state && typeof data.state==='object'){
-    db = Object.assign(blank(), data.state);
-    migrate();
-    localStorage.setItem(KEY, JSON.stringify(db));
-    render();
+    const localT = db.updatedAt||0, remoteT = data.state.updatedAt||0;
+    if(remoteT >= localT){
+      // クラウドの方が新しい（または同じ）→ クラウド優先
+      db = Object.assign(blank(), data.state);
+      migrate();
+      localStorage.setItem(KEY, JSON.stringify(db));
+      render();
+    } else {
+      // ローカルの方が新しい（前回まだ送れていなかった変更）→ ローカルを残してクラウドへ送り直す
+      save();
+    }
   } else {
     if(db.interviews.length || db.othersQ.length || db.advice.length || db.positions.length || db.competencies.length) save();
   }
@@ -421,15 +440,16 @@ function subscribeRealtime(){
   sb.channel('interview-rt')
     .on('postgres_changes', { event:'*', schema:'public', table:STATE_TABLE, filter:'id=eq.'+STATE_ID },
       (payload)=>{
-        const incoming = JSON.stringify((payload.new && payload.new.state) || {});
-        if(incoming === lastPushed) return;
-        if(payload.new && payload.new.state){
-          db = Object.assign(blank(), payload.new.state);
-          migrate();
-          localStorage.setItem(KEY, JSON.stringify(db));
-          render();
-          toast('🔄 他の端末から更新');
-        }
+        const incomingState = payload.new && payload.new.state;
+        if(!incomingState) return;
+        if(JSON.stringify(incomingState) === lastPushed) return;     // 自分の書き込みのエコー
+        if(sheetBg.classList.contains('on')) return;                 // 編集中は上書きしない（入力が消えるのを防ぐ）
+        if((incomingState.updatedAt||0) < (db.updatedAt||0)) return; // 自分の方が新しければ無視
+        db = Object.assign(blank(), incomingState);
+        migrate();
+        localStorage.setItem(KEY, JSON.stringify(db));
+        render();
+        toast('🔄 他の端末から更新');
       })
     .subscribe();
 }
