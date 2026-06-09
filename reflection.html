@@ -74,6 +74,18 @@
   .chip.pos { color: var(--accent); border-color: #bcd9fb; }
   .chip.pos.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 
+  /* ---------- 目指しているポジション（ホーム） ---------- */
+  .target-pos { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px 16px; margin: 4px 0 16px; }
+  .tp-head { font-size: 13px; font-weight: 800; color: var(--ink); display: flex; align-items: center; gap: 6px; }
+  .tp-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .tp-btn { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 8px 14px;
+    font-size: 14px; font-weight: 700; color: var(--ink); cursor: pointer; transition: .14s; }
+  .tp-btn:active { transform: scale(.96); }
+  .tp-btn.on { color: #fff; background: var(--pos, var(--accent)); border-color: var(--pos, var(--accent)); box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+  .tp-btn.clear { color: var(--ink-2); }
+  .tp-btn.clear.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .tp-note { font-size: 12px; color: var(--ink-2); margin-top: 10px; }
+
   .start-date { font-size: 13px; color: var(--ink-2); margin: -4px 0 14px; }
 
   /* ---------- Modal ---------- */
@@ -125,9 +137,27 @@
   .empty .big { font-size: 44px; margin-bottom: 10px; }
 
   /* ---------- Competency cards ---------- */
-  .pos-head { font-size: 13px; font-weight: 700; color: var(--ink-2); text-transform: uppercase; letter-spacing: .06em; margin: 22px 0 10px; }
-  .palette-head { font-size: 13px; font-weight: 800; letter-spacing: .04em; margin: 18px 0 10px; display: flex; align-items: center; gap: 6px;
-    color: #6741d9; padding-top: 14px; border-top: 1px dashed var(--line); }
+  /* ポジション単位のまとまり（コンピテンシー＋Leadership Palette を1つの枠に収める） */
+  .pos-group { border: 1px solid var(--line); border-left: 4px solid var(--pos, var(--accent)); border-radius: var(--radius);
+    background: rgba(255,255,255,.55); padding: 14px 14px 16px; margin: 18px 0; }
+  .pos-group.target { box-shadow: 0 0 0 2px var(--pos, var(--accent)) inset, var(--shadow); background: var(--card); }
+  .pos-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+  .pos-head .pos-name { font-size: 16px; font-weight: 800; color: var(--ink); letter-spacing: .01em; }
+  .pos-target-tag { font-size: 11px; font-weight: 800; color: #fff; background: var(--pos, var(--accent));
+    border-radius: 999px; padding: 3px 10px; }
+  .cmp-subhead, .palette-head { font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--ink-2); margin: 0 0 10px; }
+  .palette-head { display: flex; align-items: center; gap: 6px; color: #6741d9;
+    margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
+  .palette-head.muted { color: var(--ink-2); }
+  .palette-empty { font-size: 13px; color: var(--ink-2); background: #faf8ff; border: 1px dashed #d8c9f5;
+    border-radius: 12px; padding: 12px; }
+  /* 選択画面：ほかのポジションを開閉 */
+  .select-more { margin-top: 6px; }
+  .more-toggle { width: 100%; background: none; border: 1px dashed var(--line); color: var(--ink-2);
+    border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .more-toggle:active { transform: scale(.99); }
+  .more-body { margin-top: 4px; }
   .bs-q .lead-q { display: block; font-weight: 600; }
   .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   @media (max-width: 420px) { .card-grid { grid-template-columns: 1fr; } }
@@ -397,6 +427,7 @@
       <div class="arrow">›</div>
     </div>
 
+    <div class="target-pos" id="targetPos"></div>
     <div class="ps-sync" id="starsSync"></div>
     <div class="chips" id="filterChips"></div>
     <div id="storyList"></div>
@@ -658,6 +689,18 @@ function saveStories(arr){
 }
 let stories = loadStories();
 
+/* 目指しているポジション（ホームで選択／端末間で記憶）。
+   STARS同期stateに target として相乗りさせる（追加SQL不要）。 */
+const TGT_KEY = "stars_target_position_v1";
+let targetPos = (()=>{ try { return localStorage.getItem(TGT_KEY) || null; } catch(e){ return null; } })();
+function saveTargetPos(id){
+  targetPos = id || null;
+  try { if(targetPos) localStorage.setItem(TGT_KEY, targetPos); else localStorage.removeItem(TGT_KEY); } catch(e){}
+  starsTs = Date.now();                                   // 変更時刻を更新して端末間同期で優先させる
+  localStorage.setItem(LS_KEY, JSON.stringify({ items: stories, _ts: starsTs }));
+  if (typeof starsTouch === "function") starsTouch();     // クラウドへデバウンス同期
+}
+
 function findCmp(id){ const c = COMPETENCIES[id]; return c ? { cmp: c } : null; }
 
 /* ========================= 画面状態 ========================= */
@@ -718,7 +761,34 @@ function closeModal(){ modalEl.classList.remove("show"); }
 modalEl.addEventListener("click", e=>{ if (e.target === modalEl) closeModal(); });
 
 /* ========================= HOME ========================= */
+/* ホーム：いま目指しているポジションの選択（端末間で記憶） */
+function renderTargetPos(){
+  const host = document.getElementById("targetPos");
+  if(!host) return;
+  const btns = POSITIONS.map(p=>{
+    const ps = PS_BY_ID[p.id];
+    const on = targetPos===p.id;
+    return `<button class="tp-btn ${on?'on':''}" data-id="${p.id}" style="--pos:${ps?ps.color:'var(--accent)'}">${ps?ps.emoji+' ':''}${p.name}</button>`;
+  }).join("");
+  const cur = targetPos ? POSITIONS.find(p=>p.id===targetPos) : null;
+  host.innerHTML = `
+    <div class="tp-head">🎯 目指しているポジション</div>
+    <div class="tp-row">${btns}<button class="tp-btn clear ${!targetPos?'on':''}" data-id="">未設定</button></div>
+    <div class="tp-note">${cur
+      ? `振り返りを作るとき、<b>${cur.name}</b> のコンピテンシーとリーダーシップパレットが最上部に表示されます。`
+      : "ポジションを選ぶと、振り返り作成時にそのポジションの情報が最優先で表示されます。"}</div>`;
+  host.querySelectorAll(".tp-btn").forEach(b=> b.onclick = ()=>{
+    const id = b.dataset.id || null;
+    if(id===targetPos) return;
+    saveTargetPos(id);
+    renderTargetPos();
+    const p = id ? POSITIONS.find(x=>x.id===id) : null;
+    toast(p ? `目標を「${p.name}」に設定しました ✓` : "目標ポジションを解除しました");
+  });
+}
+
 function renderHome(){
+  renderTargetPos();
   // フィルタチップ
   const chips = document.getElementById("filterChips");
   let html = `<button class="chip ${activeFilter==='all'?'on':''}" data-f="all">すべて</button>`;
@@ -788,18 +858,53 @@ function cmpCardHTML(id, posId, currentId){
     <div class="cmp-desc">${c.desc}</div>
   </div>`;
 }
-/* 1ポジション分（コンピテンシー＋Leadership Palette）のHTML */
-function positionCardsHTML(p, currentId){
+/* 1ポジション分（コンピテンシー＋Leadership Palette）を1つの枠にまとめたHTML。
+   コンピテンシーとリーダーシップパレットは「そのポジションの2つの大切な情報」として
+   常に同じ枠（.pos-group）の中に並べる。isTarget=trueなら目標ポジションとして強調。 */
+function positionCardsHTML(p, currentId, isTarget){
+  const ps = PS_BY_ID[p.id];
+  const color = ps ? ps.color : "#8e8e93";
+  const emoji = ps ? ps.emoji + " " : "";
   const grid = ids => `<div class="card-grid">${ids.map(id=>cmpCardHTML(id, p.id, currentId)).join("")}</div>`;
-  const lead = (p.leadershipIds && p.leadershipIds.length)
+  const hasLead = p.leadershipIds && p.leadershipIds.length;
+  const lead = hasLead
     ? `<div class="palette-head">🎨 Leadership Palette</div>${grid(p.leadershipIds)}`
-    : "";
-  return `<div class="pos-head">${p.name}</div>${grid(p.competencyIds)}${lead}`;
+    : (isTarget
+        ? `<div class="palette-head muted">🎨 Leadership Palette</div>
+           <div class="palette-empty">このポジションのリーダーシップパレットはまだ登録されていません。</div>`
+        : "");
+  return `<div class="pos-group ${isTarget?'target':''}" style="--pos:${color}">
+    <div class="pos-head">
+      ${isTarget?'<span class="pos-target-tag">🎯 目指しているポジション</span>':''}
+      <span class="pos-name">${emoji}${p.name}</span>
+    </div>
+    <div class="cmp-subhead">コンピテンシー</div>
+    ${grid(p.competencyIds)}
+    ${lead}
+  </div>`;
+}
+function bindCmpCards(host){
+  host.querySelectorAll(".cmp-card").forEach(el=> el.onclick = ()=> startDraft(el.dataset.id, el.dataset.pos));
 }
 function renderSelect(){
   const host = document.getElementById("cmpCards");
-  host.innerHTML = POSITIONS.map(p=>positionCardsHTML(p)).join("");
-  host.querySelectorAll(".cmp-card").forEach(el=> el.onclick = ()=> startDraft(el.dataset.id, el.dataset.pos));
+  const t = targetPos ? POSITIONS.find(p=>p.id===targetPos) : null;
+  if(t){
+    // 目標ポジションを最上部に固定して表示。他ポジションは折りたたみで隠す。
+    const rest = POSITIONS.filter(p=>p.id!==t.id);
+    host.innerHTML = positionCardsHTML(t, null, true) +
+      (rest.length ? `<div class="select-more">
+        <button type="button" class="more-toggle" id="moreToggle">ほかのポジションも見る ▾</button>
+        <div class="more-body" id="moreBody" hidden>${rest.map(p=>positionCardsHTML(p)).join("")}</div>
+      </div>` : "");
+    const tg = host.querySelector("#moreToggle");
+    const mb = host.querySelector("#moreBody");
+    if(tg && mb) tg.onclick = ()=>{ const open = mb.hidden; mb.hidden = !open;
+      tg.textContent = open ? "ほかのポジションを隠す ▴" : "ほかのポジションも見る ▾"; };
+  } else {
+    host.innerHTML = POSITIONS.map(p=>positionCardsHTML(p)).join("");
+  }
+  bindCmpCards(host);
 }
 
 /* ========================= EDIT ========================= */
@@ -1421,7 +1526,7 @@ async function starsPush(){
   if(!psSb || starsPushing) return;
   starsPushing = true; starsSetSync("同期中…");
   try {
-    const state = { items: stories, _ts: starsTs };
+    const state = { items: stories, target: targetPos, _ts: starsTs };
     const res = await psSb.from("grownote_state").upsert({ id: STARS_ROW_ID, state, updated_at: new Date().toISOString() });
     if(res.error){ console.error(res.error); starsSetSync("⚠ 同期失敗"); } else starsSetSync("✓ 同期済み");
   } catch(e){ console.error(e); starsSetSync("⚠ 同期失敗"); }
@@ -1440,6 +1545,10 @@ function starsAdoptIfNewer(cloud){
   if(cloud && (cloud._ts||0) > (starsTs||0)){
     stories = cloud.items; starsTs = cloud._ts || Date.now();
     localStorage.setItem(LS_KEY, JSON.stringify({ items: stories, _ts: starsTs }));
+    if("target" in cloud){                                  // 目標ポジションも新しい方を採用
+      targetPos = cloud.target || null;
+      try { if(targetPos) localStorage.setItem(TGT_KEY, targetPos); else localStorage.removeItem(TGT_KEY); } catch(e){}
+    }
     return true;
   }
   return false;
