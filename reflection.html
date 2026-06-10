@@ -213,6 +213,11 @@
   textarea:focus { outline: none; border-color: var(--accent); }
   textarea.result-field { border-color: #ffe0a3; background: #fffdf6; }
 
+  /* ---------- Leadership free-form（リーダーシップパレットは自由記述1枠） ---------- */
+  .freeform-qs { margin: 8px 0 10px; padding-left: 18px; }
+  .freeform-qs li { font-size: 13px; line-height: 1.55; color: var(--ink-2); margin-bottom: 5px; }
+  textarea.freeform-area { min-height: 220px; }
+
   .section-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; margin-bottom: 16px; }
   .section-title { font-size: 15px; font-weight: 700; margin: 0 0 4px; }
   .section-sub { font-size: 13px; color: var(--ink-2); margin: 0 0 12px; }
@@ -731,7 +736,9 @@ function show(view){
   back.style.visibility = (view==="home") ? "hidden" : "visible";
   act.style.visibility = "hidden";
   document.getElementById("fab").style.display = (view==="home") ? "flex" : "none";
-  title.textContent = ({home:"STARS 振り返り", select:"コンピテンシー選択", edit:"STARSメモ", detail:"ストーリー",
+  // 編集画面の見出し：リーダーシップパレットは自由記述なので「振り返りメモ」、STARSは「STARSメモ」
+  const editTitle = (draft && findCmp(draft.cmpId)?.cmp.kind === "leadership") ? "振り返りメモ" : "STARSメモ";
+  title.textContent = ({home:"STARS 振り返り", select:"コンピテンシー選択", edit:editTitle, detail:"ストーリー",
     positions:"ポジション・ストーリー", posedit: (curPos ? PS_BY_ID[curPos].jp : "ポジション・ストーリー")})[view];
 }
 
@@ -913,7 +920,7 @@ function newId(){ return Date.now().toString(36) + Math.random().toString(36).sl
 function startDraft(cmpId, posId){
   draft = {
     id: newId(), cmpId, posId: posId || null,
-    title:"", situation:"", task:"", action:"", result:"", selfref:"",
+    title:"", situation:"", task:"", action:"", result:"", selfref:"", freeform:"",
     lifecycle: "oneday", brainstorm: {},
     createdAt: Date.now(), updatedAt: Date.now(), updates: [],
     isNew: true
@@ -971,17 +978,38 @@ function renderEdit(){
   // アイデア出し（樹形図）
   renderBrainstorm(c);
 
-  // STARS フィールド
-  document.getElementById("starsFields").innerHTML = STARS.map(fld=>`
-    <div class="field">
-      <div class="field-label">
-        <span class="field-letter" style="background:${c.color}">${fld.letter}</span>
-        <span><span class="field-name">${fld.name}</span></span>
-      </div>
-      <div class="field-hint">${fld.hint}</div>
-      <textarea data-key="${fld.key}" class="${fld.result?'result-field':''}" placeholder="${fld.hint}">${escapeHtml(draft[fld.key])}</textarea>
-    </div>`).join("");
-  document.querySelectorAll("#starsFields textarea").forEach(ta=>{
+  // 入力欄：リーダーシップパレットは自由記述1枠、それ以外はSTARSの5項目
+  const starsHost = document.getElementById("starsFields");
+  if (c.kind === "leadership") {
+    // 旧データ（STARSで書いたリーダーシップ振り返り）は、内容を失わないよう自由記述欄へ引き継ぐ
+    if (!(draft.freeform||"").trim()) {
+      const legacy = ["situation","task","action","result","selfref"]
+        .map(k=>(draft[k]||"").trim()).filter(Boolean).join("\n\n");
+      if (legacy) draft.freeform = legacy;
+    }
+    const qs = (c.questions||[]).map(q=>`<li>${escapeHtml(q)}</li>`).join("");
+    starsHost.innerHTML = `
+      <div class="field">
+        <div class="field-label">
+          <span class="field-letter" style="background:${c.color}">✍️</span>
+          <span><span class="field-name">自由に振り返る</span></span>
+        </div>
+        <div class="field-hint">STARSの形にこだわらず、下の問いを手がかりに思ったことを自由に書こう。</div>
+        ${qs ? `<ul class="freeform-qs">${qs}</ul>` : ""}
+        <textarea data-key="freeform" class="freeform-area" placeholder="ここに自由に書く…">${escapeHtml(draft.freeform||"")}</textarea>
+      </div>`;
+  } else {
+    starsHost.innerHTML = STARS.map(fld=>`
+      <div class="field">
+        <div class="field-label">
+          <span class="field-letter" style="background:${c.color}">${fld.letter}</span>
+          <span><span class="field-name">${fld.name}</span></span>
+        </div>
+        <div class="field-hint">${fld.hint}</div>
+        <textarea data-key="${fld.key}" class="${fld.result?'result-field':''}" placeholder="${fld.hint}">${escapeHtml(draft[fld.key])}</textarea>
+      </div>`).join("");
+  }
+  starsHost.querySelectorAll("textarea").forEach(ta=>{
     ta.oninput = ()=>{ draft[ta.dataset.key] = ta.value; };
   });
 
@@ -1019,7 +1047,7 @@ function changeCmp(cmpId, posId){
    コンピテンシーの「優れたスキルレベル」を疑問形に変換して問いかけ、
    思いついたメモ（葉）をSTARSの各欄へ流し込めるようにする。
    draft.brainstorm = { [bulletIndex]: ["メモ1","メモ2", ...] } として保存。 */
-const SEND_LABEL = { situation:"Situation", task:"Task", action:"Action", result:"Result", selfref:"Self-reflection" };
+const SEND_LABEL = { situation:"Situation", task:"Task", action:"Action", result:"Result", selfref:"Self-reflection", freeform:"振り返り" };
 const Q_SUFFIX = [
   "こんな場面、ありましたか？",
   "思い当たる出来事は？",
@@ -1032,11 +1060,13 @@ function bsQuestion(stem, i){ return { quote: (stem||"").replace(/[。.\s]+$/,""
 function renderBrainstorm(c){
   draft.brainstorm = draft.brainstorm || {};
   const open = draft._bsOpen !== false;   // 既定は開いた状態（問いを見ながら考えてもらう）
-  const sendBtns = (i,j)=> STARS.map(f=>
-    `<button class="bs-send-btn" data-act="send" data-key="${f.key}" data-i="${i}" data-j="${j}">${SEND_LABEL[f.key]}</button>`
-  ).join("");
-
   const isLead = c.kind==="leadership";
+  const sendBtns = (i,j)=> isLead
+    ? `<button class="bs-send-btn" data-act="send" data-key="freeform" data-i="${i}" data-j="${j}">振り返りに入れる</button>`
+    : STARS.map(f=>
+        `<button class="bs-send-btn" data-act="send" data-key="${f.key}" data-i="${i}" data-j="${j}">${SEND_LABEL[f.key]}</button>`
+      ).join("");
+
   const prompts = isLead ? c.questions : c.bullets;
   const branches = prompts.map((b,i)=>{
     const qHTML = isLead
@@ -1068,7 +1098,7 @@ function renderBrainstorm(c){
         <span class="bs-title">${c.jp} のアイデア出し <span class="en">${c.en}</span></span>
         <span class="bs-toggle" id="bsToggle">${open?"閉じる ▴":"ひらく ▾"}</span>
       </div>
-      <p class="bs-sub">${isLead ? "強みと課題を見つめる問いです。思い当たる出来事をメモして、STARSへ流し込もう。" : "「優れたスキルレベル」を問いに変えました。思い当たる出来事をメモして、STARSへ流し込もう。"}</p>
+      <p class="bs-sub">${isLead ? "強みと課題を見つめる問いです。思い当たる出来事をメモして、振り返り欄へ流し込もう。" : "「優れたスキルレベル」を問いに変えました。思い当たる出来事をメモして、STARSへ流し込もう。"}</p>
       <div class="bs-body ${open?'open':''}" id="bsBody">${branches}</div>
     </div>`;
 
@@ -1118,7 +1148,7 @@ function bsFlow(key, i, j){
 }
 
 function deriveTitle(d){
-  const base = (d.situation || d.task || d.action || "").trim().split(/\n/)[0];
+  const base = (d.freeform || d.situation || d.task || d.action || "").trim().split(/\n/)[0];
   if (base) return base.length > 40 ? base.slice(0,40)+"…" : base;
   const f = findCmp(d.cmpId); return f ? f.cmp.jp : "無題";
 }
@@ -1127,12 +1157,17 @@ function deriveTitle(d){
    保存ボタンを押さずに戻っても消えないよう、戻る／離脱時にも使う。 */
 function draftHasContent(){
   if(!draft) return false;
-  const hasStars = ["situation","task","action","result","selfref"].some(k=> (draft[k]||"").trim());
+  const hasStars = ["situation","task","action","result","selfref","freeform"].some(k=> (draft[k]||"").trim());
   const hasIdeas = Object.values(draft.brainstorm||{}).some(arr=> (arr||[]).length);
   return hasStars || hasIdeas;
 }
 function persistDraftIfAny(){
   if(!draftHasContent()) return false;
+  // リーダーシップパレットは自由記述に一本化。STARSの旧データが残っていれば消してデータを整える
+  const cf = findCmp(draft.cmpId);
+  if (cf && cf.cmp.kind === "leadership") {
+    ["situation","task","action","result","selfref"].forEach(k=> draft[k] = "");
+  }
   draft.title = deriveTitle(draft);
   draft.updatedAt = Date.now();
   const idx = stories.findIndex(s=>s.id===draft.id);
@@ -1169,15 +1204,26 @@ function openDetail(id){
   const f = findCmp(s.cmpId); const c = f ? f.cmp : {color:"#999",emoji:"?",jp:"?",en:""};
   document.body.style.setProperty("--cmp", c.color);
 
-  const blocks = STARS.map(fld=>{
-    const val = s[fld.key];
-    if(!val || !val.trim()) return "";
-    const refl = fld.key==="selfref";
-    return `<div class="detail-block ${refl?'refl':''}">
-      <div class="dl"><span class="field-letter" style="background:${c.color}">${fld.letter}</span><span class="field-name">${fld.name}</span></div>
-      <div class="dtext">${escapeHtml(val)}</div>
+  const isLead = c.kind === "leadership";
+  let blocks;
+  if (isLead && (s.freeform||"").trim()) {
+    // リーダーシップパレットの振り返りは自由記述1ブロックで表示
+    blocks = `<div class="detail-block refl">
+      <div class="dl"><span class="field-letter" style="background:${c.color}">✍️</span><span class="field-name">振り返り</span></div>
+      <div class="dtext">${escapeHtml(s.freeform)}</div>
     </div>`;
-  }).join("");
+  } else {
+    // STARS（および旧形式で書いたリーダーシップ振り返り）はSTARSの各項目で表示
+    blocks = STARS.map(fld=>{
+      const val = s[fld.key];
+      if(!val || !val.trim()) return "";
+      const refl = fld.key==="selfref";
+      return `<div class="detail-block ${refl?'refl':''}">
+        <div class="dl"><span class="field-letter" style="background:${c.color}">${fld.letter}</span><span class="field-name">${fld.name}</span></div>
+        <div class="dtext">${escapeHtml(val)}</div>
+      </div>`;
+    }).join("");
+  }
 
   const isLong = s.lifecycle==="longterm";
   const lifeLine = isLong
@@ -1208,7 +1254,7 @@ function openDetail(id){
   } else {
     extra = `<div class="detail-block refl">
       <div class="dl"><span class="field-name">🔁 当日の振り返り</span></div>
-      <div class="dtext" style="color:#6e6e73">このストーリーは当日完結。学び（Self-reflection）を読み返して、明日に活かそう。<br>後から内容を直したくなったら「編集」へ。</div>
+      <div class="dtext" style="color:#6e6e73">このストーリーは当日完結。${isLead ? "書いた振り返り" : "学び（Self-reflection）"}を読み返して、明日に活かそう。<br>後から内容を直したくなったら「編集」へ。</div>
     </div>`;
   }
 
@@ -1299,16 +1345,23 @@ function exportStoryImage(s){
   const W = 540, PAD = 22, CARDX = PAD, CARDW = W - PAD*2, IN = 18, GAP = 12, BAR = 4, maxTextW = CARDW - IN*2;
   const mc = document.createElement("canvas").getContext("2d");
 
-  // セクション（STARSの各項目＋長期の進展）
+  // セクション（リーダーシップは自由記述1枠／それ以外はSTARSの各項目）＋長期の進展
   const sections = [];
-  STARS.forEach(fld=>{
-    const val = (s[fld.key]||"").trim();
-    if(!val) return;
+  if (c.kind === "leadership" && (s.freeform||"").trim()) {
     sections.push({
-      letter: fld.letter, label: fld.name, refl: fld.key==="selfref",
-      blocks: [{ text: val, font: IMG_FONT(fld.key==="selfref"?600:500, fld.key==="result"?19:18), color:"#1d1d1f", lineH:27 }]
+      letter: "✍️", label: "振り返り", refl: true,
+      blocks: [{ text: s.freeform.trim(), font: IMG_FONT(500,18), color:"#1d1d1f", lineH:27 }]
     });
-  });
+  } else {
+    STARS.forEach(fld=>{
+      const val = (s[fld.key]||"").trim();
+      if(!val) return;
+      sections.push({
+        letter: fld.letter, label: fld.name, refl: fld.key==="selfref",
+        blocks: [{ text: val, font: IMG_FONT(fld.key==="selfref"?600:500, fld.key==="result"?19:18), color:"#1d1d1f", lineH:27 }]
+      });
+    });
+  }
   if(s.lifecycle==="longterm" && (s.updates||[]).length){
     sections.push({
       letter: "📈", label: "これまでの進展", refl: false,
