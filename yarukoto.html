@@ -172,6 +172,7 @@
   }
   .ibul .ib-check.on { background: var(--green); border-color: var(--green); }
   .ibul.is-done .ib-text { color: var(--sub); text-decoration: line-through; }
+  .ibul.is-later { opacity: .72; border-style: dashed; }
   .ibul .ib-text {
     flex: 1; min-width: 0; font-size: 15px; line-height: 1.5;
     white-space: pre-wrap; word-break: break-word; cursor: pointer; padding-top: 1px;
@@ -592,7 +593,8 @@ function renderIdeas(){
 function renderIdeaDetail(el){
   const meta = bucketMeta(ideaApp);
   const all = db.ideas.filter(x=>x.app===ideaApp);
-  const active = all.filter(x=>!x.done).sort((a,b)=>(b.updated||b.ts||0) - (a.updated||a.ts||0));
+  const active = all.filter(x=>!x.done && !x.later).sort((a,b)=>(b.updated||b.ts||0) - (a.updated||a.ts||0));
+  const later = all.filter(x=>!x.done && x.later).sort((a,b)=>(b.updated||b.ts||0) - (a.updated||a.ts||0));
   const done = all.filter(x=>x.done).sort((a,b)=>(b.doneAt||0) - (a.doneAt||0));
   let html = '<div class="idea-head">'+
     '<button class="ih-back" data-back="1">‹ アプリ一覧</button>'+
@@ -602,6 +604,10 @@ function renderIdeaDetail(el){
     html += '<div class="empty"><span class="e-ico">'+meta.emoji+'</span>下の入力欄から<br>アイデアを箇条書きで足していこう</div>';
   } else {
     html += active.map(ideaItemHTML).join('');
+    if(later.length){
+      html += '<div class="group-label">🌙 あとで・優先度低め（'+later.length+'）</div>';
+      html += later.map(ideaItemHTML).join('');
+    }
     if(done.length){
       html += '<div class="group-label">✓ 完了（'+done.length+'）</div>';
       html += done.map(ideaItemHTML).join('');
@@ -611,12 +617,13 @@ function renderIdeaDetail(el){
   el.innerHTML = html;
 }
 function ideaItemHTML(x){
-  return '<div class="ibul'+(x.done?' is-done':'')+'" data-id="'+x.id+'">'+
+  return '<div class="ibul'+(x.done?' is-done':'')+(x.later?' is-later':'')+'" data-id="'+x.id+'">'+
     '<div class="ib-check'+(x.done?' on':'')+'" data-act="toggle">'+(x.done?'✓':'')+'</div>'+
     '<div class="ib-text" data-act="edit">'+esc(x.text)+'</div>'+
     '<div class="ib-act">'+
       '<button data-act="copy" title="コピー">📋</button>'+
       '<button data-act="edit" title="編集">✏️</button>'+
+      '<button data-act="later" title="'+(x.later?'通常に戻す':'あとで（優先度低め）に送る')+'">'+(x.later?'⤴️':'🌙')+'</button>'+
       '<button data-act="del" title="削除">🗑️</button>'+
     '</div>'+
   '</div>';
@@ -649,7 +656,8 @@ function renderAddbar(){
       inp.focus();
     };
     document.getElementById('quickAdd').onclick = addIt;
-    inp.addEventListener('keydown', e=>{ if(e.key==='Enter') addIt(); });
+    // 変換中の1回目のEnterは確定に使う（isComposing）。2回目のEnterで追加。
+    inp.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing) addIt(); });
     return;
   }
   if(tab==='todo'){
@@ -677,7 +685,8 @@ function renderAddbar(){
     inp.focus();
   };
   document.getElementById('quickAdd').onclick = addIt;
-  inp.addEventListener('keydown', e=>{ if(e.key==='Enter') addIt(); });
+  // 変換中の1回目のEnterは確定に使う（isComposing）。2回目のEnterで追加。
+  inp.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing) addIt(); });
 }
 
 /* ===================== タブ切替 ===================== */
@@ -741,7 +750,7 @@ function startInlineEdit(row, item){
     render();
   }
   input.addEventListener('keydown', e=>{
-    if(e.key==='Enter'){ e.preventDefault(); commit(true); }
+    if(e.key==='Enter' && !e.isComposing){ e.preventDefault(); commit(true); }
     else if(e.key==='Escape'){ commit(false); }
   });
   input.addEventListener('blur', ()=>commit(true));
@@ -830,6 +839,7 @@ document.getElementById('panel-idea').addEventListener('click', e=>{
   const act = e.target.closest('[data-act]')?.dataset.act;
   if(act==='toggle'){ x.done=!x.done; if(x.done) x.doneAt=Date.now(); save(); renderCounts(); renderIdeas(); }
   else if(act==='copy'){ copyText(x.text).then(ok=>toast(ok?'📋 コピーしました':'コピーできませんでした')); }
+  else if(act==='later'){ x.later=!x.later; x.updated=Date.now(); save(); renderCounts(); renderIdeas(); toast(x.later?'🌙 あとでに送りました':'通常に戻しました'); }
   else if(act==='edit'){ startIdeaEdit(bul, x); }
   else if(act==='del'){ db.ideas.splice(db.ideas.indexOf(x),1); save(); renderCounts(); renderIdeas(); }
 });
@@ -855,7 +865,7 @@ function startIdeaEdit(bul, item){
     renderIdeas();
   }
   input.addEventListener('keydown', e=>{
-    if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); commit(true); }
+    if(e.key==='Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); commit(true); }
     else if(e.key==='Escape'){ commit(false); }
   });
   input.addEventListener('blur', ()=>commit(true));
