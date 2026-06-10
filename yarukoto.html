@@ -399,6 +399,10 @@ function imeGuard(el){
   el.addEventListener('compositionend',   ()=>{ composing=false; endedAt=Date.now(); });
   return e => composing || e.isComposing || e.keyCode===229 || (Date.now()-endedAt) < 250;
 }
+// PC（マウス＋物理キーボードの端末）では、IMEの変換確定EnterとふつうのEnterを
+// 完全には区別できないため、Enterでの追加・確定を一切しない。追加は「＋」ボタンのみ。
+// スマホ・タブレット（タッチ操作）はこれまでどおりEnter（確定キー）で追加できる。
+const IS_PC = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1700); }
 async function copyText(text){
   const s = String(text==null?'':text);
@@ -680,9 +684,15 @@ function renderAddbar(){
       inp.focus();
     };
     document.getElementById('quickAdd').onclick = addIt;
-    // 変換確定のEnterは無視（compositionend直後も含めて吸収）。次のEnterで追加。
-    const isIME = imeGuard(inp);
-    inp.addEventListener('keydown', e=>{ if(e.key==='Enter' && !isIME(e)) addIt(); });
+    // PCはEnterで追加しない（追加は＋ボタンのみ）。スマホは確定キーで追加。
+    if(IS_PC){
+      inp.placeholder += '（追加は＋ボタン）';
+      inp.addEventListener('keydown', e=>{ if(e.key==='Enter') e.preventDefault(); });
+    }else{
+      // 変換確定のEnterは無視（compositionend直後も含めて吸収）。次のEnterで追加。
+      const isIME = imeGuard(inp);
+      inp.addEventListener('keydown', e=>{ if(e.key==='Enter' && !isIME(e)) addIt(); });
+    }
     return;
   }
   if(tab==='todo'){
@@ -710,9 +720,15 @@ function renderAddbar(){
     inp.focus();
   };
   document.getElementById('quickAdd').onclick = addIt;
-  // 変換確定のEnterは無視（compositionend直後も含めて吸収）。次のEnterで追加。
-  const isIME = imeGuard(inp);
-  inp.addEventListener('keydown', e=>{ if(e.key==='Enter' && !isIME(e)) addIt(); });
+  // PCはEnterで追加しない（追加は＋ボタンのみ）。スマホは確定キーで追加。
+  if(IS_PC){
+    inp.placeholder += '（追加は＋ボタン）';
+    inp.addEventListener('keydown', e=>{ if(e.key==='Enter') e.preventDefault(); });
+  }else{
+    // 変換確定のEnterは無視（compositionend直後も含めて吸収）。次のEnterで追加。
+    const isIME = imeGuard(inp);
+    inp.addEventListener('keydown', e=>{ if(e.key==='Enter' && !isIME(e)) addIt(); });
+  }
 }
 
 /* ===================== タブ切替 ===================== */
@@ -774,7 +790,8 @@ function startInlineEdit(row, item){
   }
   const isIME = imeGuard(input);
   input.addEventListener('keydown', e=>{
-    if(e.key==='Enter' && !isIME(e)){ e.preventDefault(); commit(true); }
+    // PCはEnterで確定しない（変換確定Enterと区別できないため）。欄の外をクリックで確定。
+    if(e.key==='Enter'){ e.preventDefault(); if(!IS_PC && !isIME(e)) commit(true); }
     else if(e.key==='Escape'){ commit(false); }
   });
   input.addEventListener('blur', ()=>commit(true));
@@ -852,7 +869,8 @@ function startIdeaEdit(bul, item){
   }
   const isIME = imeGuard(input);
   input.addEventListener('keydown', e=>{
-    if(e.key==='Enter' && !e.shiftKey && !isIME(e)){ e.preventDefault(); commit(true); }
+    // PCはEnterで確定せず改行になる（変換確定Enterと区別できないため）。欄の外をクリックで確定。
+    if(e.key==='Enter' && !e.shiftKey && !IS_PC && !isIME(e)){ e.preventDefault(); commit(true); }
     else if(e.key==='Escape'){ commit(false); }
   });
   input.addEventListener('blur', ()=>commit(true));
