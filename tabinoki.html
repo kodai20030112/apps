@@ -185,6 +185,50 @@
   .cost-row .cr-name{font-size:14.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .cost-row .cr-meta{font-size:12px; color:var(--sub);}
   .cost-row .cr-amt{font-size:15px; font-weight:700; flex:0 0 auto;}
+  .cr-split{font-size:10.5px; font-weight:700; color:var(--accent-ink); background:var(--accent-soft);
+    border-radius:6px; padding:1px 6px; margin-left:6px; white-space:nowrap;}
+
+  /* 精算 */
+  .settle{background:linear-gradient(135deg,#0d9488,#0a766c); color:#fff; border-radius:var(--radius);
+    padding:18px; margin-bottom:14px; box-shadow:0 8px 22px rgba(13,148,136,.3);}
+  .settle .s-label{font-size:13px; font-weight:700; opacity:.92;}
+  .settle .s-main{font-size:21px; font-weight:800; margin-top:8px; letter-spacing:-.01em;
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .settle .s-arrow{font-size:17px; opacity:.85;}
+  .settle .s-amt{font-size:27px; margin-left:auto;}
+  .settle .s-none{font-size:19px; font-weight:800; margin-top:6px;}
+  .settle .s-note{font-size:12px; opacity:.88; margin-top:9px; line-height:1.55;}
+
+  /* 行きたい場所アイデア帳 */
+  .ideas-entry{display:flex; align-items:center; gap:12px; width:100%; text-align:left;
+    background:var(--card); border:1px solid var(--line); border-radius:16px; padding:13px 15px; margin-top:11px;
+    transition:transform .12s ease;}
+  .ideas-entry:active{transform:scale(.985);}
+  .ideas-entry .ie-emoji{font-size:23px; width:46px; height:46px; flex:0 0 auto; border-radius:13px;
+    display:flex; align-items:center; justify-content:center; background:#fdf0e6;}
+  .ideas-entry .ie-t{flex:1; min-width:0;}
+  .ideas-entry .ie-name{font-size:16px; font-weight:700;}
+  .ideas-entry .ie-sub{font-size:12.5px; color:var(--sub); margin-top:1px;}
+  .ideas-entry .ie-arrow{color:#c7cfce; font-size:20px; flex:0 0 auto;}
+
+  .idea-card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px 15px; margin-bottom:12px;}
+  .idea-card.both{border-color:#f0b6c2; box-shadow:0 4px 16px rgba(232,90,122,.12);}
+  .idea-card:active{background:#fafcfc;}
+  .idea-top{display:flex; align-items:flex-start; gap:11px;}
+  .idea-emoji{font-size:23px; width:44px; height:44px; flex:0 0 auto; border-radius:12px;
+    display:flex; align-items:center; justify-content:center; background:var(--accent-soft);}
+  .idea-meta{flex:1; min-width:0;}
+  .idea-name{display:block; font-size:16.5px; font-weight:700; line-height:1.3;}
+  .idea-area{display:block; font-size:13px; color:var(--sub); margin-top:1px;}
+  .idea-like{flex:0 0 auto; font-size:21px; padding:4px 5px; line-height:1; border-radius:10px;}
+  .idea-like:active{transform:scale(.85);}
+  .idea-note{font-size:14px; margin-top:9px; white-space:pre-wrap; color:#3a4a47;}
+  .idea-foot{display:flex; align-items:center; gap:7px; margin-top:10px; flex-wrap:wrap;}
+  .like-chip{font-size:12px; font-weight:600; color:var(--sub); background:var(--bg);
+    border-radius:999px; padding:4px 10px;}
+  .both-pill{color:#c2456a; background:#fde8ee;}
+  .idea-who{font-size:11.5px; color:var(--sub); margin-left:auto;}
 
   /* ===== モーダル / シート ===== */
   .overlay{position:fixed; inset:0; z-index:100; background:rgba(20,30,28,.4);
@@ -385,6 +429,8 @@ const TYPES = {
 };
 const TRIP_EMOJIS = ['🌴','🗼','⛩️','🏖️','🏔️','🏯','🚢','✈️','🚗','🍜','♨️','🎡','🦌','🌸','🗺️','🏝️'];
 const PAYERS = ['こうだい','ゆずは','ふたり'];
+const SPLITS = { half:'折半', kodai:'こうだい', yuzu:'ゆずは' };
+const IDEA_EMOJIS = ['📍','🍽️','📸','♨️','🏖️','🏔️','🏯','⛩️','🎡','🛍️','🏨','🌸','🍜','🦌','🌃','🎆'];
 
 /* ============ 状態 ============ */
 let db = { trips: [] };
@@ -471,15 +517,21 @@ function go(name, tripId, tab){
 }
 
 /* ============ レンダリング ============ */
-function render(){ renderTopbar(); (route.name==='trip'?renderTrip:renderHome)(); }
+function render(){
+  renderTopbar();
+  if(route.name==='trip') renderTrip();
+  else if(route.name==='ideas') renderIdeas();
+  else renderHome();
+}
 
 function renderTopbar(){
   const bar = $('#topbar');
   const whoChip = who ? `<button class="who-chip" id="whoBtn">${esc(who)}</button>` : '';
   const off = online===false ? '<span class="offline-badge">●オフライン</span>' : '';
-  if(route.name==='trip'){
+  if(route.name==='trip' || route.name==='ideas'){
+    const ttl = route.name==='ideas' ? '行きたい場所 💡' : 'たびのき';
     bar.innerHTML = `<button class="tb-btn back" id="homeBtn">‹ 一覧</button>
-      <span class="tb-title">たびのき${off}</span>${whoChip}`;
+      <span class="tb-title">${ttl}${off}</span>${whoChip}`;
     $('#homeBtn').onclick = ()=>go('home');
   } else {
     bar.innerHTML = `<span class="tb-title">たびのき 🌴${off}</span>${whoChip}`;
@@ -489,6 +541,9 @@ function renderTopbar(){
 
 function renderHome(){
   const v = $('#view');
+  const ideas = db.ideas||[];
+  const ideaCount = ideas.length;
+  const bothCount = ideas.filter(i=>likeCount(i)>=2).length;
   const trips = [...db.trips].sort((a,b)=>(a.startDate||'9999').localeCompare(b.startDate||'9999'));
   let cards;
   if(!trips.length){
@@ -524,10 +579,146 @@ function renderHome(){
       <p class="tagline">ふたりで作る旅のしおり</p>
     </header>
     <button class="add-trip" id="addTrip">＋ 新しい旅を作る</button>
+    <button class="ideas-entry" id="goIdeas">
+      <span class="ie-emoji">💡</span>
+      <span class="ie-t">
+        <span class="ie-name">行きたい場所アイデア帳</span>
+        <span class="ie-sub">${ideaCount?`${ideaCount}件のアイデア${bothCount?`　💞 ${bothCount}`:''}`:'気になる場所をどんどんメモしよう'}</span>
+      </span>
+      <span class="ie-arrow">›</span>
+    </button>
     ${cards}
     <p class="sync-note">${online===true?'☁️ ふたりのスマホで自動同期中':online===null?'☁️ 同期を確認中…':'⚠️ オフラインのためこの端末に保存中。<br>通信が戻ると自動で同期します'}</p>`;
   $('#addTrip').onclick = ()=>openTripForm();
+  $('#goIdeas').onclick = ()=>go('ideas');
   v.querySelectorAll('.trip-card').forEach(c=> c.onclick=()=>go('trip', c.dataset.id, 'plan'));
+}
+
+/* ============ 行きたい場所アイデア帳 ============ */
+function likeCount(idea){ const l=idea.likes||{}; return (l['こうだい']?1:0)+(l['ゆずは']?1:0); }
+
+function renderIdeas(){
+  const v = $('#view');
+  const ideas = [...(db.ideas||[])].sort((a,b)=>{
+    const d = likeCount(b)-likeCount(a); if(d) return d;
+    return (b.createdAt||0)-(a.createdAt||0);
+  });
+  let cards;
+  if(!ideas.length){
+    cards = `<div class="empty"><span class="big">💡</span>まだアイデアがありません。<br>気になった場所を気軽にメモしよう！</div>`;
+  } else {
+    cards = ideas.map(i=>{
+      const l = i.likes||{}; const k=!!l['こうだい'], y=!!l['ゆずは']; const both=k&&y;
+      const mine = who && l[who];
+      const cmts = (i.comments||[]);
+      const cmtHtml = cmts.map(c=>`<div class="cmt">
+          <span class="c-who ${c.who==='こうだい'?'kodai':'yuzu'}">${esc(c.who)}</span>
+          <span class="c-body">${esc(c.body)}</span>
+          <button class="c-del" data-idelc="${i.id}|${c.id}" onclick="event.stopPropagation()">×</button>
+        </div>`).join('');
+      const foot=[];
+      if(both) foot.push(`<span class="like-chip both-pill">💞 ふたりとも行きたい</span>`);
+      else { if(k) foot.push(`<span class="like-chip">🧑 こうだい</span>`); if(y) foot.push(`<span class="like-chip">👩 ゆずは</span>`); }
+      if(i.url) foot.push(`<a class="like-chip" style="color:var(--accent-ink)" href="${esc(i.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 リンク</a>`);
+      const footHtml = (foot.length||i.who) ? `<div class="idea-foot">${foot.join('')}<span class="idea-who">${i.who?'by '+esc(i.who):''}</span></div>` : '';
+      return `<div class="idea-card ${both?'both':''}" data-edit="${i.id}">
+        <div class="idea-top">
+          <span class="idea-emoji">${esc(i.emoji||'📍')}</span>
+          <span class="idea-meta">
+            <span class="idea-name">${esc(i.name||'無題')}</span>
+            ${i.area?`<span class="idea-area">📍 ${esc(i.area)}</span>`:''}
+          </span>
+          <button class="idea-like" data-like="${i.id}" onclick="event.stopPropagation()" title="行きたい！">${mine?'💗':'🤍'}</button>
+        </div>
+        ${i.note?`<div class="idea-note">${esc(i.note)}</div>`:''}
+        ${footHtml}
+        <div class="cmts" onclick="event.stopPropagation()">
+          ${cmtHtml}
+          <div class="cmt-add">
+            <input type="text" placeholder="ひとことメモ…" data-icmt="${i.id}">
+            <button data-icmtbtn="${i.id}">送信</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  v.innerHTML = `
+    <header class="home" style="padding-bottom:8px;">
+      <div class="logo">💡</div>
+      <h1>行きたい場所</h1>
+      <p class="tagline">ふたりの「いつか行きたい」を集めよう</p>
+    </header>
+    <button class="add-trip" id="addIdea">＋ 行きたい場所を追加</button>
+    <div style="margin-top:16px;">${cards}</div>`;
+  $('#addIdea').onclick = ()=>openIdeaForm();
+  bindIdeas();
+}
+function bindIdeas(){
+  const v = $('#view');
+  v.querySelectorAll('[data-edit]').forEach(b=> b.onclick=()=>{
+    const it=(db.ideas||[]).find(x=>x.id===b.dataset.edit); if(it) openIdeaForm(it);
+  });
+  v.querySelectorAll('[data-like]').forEach(b=> b.onclick=(e)=>{
+    e.stopPropagation();
+    if(!who){ openWho(); return; }
+    const it=(db.ideas||[]).find(x=>x.id===b.dataset.like); if(!it) return;
+    it.likes=it.likes||{}; it.likes[who]=!it.likes[who]; save(); render();
+  });
+  v.querySelectorAll('[data-icmtbtn]').forEach(b=> b.onclick=()=>{
+    if(!who){ openWho(); return; }
+    const inp=v.querySelector(`[data-icmt="${b.dataset.icmtbtn}"]`); const body=inp.value.trim(); if(!body) return;
+    const it=(db.ideas||[]).find(x=>x.id===b.dataset.icmtbtn); if(!it) return;
+    it.comments=it.comments||[]; it.comments.push({id:uid(), who, body, ts:Date.now()});
+    save(); render();
+  });
+  v.querySelectorAll('[data-idelc]').forEach(b=> b.onclick=()=>{
+    const [iid,cid]=b.dataset.idelc.split('|');
+    const it=(db.ideas||[]).find(x=>x.id===iid); if(!it) return;
+    it.comments=(it.comments||[]).filter(c=>c.id!==cid); save(); render();
+  });
+}
+function openIdeaForm(idea){
+  const isNew = !idea;
+  idea = idea || { id:uid(), name:'', area:'', emoji:'📍', note:'', url:'', likes:{}, comments:[], who, createdAt:Date.now() };
+  const emojiBtns = IDEA_EMOJIS.map(e=>`<button data-e="${e}" class="${e===idea.emoji?'on':''}">${e}</button>`).join('');
+  openSheet(`
+    <h3>${isNew?'行きたい場所 💡':'場所を編集'}</h3>
+    <div class="field"><label>場所・名前</label><input type="text" id="ia-name" value="${esc(idea.name)}" placeholder="例: 鳥取砂丘"></div>
+    <div class="field"><label>エリア（任意）</label><input type="text" id="ia-area" value="${esc(idea.area)}" placeholder="例: 鳥取県"></div>
+    <div class="field"><label>アイコン</label><div class="emoji-pick" id="ia-emoji">${emojiBtns}</div></div>
+    <div class="field"><label>メモ（なんで行きたい？）</label><textarea id="ia-note" placeholder="気になる理由・やりたいこと・食べたいもの…">${esc(idea.note)}</textarea></div>
+    <div class="field"><label>参考リンク（任意）</label><input type="url" id="ia-url" value="${esc(idea.url)}" placeholder="https://…"></div>
+    <div class="sheet-actions">
+      <button class="btn-primary" id="ia-save">${isNew?'追加する':'保存'}</button>
+      <button class="btn-ghost" id="ia-cancel">やめる</button>
+    </div>
+    ${isNew?'':`<button class="btn-primary" id="ia-trip" style="width:100%;margin-top:10px;background:var(--warn);box-shadow:0 5px 15px rgba(232,132,59,.3);">🌴 この場所で旅を作る</button>
+      <button class="btn-danger" id="ia-del">このアイデアを削除</button>`}
+  `);
+  let pickedEmoji = idea.emoji;
+  sheet.querySelectorAll('#ia-emoji button').forEach(b=> b.onclick=()=>{
+    pickedEmoji=b.dataset.e;
+    sheet.querySelectorAll('#ia-emoji button').forEach(x=>x.classList.toggle('on', x===b));
+  });
+  $('#ia-cancel').onclick=closeSheet;
+  $('#ia-save').onclick=()=>{
+    const name=$('#ia-name').value.trim();
+    if(!name){ toast('場所の名前を入れてね'); return; }
+    Object.assign(idea,{ name, area:$('#ia-area').value.trim(), emoji:pickedEmoji,
+      note:$('#ia-note').value.trim(), url:$('#ia-url').value.trim() });
+    if(isNew){ db.ideas=db.ideas||[]; if(!idea.who) idea.who=who; db.ideas.push(idea); }
+    save(); closeSheet(); render();
+    toast(isNew?'追加しました 💡':'保存しました');
+  };
+  const trip=$('#ia-trip'); if(trip) trip.onclick=()=>{
+    closeSheet();
+    openTripForm(null, { title:idea.name, destination:idea.area||idea.name,
+      memo: idea.note ? idea.note + (idea.url?'\n'+idea.url:'') : (idea.url||'') });
+  };
+  const del=$('#ia-del'); if(del) del.onclick=()=>{
+    if(!confirm('このアイデアを削除します。よろしいですか？')) return;
+    db.ideas=(db.ideas||[]).filter(x=>x.id!==idea.id); save(); closeSheet(); render(); toast('削除しました');
+  };
 }
 
 function renderTrip(){
@@ -616,7 +807,11 @@ function evHtml(t,i,date,gap,prevPlace){
   }
   if(i.fromStation && i.toStation) tags.push(`<a class="tag link" href="https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(i.fromStation)}&destination=${encodeURIComponent(i.toStation)}&travelmode=transit" target="_blank" rel="noopener" onclick="event.stopPropagation()">🚃 乗換案内</a>`);
   if(i.url) tags.push(`<a class="tag link" href="${esc(i.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 リンク</a>`);
-  if(i.cost) tags.push(`<span class="tag">${yen(i.cost)}${i.payer?'・'+esc(i.payer):''}</span>`);
+  if(Number(i.cost)>0){
+    const set=(i.payer==='こうだい'||i.payer==='ゆずは'); const sp=i.split||'half';
+    const spL = set ? (sp==='kodai'?'こうだい持ち':sp==='yuzu'?'ゆずは持ち':'折半') : '';
+    tags.push(`<span class="tag">${yen(i.cost)}${i.payer?'・'+esc(i.payer)+(set?'立替':''):''}${spL?'・'+spL:''}</span>`);
+  }
   const comments = (i.comments||[]);
   const cmtHtml = comments.map(c=>`<div class="cmt">
       <span class="c-who ${c.who==='こうだい'?'kodai':'yuzu'}">${esc(c.who)}</span>
@@ -748,26 +943,65 @@ function bindPack(t){
 
 /* ----- 費用 ----- */
 function renderCost(t){
-  const items=(t.items||[]).filter(i=>i.cost>0);
+  const items=(t.items||[]).filter(i=>Number(i.cost)>0);
   const total=items.reduce((s,i)=>s+Number(i.cost||0),0);
-  const by={'こうだい':0,'ゆずは':0,'ふたり':0,'':0};
-  items.forEach(i=> by[i.payer||'']=(by[i.payer||'']||0)+Number(i.cost||0));
+  const paid={'こうだい':0,'ゆずは':0};      // 実際に立て替えた額
+  const burden={'こうだい':0,'ゆずは':0};    // 割り勘後に各自が持つべき額
+  let shared=0;                              // ふたりで支払い／立替者なし（精算対象外）
+  items.forEach(i=>{
+    const amt=Number(i.cost||0);
+    const payer=i.payer;
+    if(payer!=='こうだい' && payer!=='ゆずは'){ shared+=amt; return; }
+    paid[payer]+=amt;
+    const sp=i.split||'half';
+    if(sp==='kodai') burden['こうだい']+=amt;
+    else if(sp==='yuzu') burden['ゆずは']+=amt;
+    else { burden['こうだい']+=amt/2; burden['ゆずは']+=amt/2; }
+  });
+  const netK = paid['こうだい']-burden['こうだい'];   // +なら こうだい が受け取る側
+  const diff = Math.round(Math.abs(netK));
+  let settleHtml='';
+  const settleable = paid['こうだい']+paid['ゆずは']>0;
+  if(settleable){
+    if(diff<1){
+      settleHtml=`<div class="settle"><div class="s-label">💸 精算（割り勘の結果）</div>
+        <div class="s-none">いまのところチャラ ✨</div>
+        ${shared>0?`<div class="s-note">共同・立替者なしの ${yen(shared)} は精算に含めていません</div>`:''}</div>`;
+    } else {
+      const from = netK>0?'ゆずは':'こうだい';
+      const to   = netK>0?'こうだい':'ゆずは';
+      settleHtml=`<div class="settle"><div class="s-label">💸 精算（割り勘の結果）</div>
+        <div class="s-main"><span>${from}</span><span class="s-arrow">→</span><span>${to}</span><span class="s-amt">${yen(diff)}</span></div>
+        <div class="s-note">${from} が ${to} に ${yen(diff)} 渡すとチャラになります${shared>0?`（共同・立替者なしの ${yen(shared)} は精算に含めていません）`:''}</div></div>`;
+    }
+  }
   const rows=[...items].sort((a,b)=>(a.date||'').localeCompare(b.date||''))
-    .map(i=>{const ty=TYPES[i.type]||TYPES.other; return `<div class="cost-row">
+    .map(i=>{
+      const ty=TYPES[i.type]||TYPES.other;
+      const payer=i.payer;
+      const set=(payer==='こうだい'||payer==='ゆずは');
+      const sp=i.split||'half';
+      const splitLabel = set ? (sp==='kodai'?'こうだい持ち':sp==='yuzu'?'ゆずは持ち':'折半') : '';
+      const meta = set ? esc(payer)+' が立替' : (payer==='ふたり'?'ふたりで支払い':'立替者なし');
+      return `<div class="cost-row">
       <span class="cr-emoji">${ty.emoji}</span>
-      <span class="cr-t"><span class="cr-name">${esc(i.title||ty.label)}</span>
-        <span class="cr-meta">${i.date?fmtDate(i.date)+' ':''}${i.payer?'・'+esc(i.payer):'支払者未設定'}</span></span>
+      <span class="cr-t"><span class="cr-name">${esc(i.title||ty.label)}${splitLabel?`<span class="cr-split">${splitLabel}</span>`:''}</span>
+        <span class="cr-meta">${i.date?fmtDate(i.date)+'・':''}${meta}</span></span>
       <span class="cr-amt">${yen(i.cost)}</span></div>`;}).join('');
   return `<div class="cost-sum">
       <div class="cost-total">${yen(total)}<small>の旅</small></div>
       <div class="cost-split">
-        <div class="cost-cell"><b>${yen(by['こうだい'])}</b><span>こうだい立替</span></div>
-        <div class="cost-cell"><b>${yen(by['ゆずは'])}</b><span>ゆずは立替</span></div>
-        <div class="cost-cell"><b>${yen(by['ふたり']+by[''])}</b><span>ふたり/未設定</span></div>
+        <div class="cost-cell"><b>${yen(paid['こうだい'])}</b><span>こうだい立替</span></div>
+        <div class="cost-cell"><b>${yen(paid['ゆずは'])}</b><span>ゆずは立替</span></div>
+      </div>
+      <div class="cost-split">
+        <div class="cost-cell"><b>${yen(Math.round(burden['こうだい']))}</b><span>こうだい負担</span></div>
+        <div class="cost-cell"><b>${yen(Math.round(burden['ゆずは']))}</b><span>ゆずは負担</span></div>
       </div>
     </div>
-    ${rows? rows : '<div class="empty" style="padding:30px 0;"><span class="big">💰</span>各予定に金額を入れると<br>ここに費用がまとまります</div>'}
-    <p class="sync-note">金額は「しおり」の各予定を編集して入力できます</p>`;
+    ${settleHtml}
+    ${rows? rows : '<div class="empty" style="padding:30px 0;"><span class="big">💰</span>各予定に金額・立替・割り勘を入れると<br>ここに「だれがだれに払うか」が出ます</div>'}
+    <p class="sync-note">金額・立替・割り勘は「しおり」の各予定を編集して入力できます</p>`;
 }
 function bindCost(t){ /* 表示のみ */ }
 
@@ -829,9 +1063,9 @@ function closeSheet(){ overlay.classList.remove('on'); const f=_onSheetClose; _o
 overlay.onclick = e=>{ if(e.target===overlay) closeSheet(); };
 
 /* 旅の作成・編集 */
-function openTripForm(trip){
+function openTripForm(trip, prefill){
   const isNew = !trip;
-  trip = trip || { id:uid(), title:'', destination:'', emoji:'🌴', startDate:'', endDate:'', memo:'', items:[], checklist:[] };
+  trip = trip || { id:uid(), title:(prefill&&prefill.title)||'', destination:(prefill&&prefill.destination)||'', emoji:(prefill&&prefill.emoji)||'🌴', startDate:'', endDate:'', memo:(prefill&&prefill.memo)||'', items:[], checklist:[] };
   const emojiBtns = TRIP_EMOJIS.map(e=>`<button data-e="${e}" class="${e===trip.emoji?'on':''}">${e}</button>`).join('');
   openSheet(`
     <h3>${isNew?'新しい旅 🌴':'旅を編集'}</h3>
@@ -881,7 +1115,7 @@ function itemIsEmpty(i){
 }
 function openItemForm(t, item, presetDate){
   const wasNew = !item;
-  item = item || { id:uid(), date:presetDate||t.startDate||'', time:'', endTime:'', type:'spot', title:'', place:'', transport:'', fromStation:'', toStation:'', url:'', cost:'', payer:'', note:'', comments:[] };
+  item = item || { id:uid(), date:presetDate||t.startDate||'', time:'', endTime:'', type:'spot', title:'', place:'', transport:'', fromStation:'', toStation:'', url:'', cost:'', payer:'', split:'half', note:'', comments:[] };
   if(wasNew){ t.items=t.items||[]; t.items.push(item); }   // 先に登録して、入力＝即反映・即保存
   const dayOpts = rangeDates(t.startDate,t.endDate);
   const dateField = dayOpts.length
@@ -889,7 +1123,8 @@ function openItemForm(t, item, presetDate){
         <option value="" ${!item.date?'selected':''}>日付なし</option></select>`
     : `<input type="date" id="i-date" value="${esc(item.date)}">`;
   const typeBtns = Object.entries(TYPES).map(([k,v])=>`<button data-t="${k}" class="${k===item.type?'on':''}"><span class="te">${v.emoji}</span>${v.label}</button>`).join('');
-  const payerOpts = `<option value="">支払者…</option>`+PAYERS.map(p=>`<option value="${p}" ${p===item.payer?'selected':''}>${p}</option>`).join('');
+  const payerOpts = `<option value="">立替者なし / 無料</option>`+PAYERS.map(p=>`<option value="${p}" ${p===item.payer?'selected':''}>${p==='ふたり'?'ふたりで（精算なし）':p}</option>`).join('');
+  const splitOpts = Object.entries(SPLITS).map(([k,v])=>`<option value="${k}" ${k===(item.split||'half')?'selected':''}>${k==='half'?'折半（半分こ）':v+'が全部もつ'}</option>`).join('');
   openSheet(`
     <h3>${wasNew?'予定を追加':'予定を編集'}</h3>
     <div class="field"><label>種類</label><div class="type-grid" id="i-type">${typeBtns}</div></div>
@@ -909,8 +1144,10 @@ function openItemForm(t, item, presetDate){
       <div class="hint">駅を入れると「🚃 乗換案内」リンクが自動で作られます。ここは補足メモ（路線・所要時間など）。</div></div>
     <div class="field-2">
       <div class="field"><label>費用</label><input type="number" inputmode="numeric" id="i-cost" value="${esc(item.cost)}" placeholder="¥"></div>
-      <div class="field"><label>支払</label><select id="i-payer">${payerOpts}</select></div>
+      <div class="field"><label>立て替えた人</label><select id="i-payer">${payerOpts}</select></div>
     </div>
+    <div class="field"><label>割り勘（だれの負担？）</label><select id="i-split">${splitOpts}</select>
+      <div class="hint">「立て替えた人」が支払って、ここで決めた負担で精算します。費用タブに「だれがだれに払うか」がまとまります。</div></div>
     <div class="field"><label>メモ</label><textarea id="i-note" placeholder="予約番号・補足など…">${esc(item.note)}</textarea></div>
     <div class="autosave" id="i-status">✓ 自動保存されます</div>
     <div class="sheet-actions">
@@ -928,7 +1165,7 @@ function openItemForm(t, item, presetDate){
     item.title=$('#i-title').value.trim(); item.place=$('#i-place').value.trim();
     item.transport=$('#i-trans').value.trim();
     item.fromStation=$('#i-from').value.trim(); item.toStation=$('#i-to').value.trim();
-    item.cost = costRaw===''?0:Number(costRaw); item.payer=$('#i-payer').value; item.note=$('#i-note').value.trim();
+    item.cost = costRaw===''?0:Number(costRaw); item.payer=$('#i-payer').value; item.split=$('#i-split').value; item.note=$('#i-note').value.trim();
     save(); flashSaved();
   };
   sheet.querySelectorAll('#i-type button').forEach(b=> b.onclick=()=>{

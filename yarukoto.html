@@ -88,20 +88,14 @@
     font-size: 12px; font-weight: 600; color: var(--sub);
     margin: 18px 4px 8px; display: flex; align-items: center; gap: 6px;
   }
+  .group-label .gl-note { font-weight: 400; font-size: 11px; opacity: .8; }
 
   /* チェックリスト行（やること・買い物） */
   .row {
     display: flex; align-items: center; gap: 10px;
     background: var(--card); border: 1px solid var(--line);
-    border-radius: 14px; padding: 12px 12px 12px 8px; margin-bottom: 8px;
+    border-radius: 14px; padding: 12px; margin-bottom: 8px;
   }
-  .row.dragging { opacity: .92; box-shadow: 0 10px 26px rgba(0,0,0,.16); border-color: var(--accent); }
-  .row .handle {
-    flex: 0 0 auto; align-self: center; cursor: grab; color: #cdced3;
-    font-size: 17px; line-height: 1; padding: 4px 2px; touch-action: none; user-select: none;
-  }
-  .row .handle:active { cursor: grabbing; }
-  .row.is-done .handle { visibility: hidden; }
   .row .check {
     flex: 0 0 auto; width: 23px; height: 23px;
     border-radius: 50%; border: 2px solid var(--line);
@@ -395,6 +389,16 @@ const KEY = 'yarukoto_db_v1';
 /* ===================== ユーティリティ ===================== */
 function uid(){ return Date.now().toString(36) + Math.floor(Math.random()*1e6).toString(36); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+// 日本語入力（IME）の「変換確定Enter」を送信と誤認しないためのガード。
+// Macでは変換確定のEnterが isComposing=false / keyCode=13 で飛んでくることがあるので、
+// 直前の compositionend からの経過時間でも変換確定かどうかを判定する。
+// 返り値の関数が true を返したら、その Enter は送信せず無視する。
+function imeGuard(el){
+  let composing=false, endedAt=0;
+  el.addEventListener('compositionstart', ()=>{ composing=true; });
+  el.addEventListener('compositionend',   ()=>{ composing=false; endedAt=Date.now(); });
+  return e => composing || e.isComposing || e.keyCode===229 || (Date.now()-endedAt) < 250;
+}
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1700); }
 async function copyText(text){
   const s = String(text==null?'':text);
@@ -445,6 +449,26 @@ function migrate(){
     if(!('done' in x)) x.done = false;
   });
 }
+
+/* 完了したものは24時間で自動的に消す */
+const PURGE_MS = 24*60*60*1000;
+function purgeDone(){
+  const now = Date.now();
+  const cutoff = now - PURGE_MS;
+  let changed = false;
+  const sweep = (arr)=>arr.filter(x=>{
+    if(!x.done) return true;
+    // 旧データで doneAt が無いものは、ここで起点を打って24時間の猶予を与える
+    if(!x.doneAt){ x.doneAt = now; changed = true; return true; }
+    if(x.doneAt < cutoff){ changed = true; return false; }
+    return true;
+  });
+  db.todos = sweep(db.todos);
+  db.shopping = sweep(db.shopping);
+  db.ideas = sweep(db.ideas);
+  return changed;
+}
+
 function loadLocal(){ try{ const s=localStorage.getItem(KEY); if(s) db=Object.assign(blank(), JSON.parse(s)); }catch(e){} }
 
 let saveTimer=null;
@@ -469,6 +493,7 @@ async function loadRemote(){
   if(data && data.state && typeof data.state==='object'){
     db = Object.assign(blank(), data.state);   // リモート優先
     migrate();
+    if(purgeDone()) save();
     localStorage.setItem(KEY, JSON.stringify(db));
     render();
   } else {
@@ -541,7 +566,7 @@ function renderChecklist(kind){
   let html = '';
   html += active.map(x=>rowHTML(x, kind)).join('');
   if(done.length){
-    html += '<div class="group-label">✓ '+(isTodo?'完了':'買ったもの')+'（'+done.length+'）</div>';
+    html += '<div class="group-label">✓ '+(isTodo?'完了':'買ったもの')+'（'+done.length+'）<span class="gl-note">24時間で自動的に消えます</span></div>';
     html += done.map(x=>rowHTML(x, kind)).join('');
     html += '<div class="foot-act"><button data-clear="'+kind+'">'+(isTodo?'完了したものを消す':'買ったものを消す')+'</button></div>';
   }
@@ -549,7 +574,6 @@ function renderChecklist(kind){
 }
 function rowHTML(x, kind){
   return '<div class="row'+(x.done?' is-done':'')+'" data-kind="'+kind+'" data-id="'+x.id+'">'+
-    '<span class="handle" data-act="handle">⠿</span>'+
     '<div class="check'+(x.done?' on':'')+'" data-act="toggle">'+(x.done?'✓':'')+'</div>'+
     '<div class="body">'+
       '<div class="label" data-act="editText">'+esc(x.text)+'</div>'+
@@ -609,7 +633,7 @@ function renderIdeaDetail(el){
       html += later.map(ideaItemHTML).join('');
     }
     if(done.length){
-      html += '<div class="group-label">✓ 完了（'+done.length+'）</div>';
+      html += '<div class="group-label">✓ 完了（'+done.length+'）<span class="gl-note">24時間で自動的に消えます</span></div>';
       html += done.map(ideaItemHTML).join('');
       html += '<div class="foot-act"><button data-clearidea="1">完了したものを消す</button></div>';
     }
@@ -656,8 +680,9 @@ function renderAddbar(){
       inp.focus();
     };
     document.getElementById('quickAdd').onclick = addIt;
-    // 変換中の1回目のEnterは確定に使う（isComposing）。2回目のEnterで追加。
-    inp.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing) addIt(); });
+    // 変換確定のEnterは無視（compositionend直後も含めて吸収）。次のEnterで追加。
+    const isIME = imeGuard(inp);
+    inp.addEventListener('keydown', e=>{ if(e.key==='Enter' && !isIME(e)) addIt(); });
     return;
   }
   if(tab==='todo'){
@@ -685,8 +710,9 @@ function renderAddbar(){
     inp.focus();
   };
   document.getElementById('quickAdd').onclick = addIt;
-  // 変換中の1回目のEnterは確定に使う（isComposing）。2回目のEnterで追加。
-  inp.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing) addIt(); });
+  // 変換確定のEnterは無視（compositionend直後も含めて吸収）。次のEnterで追加。
+  const isIME = imeGuard(inp);
+  inp.addEventListener('keydown', e=>{ if(e.key==='Enter' && !isIME(e)) addIt(); });
 }
 
 /* ===================== タブ切替 ===================== */
@@ -703,14 +729,11 @@ document.querySelectorAll('.tab').forEach(btn=>{
 });
 
 /* ===================== チェックリスト操作 ===================== */
-let suppressClick = false;
 ['panel-todo','panel-shop'].forEach(pid=>{
   const el = document.getElementById(pid);
   el.addEventListener('click', onChecklistClick);
-  el.addEventListener('pointerdown', onHandleDown);
 });
 function onChecklistClick(e){
-  if(suppressClick){ suppressClick=false; return; }
   const clear = e.target.closest('[data-clear]');
   if(clear){
     if(clear.dataset.clear==='todo') db.todos = db.todos.filter(x=>!x.done);
@@ -749,8 +772,9 @@ function startInlineEdit(row, item){
     }
     render();
   }
+  const isIME = imeGuard(input);
   input.addEventListener('keydown', e=>{
-    if(e.key==='Enter' && !e.isComposing){ e.preventDefault(); commit(true); }
+    if(e.key==='Enter' && !isIME(e)){ e.preventDefault(); commit(true); }
     else if(e.key==='Escape'){ commit(false); }
   });
   input.addEventListener('blur', ()=>commit(true));
@@ -782,44 +806,6 @@ function saveAddSheet(){
 document.getElementById('addTodoSave').onclick = saveAddSheet;
 document.getElementById('addTodoCancel').onclick = closeAddSheet;
 addSheetBg.addEventListener('click', e=>{ if(e.target===addSheetBg) closeAddSheet(); });
-
-/* ドラッグ並べ替え（ポインタ操作・タッチ/マウス両対応） */
-let drag = null;
-function onHandleDown(e){
-  const handle = e.target.closest('[data-act="handle"]'); if(!handle) return;
-  const row = handle.closest('.row'); if(!row || row.classList.contains('is-done')) return;
-  e.preventDefault();
-  const cont = row.parentElement;
-  const rect = row.getBoundingClientRect();
-  drag = { kind: row.dataset.kind, row, cont };
-  row.classList.add('dragging');
-  row.style.width = rect.width+'px';
-  try{ row.setPointerCapture(e.pointerId); }catch(err){}
-  document.addEventListener('pointermove', onDragMove);
-  document.addEventListener('pointerup', onDragEnd, { once:true });
-}
-function onDragMove(e){
-  if(!drag) return;
-  const rows = [...drag.cont.querySelectorAll('.row:not(.is-done)')].filter(r=>r!==drag.row);
-  let placed = false;
-  for(const r of rows){
-    const box = r.getBoundingClientRect();
-    if(e.clientY < box.top + box.height/2){ drag.cont.insertBefore(drag.row, r); placed=true; break; }
-  }
-  if(!placed && rows.length){ rows[rows.length-1].after(drag.row); }
-}
-function onDragEnd(){
-  if(!drag) return;
-  document.removeEventListener('pointermove', onDragMove);
-  drag.row.classList.remove('dragging');
-  drag.row.style.width='';
-  const arr = drag.kind==='todo' ? db.todos : db.shopping;
-  const ids = [...drag.cont.querySelectorAll('.row:not(.is-done)')].map(r=>r.dataset.id);
-  ids.forEach((id,i)=>{ const it=arr.find(x=>x.id===id); if(it) it.order=i; });
-  drag = null;
-  suppressClick = true;
-  save(); render();
-}
 
 /* ===================== アイデア操作 ===================== */
 document.getElementById('panel-idea').addEventListener('click', e=>{
@@ -864,8 +850,9 @@ function startIdeaEdit(bul, item){
     }
     renderIdeas();
   }
+  const isIME = imeGuard(input);
   input.addEventListener('keydown', e=>{
-    if(e.key==='Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); commit(true); }
+    if(e.key==='Enter' && !e.shiftKey && !isIME(e)){ e.preventDefault(); commit(true); }
     else if(e.key==='Escape'){ commit(false); }
   });
   input.addEventListener('blur', ()=>commit(true));
@@ -899,9 +886,17 @@ document.getElementById('appPicker').addEventListener('click', e=>{
 /* ===================== 起動 ===================== */
 loadLocal();
 migrate();
+if(purgeDone()) save();
 render();
 renderSync();
 if(sb){ loadRemote(); subscribeRealtime(); }
+
+/* 開いている間も定期的に掃除（1分ごとに期限切れをチェック） */
+setInterval(()=>{ if(purgeDone()){ save(); render(); } }, 60*1000);
+/* バックグラウンドから復帰したときも掃除 */
+document.addEventListener('visibilitychange', ()=>{
+  if(!document.hidden && purgeDone()){ save(); render(); }
+});
 </script>
 <!-- tsumiki-back-button -->
 <style>

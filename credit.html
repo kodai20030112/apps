@@ -86,14 +86,19 @@ h1{font-size:22px;font-weight:600;text-align:center;margin:4px 0 2px}
 .cd-desc{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cd-meta{font-size:10px;color:var(--sub);margin-top:2px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .cd-amt{font-size:14px;font-weight:600;text-align:right;white-space:nowrap}
-.nec-row{display:flex;gap:5px;margin-top:6px}
-.nec-btn{padding:3px 9px;font-size:11px;background:#fff;border:1px solid var(--line);border-radius:6px;cursor:pointer;color:var(--sub);font-family:inherit}
-.nec-btn.on-need{background:var(--soft-green);color:var(--green);border-color:#bfe9c8;font-weight:600}
-.nec-btn.on-save{background:var(--soft-orange);color:var(--red);border-color:#ffd9c9;font-weight:600}
 .nec-tag{padding:1px 6px;border-radius:4px;font-size:10px}
 .nec-tag.need{background:var(--soft-green);color:var(--green)}
 .nec-tag.save{background:var(--soft-orange);color:var(--red)}
 .tx.nec-save{box-shadow:inset 3px 0 0 var(--orange)}
+.tx.selectable{cursor:pointer}
+.tx.selected{outline:2px solid var(--blue);outline-offset:-2px;background:var(--soft-blue)}
+.tx-check{display:inline-block;margin-right:5px}
+.btn.active-sel{background:var(--blue);color:#fff;border-color:var(--blue)}
+.select-bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:10px 14px;display:none;align-items:center;justify-content:space-between;gap:10px;box-shadow:0 -2px 10px rgba(0,0,0,.1);z-index:60}
+.select-bar.show{display:flex}
+.select-bar .inner{max-width:820px;margin:0 auto;width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.select-bar .cnt{font-size:13px;font-weight:600}
+.select-bar .acts{display:flex;gap:8px}
 .nec-summary{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
 .nec-pill{flex:1 1 0;min-width:90px;display:flex;flex-direction:column;gap:2px;padding:8px 10px;border-radius:10px;background:var(--bg)}
 .nec-pill span{font-size:10px;color:var(--sub)}
@@ -237,7 +242,7 @@ h1{font-size:22px;font-weight:600;text-align:center;margin:4px 0 2px}
       <div class="cat-list" id="categoryList"></div>
     </div>
     <div class="card" id="txCard" style="display:none">
-      <h2><span>明細</span><button class="btn btn-danger" onclick="deleteMonth()">この期間を削除</button></h2>
+      <h2><span>明細</span><span style="display:flex;gap:6px"><button class="btn" id="selectModeBtn" onclick="toggleSelectMode()">選択</button><button class="btn btn-danger" onclick="deleteMonth()">この期間を削除</button></span></h2>
       <div class="filter-bar">
         <button class="filter-btn active" data-filter="all">すべて</button>
         <button class="filter-btn" data-filter="self">自分の支出のみ</button>
@@ -387,6 +392,17 @@ h1{font-size:22px;font-weight:600;text-align:center;margin:4px 0 2px}
   </div>
 </div>
 
+<!-- 複数選択アクションバー -->
+<div class="select-bar" id="selectBar">
+  <div class="inner">
+    <span class="cnt" id="selectCount">0件選択中</span>
+    <div class="acts">
+      <button class="btn" onclick="clearSelection()">選択解除</button>
+      <button class="btn btn-primary" onclick="openMoveMultiModal()">📅 期間移動</button>
+    </div>
+  </div>
+</div>
+
 <!-- モーダル: 期間移動 -->
 <div class="modal-back" id="moveTxModal">
   <div class="modal">
@@ -416,7 +432,7 @@ const STATE_TABLE='credit_state', STATE_ID='kodai';
 const sb=(window.supabase&&window.supabase.createClient)?supabase.createClient(SUPABASE_URL,SUPABASE_ANON):null;
 let online=null, lastPushed='', pendingSync=false, saveTimer=null;
 let data={months:{},amazonOrders:[],loans:[],payments:[],people:[]};
-let state={currentTab:'credit',currentMonth:null,currentFilter:'all',currentSort:'date-desc',currentAmzFilter:'all',loanFromTxTarget:null,moveTxTarget:null,editingLoanId:null,paymentTargetLoanId:null,editingAmazonId:null,expandedTxIds:new Set(),expandedLoanIds:new Set(),expandedPersonNames:new Set(),expandedCats:new Set(),triageSkipped:new Set(),triageLast:null};
+let state={currentTab:'credit',currentMonth:null,currentFilter:'all',currentSort:'date-desc',currentAmzFilter:'all',loanFromTxTarget:null,moveTxTargets:null,editingLoanId:null,paymentTargetLoanId:null,editingAmazonId:null,expandedTxIds:new Set(),expandedLoanIds:new Set(),expandedPersonNames:new Set(),expandedCats:new Set(),triageSkipped:new Set(),triageLast:null,selectMode:false,selectedTxIds:new Set()};
 
 function load(){
   try{
@@ -741,13 +757,26 @@ function daysBetween(d1,d2){const t1=new Date(d1.replace(/\//g,'-')).getTime();c
 
 function autoLinkAmazon(){
   const linked=new Set();
-  Object.values(data.months).forEach(m=>m.transactions.forEach(t=>{if(t.linkedAmazonId)linked.add(t.linkedAmazonId);}));
+  const pending=[];
   Object.values(data.months).forEach(m=>m.transactions.forEach(t=>{
-    if(t.linkedAmazonId)return;
-    if(!isAmazonTx(t))return;
-    const cands=data.amazonOrders.filter(o=>o.amount===t.amount&&!linked.has(o.id)&&Math.abs(daysBetween(t.date,o.orderDate))<=31);
-    if(cands.length===1){t.linkedAmazonId=cands[0].id;linked.add(cands[0].id);}
+    if(t.linkedAmazonId){linked.add(t.linkedAmazonId);return;}
+    if(isAmazonTx(t))pending.push(t);
   }));
+  // 確信度の高いものから1件ずつ確定（金額一致＋日付が最も近い順／候補が少ない明細を優先）
+  let changed=true;
+  while(changed){
+    changed=false;let best=null;
+    pending.forEach(t=>{
+      if(t.linkedAmazonId)return;
+      const cands=data.amazonOrders
+        .filter(o=>o.amount===t.amount&&!linked.has(o.id)&&Math.abs(daysBetween(t.date,o.orderDate))<=31)
+        .sort((a,b)=>Math.abs(daysBetween(t.date,a.orderDate))-Math.abs(daysBetween(t.date,b.orderDate)));
+      if(!cands.length)return;
+      const c={t,o:cands[0],n:cands.length,dist:Math.abs(daysBetween(t.date,cands[0].orderDate))};
+      if(!best||c.n<best.n||(c.n===best.n&&c.dist<best.dist))best=c;
+    });
+    if(best){best.t.linkedAmazonId=best.o.id;linked.add(best.o.id);changed=true;}
+  }
 }
 
 function findAmazonMatches(tx){
@@ -799,43 +828,86 @@ function togglePeopleTagEdit(containerId,inputId){peopleTagEditMode=!peopleTagEd
 function findTx(id){for(const m of Object.values(data.months)){const t=m.transactions.find(x=>x.id===id);if(t)return t;}return null;}
 function findTxLocation(id){for(const[key,m]of Object.entries(data.months)){const idx=m.transactions.findIndex(x=>x.id===id);if(idx>=0)return{key,idx,tx:m.transactions[idx]};}return null;}
 
+// 複数選択モード
+function toggleSelectMode(){
+  state.selectMode=!state.selectMode;
+  state.selectedTxIds.clear();
+  const btn=document.getElementById('selectModeBtn');
+  if(btn){btn.textContent=state.selectMode?'選択終了':'選択';btn.classList.toggle('active-sel',state.selectMode);}
+  renderTransactions();updateSelectBar();
+}
+function toggleTxSelect(id){
+  if(state.selectedTxIds.has(id))state.selectedTxIds.delete(id);
+  else state.selectedTxIds.add(id);
+  renderTransactions();updateSelectBar();
+}
+function clearSelection(){state.selectedTxIds.clear();renderTransactions();updateSelectBar();}
+function exitSelectMode(){
+  state.selectMode=false;state.selectedTxIds.clear();
+  const btn=document.getElementById('selectModeBtn');
+  if(btn){btn.textContent='選択';btn.classList.remove('active-sel');}
+  updateSelectBar();
+}
+function updateSelectBar(){
+  const bar=document.getElementById('selectBar');if(!bar)return;
+  const n=state.selectedTxIds.size;
+  if(state.selectMode&&n>0){bar.classList.add('show');document.getElementById('selectCount').textContent=n+'件選択中';}
+  else bar.classList.remove('show');
+}
+
 // 明細を別の締めサイクルへ手動移動（日付t.dateは変えず cycleOverride で管理）
-function openMoveTxModal(txId){
-  const loc=findTxLocation(txId);if(!loc)return;
-  state.moveTxTarget=txId;
-  const t=loc.tx;
-  document.getElementById('moveTxSub').textContent=`${t.description} ／ ${t.date} ／ ¥${t.amount.toLocaleString()}\n現在: ${cycleLabel(loc.key,true)}`;
-  const natural=cycleStartFromDate(t.date);
+function openMoveMultiModal(){
+  const ids=[...state.selectedTxIds].filter(id=>findTxLocation(id));
+  if(!ids.length)return;
+  openMoveModalFor(ids);
+}
+function openMoveModalFor(ids){
+  state.moveTxTargets=ids;
+  let sub,natural=null;
+  if(ids.length===1){
+    const loc=findTxLocation(ids[0]);const t=loc.tx;natural=cycleStartFromDate(t.date);
+    sub=`${t.description} ／ ${t.date} ／ ¥${t.amount.toLocaleString()}\n現在: ${cycleLabel(loc.key,true)}`;
+  }else{
+    sub=`${ids.length}件をまとめて移動します`;
+  }
+  document.getElementById('moveTxSub').textContent=sub;
+  const curKeys=new Set();ids.forEach(id=>{const loc=findTxLocation(id);if(loc)curKeys.add(loc.key);});
   const keys=new Set(Object.keys(data.months));
   if(natural)keys.add(natural);
-  keys.delete(loc.key);
+  if(curKeys.size===1)keys.delete([...curKeys][0]); // 全件同じ期間なら現在の期間は除外
   const sorted=[...keys].sort().reverse();
   const list=document.getElementById('moveTxCycleList');
   list.innerHTML=sorted.length?sorted.map(k=>{
-    const isNat=k===natural;
-    return `<button class="btn" style="justify-content:flex-start;text-align:left" onclick="moveTxToCycle('${txId}','${k}')">${cycleLabel(k,true)}${isNat?' <span class="muted" style="font-size:11px">（本来の期間）</span>':''}</button>`;
+    const isNat=natural&&k===natural;
+    return `<button class="btn" style="justify-content:flex-start;text-align:left" onclick="moveTargetsToCycle('${k}')">${cycleLabel(k,true)}${isNat?' <span class="muted" style="font-size:11px">（本来の期間）</span>':''}</button>`;
   }).join(''):'<div class="muted" style="font-size:12px">他の期間がありません。下から月を指定してください。</div>';
-  const m=loc.key.match(/^(\d{4})-(\d{2})/);
-  document.getElementById('moveTxMonthInput').value=m?m[1]+'-'+m[2]:'';
+  let mv='';
+  if(ids.length===1){const m=findTxLocation(ids[0]).key.match(/^(\d{4})-(\d{2})/);mv=m?m[1]+'-'+m[2]:'';}
+  document.getElementById('moveTxMonthInput').value=mv;
   document.getElementById('moveTxModal').classList.add('show');
 }
-function closeMoveTxModal(){document.getElementById('moveTxModal').classList.remove('show');state.moveTxTarget=null;}
+function closeMoveTxModal(){document.getElementById('moveTxModal').classList.remove('show');state.moveTxTargets=null;}
 function moveTxToCustom(){
   const ym=document.getElementById('moveTxMonthInput').value;
   if(!ym){alert('月を選択してください');return;}
-  moveTxToCycle(state.moveTxTarget,ym+'-07');
+  moveTargetsToCycle(ym+'-07');
 }
-function moveTxToCycle(txId,targetKey){
-  const loc=findTxLocation(txId);if(!loc){closeMoveTxModal();return;}
-  if(loc.key===targetKey){closeMoveTxModal();return;}
+function moveOneTxToCycle(txId,targetKey){
+  const loc=findTxLocation(txId);if(!loc)return;
+  if(loc.key===targetKey)return;
   const t=loc.tx;
   data.months[loc.key].transactions.splice(loc.idx,1);
   const natural=cycleStartFromDate(t.date);
   if(targetKey===natural)delete t.cycleOverride;else t.cycleOverride=targetKey;
   if(!data.months[targetKey])data.months[targetKey]={transactions:[]};
   data.months[targetKey].transactions.push(t);
-  if(data.months[loc.key].transactions.length===0)delete data.months[loc.key];
-  save();closeMoveTxModal();
+}
+function moveTargetsToCycle(targetKey){
+  const ids=state.moveTxTargets||[];
+  if(!ids.length){closeMoveTxModal();return;}
+  ids.forEach(id=>moveOneTxToCycle(id,targetKey));
+  Object.keys(data.months).forEach(k=>{if(data.months[k].transactions.length===0)delete data.months[k];});
+  save();closeMoveTxModal();exitSelectMode();
   if(!data.months[state.currentMonth])state.currentMonth=targetKey;
   render();
 }
@@ -943,7 +1015,7 @@ function renderLoanBadge(){
 function renderPeopleList(){
   document.getElementById('peopleList').innerHTML=data.people.map(n=>`<option value="${escapeHtml(n)}">`).join('');
 }
-function switchTab(t){state.currentTab=t;render();window.scrollTo({top:0,behavior:'smooth'});}
+function switchTab(t){if(typeof exitSelectMode==='function')exitSelectMode();state.currentTab=t;render();window.scrollTo({top:0,behavior:'smooth'});}
 
 function renderCreditTab(){
   renderMonthTabs();
@@ -959,7 +1031,7 @@ function renderMonthTabs(){
     return `<div class="month-tab ${m===state.currentMonth?'active':''}" onclick="switchMonth('${m}')">${lbl}</div>`;
   }).join('');
 }
-function switchMonth(m){state.currentMonth=m;render();}
+function switchMonth(m){exitSelectMode();state.currentMonth=m;render();}
 
 function renderSummary(){
   const txs=data.months[state.currentMonth].transactions;
@@ -1045,18 +1117,9 @@ function renderCatDrillRow(t){
     <div>
       <div class="cd-desc">${escapeHtml(t.description)}</div>
       <div class="cd-meta"><span>${t.date}</span>${loanNote}${necTag}</div>
-      <div class="nec-row">
-        <button class="nec-btn ${t.necessity==='need'?'on-need':''}" onclick="cycleNecessity('${t.id}','need')">✅必要</button>
-        <button class="nec-btn ${t.necessity==='save'?'on-save':''}" onclick="cycleNecessity('${t.id}','save')">✂️節約</button>
-      </div>
     </div>
     <div class="cd-amt">¥${self.toLocaleString()}</div>
   </div>`;
-}
-function cycleNecessity(id,val){
-  const t=findTx(id);if(!t)return;
-  t.necessity=(t.necessity===val)?null:val;
-  save();renderCategories();renderTransactions();
 }
 
 function renderTransactions(){
@@ -1073,8 +1136,9 @@ function renderTransactions(){
   if(state.currentSort==='amount-desc')f.sort((a,b)=>b.amount-a.amount);
   else f.sort((a,b)=>b.date.localeCompare(a.date));
   const list=document.getElementById('txList');
-  if(f.length===0){list.innerHTML='<div class="empty">該当する明細がありません</div>';return;}
+  if(f.length===0){list.innerHTML='<div class="empty">該当する明細がありません</div>';updateSelectBar();return;}
   list.innerHTML=f.map(t=>renderTxRow(t)).join('');
+  updateSelectBar();
 }
 
 function renderTxRow(t){
@@ -1114,20 +1178,28 @@ function renderTxRow(t){
   }
 
   const amzTag=amz&&!linked?'<span class="amz-tag">未紐付け</span>':'';
+  const movedTag=t.cycleOverride?'<span class="cat-tag">📅移動済</span>':'';
+  const sel=state.selectMode;
+  const checked=state.selectedTxIds.has(t.id);
+  if(sel){
+    classes.push('selectable');if(checked)classes.push('selected');
+    return `<div class="${classes.join(' ')}" data-id="${t.id}">
+      <div onclick="toggleTxSelect('${t.id}')">
+        <div class="desc"><span class="tx-check">${checked?'☑️':'⬜'}</span>${escapeHtml(t.description)}</div>
+        <div class="meta"><span>${t.date}</span><span class="cat-tag">${t.category}</span>${necTag}${amzTag}${movedTag}</div>
+      </div>
+      <div class="amount ${fullyLoaned?'struck':''}">¥${t.amount.toLocaleString()}</div>
+    </div>`;
+  }
   return `<div class="${classes.join(' ')}" data-id="${t.id}">
     <div onclick="toggleTxExpand('${t.id}')">
       <div class="desc">${escapeHtml(t.description)}</div>
-      <div class="meta"><span>${t.date}</span><span class="cat-tag">${t.category}</span>${necTag}${amzTag}</div>
+      <div class="meta"><span>${t.date}</span><span class="cat-tag">${t.category}</span>${necTag}${amzTag}${movedTag}</div>
       ${strip}
       ${amzHtml}
-      <div class="nec-row">
-        <button class="nec-btn ${t.necessity==='need'?'on-need':''}" onclick="event.stopPropagation();cycleNecessity('${t.id}','need')">✅必要</button>
-        <button class="nec-btn ${t.necessity==='save'?'on-save':''}" onclick="event.stopPropagation();cycleNecessity('${t.id}','save')">✂️節約</button>
-      </div>
       <div class="tx-actions">
         <button class="btn-mini primary" onclick="event.stopPropagation();openLoanFromTxModal('${t.id}')">${loans.length>0?'+ 立て替えを追加':'立て替えに送る'}</button>
         ${loans.length>0?`<button class="btn-mini" onclick="event.stopPropagation();switchTab('loans')">台帳で見る</button>`:''}
-        <button class="btn-mini" onclick="event.stopPropagation();openMoveTxModal('${t.id}')">📅 期間移動${t.cycleOverride?' <span style="opacity:.7">（移動済）</span>':''}</button>
       </div>
     </div>
     <div class="amount ${fullyLoaned?'struck':''}">¥${t.amount.toLocaleString()}</div>
