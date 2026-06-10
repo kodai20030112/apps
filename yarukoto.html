@@ -135,7 +135,6 @@
   .row .due.set-over { background: #ffe5e3; color: #d70015; }
   .row .due.set-today { background: #fff0db; color: #c25e00; }
   .row .due.set-future { background: var(--accent-soft); color: var(--accent); }
-  .row .due.ghost { background: var(--bg); color: var(--sub); border: 1px solid var(--line); }
   /* やこと・買い物のテキスト編集（インライン） */
   .row .label-edit {
     width: 100%; font: inherit; font-size: 16px; color: var(--text);
@@ -151,6 +150,19 @@
     flex: 0 0 auto; align-self: center; border: none; background: none; cursor: pointer;
     color: #c7c7cc; font-size: 20px; padding: 0 2px; line-height: 1;
   }
+  /* 期限なし項目に後から期限を付ける小さなカレンダー（右アクション内・控えめ） */
+  .row .adddue {
+    flex: 0 0 auto; align-self: center; border: none; background: none; cursor: pointer;
+    font-size: 15px; padding: 0 3px; line-height: 1; opacity: .32; filter: grayscale(.2);
+  }
+  .row .adddue:active { opacity: .7; }
+
+  /* 追加バーの「期限を付ける」ボタン（.add より後勝ちにするため .add.datebtn で指定） */
+  .addbar .add.datebtn {
+    background: var(--bg); color: var(--sub); border: 1px solid var(--line);
+    font-size: 15px; font-weight: 600; padding: 0 13px; min-width: 52px; white-space: nowrap;
+  }
+  .addbar .add.datebtn.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
 
   /* ===== アイデア：アプリ選択グリッド ===== */
   .idea-grid {
@@ -188,7 +200,14 @@
     background: var(--card); border: 1px solid var(--line);
     border-radius: 14px; padding: 12px 12px 12px 13px; margin-bottom: 8px;
   }
-  .ibul .ib-dot { color: var(--accent); font-size: 18px; line-height: 1.45; flex: 0 0 auto; }
+  .ibul .ib-check {
+    flex: 0 0 auto; width: 21px; height: 21px; margin-top: 1px;
+    border-radius: 50%; border: 2px solid var(--line); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 13px; transition: all .15s;
+  }
+  .ibul .ib-check.on { background: var(--green); border-color: var(--green); }
+  .ibul.is-done .ib-text { color: var(--sub); text-decoration: line-through; }
   .ibul .ib-text {
     flex: 1; min-width: 0; font-size: 15px; line-height: 1.5;
     white-space: pre-wrap; word-break: break-word; cursor: pointer; padding-top: 1px;
@@ -417,6 +436,7 @@ let lastPushed = '';
 let tab = 'todo';
 let ideaApp = null;       // null=アプリ選択グリッド / それ以外=そのアプリの箇条書き詳細
 let todoSort = 'manual';  // 'manual' | 'due'
+let newDue = '';          // 次に追加するやることに付ける期限（''＝期限なし）
 
 /* ===================== 永続化・同期 ===================== */
 function migrate(){
@@ -439,6 +459,7 @@ function migrate(){
     }
     if(!x.app) x.app = '_new';
     if(x.text===undefined) x.text = '';
+    if(!('done' in x)) x.done = false;
   });
 }
 function loadLocal(){ try{ const s=localStorage.getItem(KEY); if(s) db=Object.assign(blank(), JSON.parse(s)); }catch(e){} }
@@ -512,7 +533,7 @@ function render(){
 }
 function renderCounts(){
   const t = db.todos.filter(x=>!x.done).length;
-  const i = db.ideas.length;
+  const i = db.ideas.filter(x=>!x.done).length;
   const s = db.shopping.filter(x=>!x.done).length;
   document.getElementById('c-todo').textContent = t || '';
   document.getElementById('c-idea').textContent = i || '';
@@ -565,25 +586,26 @@ function rowHTML(x, kind){
   const isTodo = kind==='todo';
   const dragOff = (isTodo && todoSort==='due');
   const di = isTodo ? dueInfo(x.due) : null;
-  const showDue = isTodo && (di || !x.done);
+  const hasDue = !!di;
+  // 期限ありの行だけ期限を表示（タップで変更／× で解除）
   let dueLine = '';
-  if(showDue){
-    let chip;
-    if(di){
-      chip = '<button class="due '+di.cls+'" data-act="due">📅 '+esc(di.txt)+'</button>'+
-        '<button class="dx" data-act="dueClear">×</button>';
-    } else {
-      chip = '<button class="due ghost" data-act="due">📅 期限を設定</button>';
-    }
-    dueLine = '<div class="due-line">'+chip+'</div>';
+  if(hasDue){
+    dueLine = '<div class="due-line">'+
+      '<button class="due '+di.cls+'" data-act="due">📅 '+esc(di.txt)+'</button>'+
+      '<button class="dx" data-act="dueClear">×</button>'+
+    '</div>';
   }
-  return '<div class="row'+(x.done?' is-done':'')+(showDue?' has-due':'')+'" data-kind="'+kind+'" data-id="'+x.id+'">'+
+  // 期限なしの未完了やることには、右側に控えめなカレンダーで後付け可能に
+  const addDue = (isTodo && !hasDue && !x.done)
+    ? '<button class="adddue" data-act="due" title="期限を付ける">📅</button>' : '';
+  return '<div class="row'+(x.done?' is-done':'')+(hasDue?' has-due':'')+'" data-kind="'+kind+'" data-id="'+x.id+'">'+
     '<span class="handle"'+(dragOff?' style="visibility:hidden"':'')+' data-act="handle">⠿</span>'+
     '<div class="check'+(x.done?' on':'')+'" data-act="toggle">'+(x.done?'✓':'')+'</div>'+
     '<div class="body">'+
       '<div class="label" data-act="editText">'+esc(x.text)+'</div>'+
       dueLine+
     '</div>'+
+    addDue+
     '<button class="del" data-act="del">×</button>'+
   '</div>';
 }
@@ -593,26 +615,27 @@ function renderIdeas(){
   const el = document.getElementById('panel-idea');
   if(ideaApp){ renderIdeaDetail(el); return; }
 
-  // 件数を集計
-  const counts = {};
-  db.ideas.forEach(x=>{ counts[x.app] = (counts[x.app]||0) + 1; });
+  // 件数を集計（未完了＝activeをラベルに、全体＝totalをタイル表示判定に）
+  const total = {}, active = {};
+  db.ideas.forEach(x=>{ total[x.app]=(total[x.app]||0)+1; if(!x.done) active[x.app]=(active[x.app]||0)+1; });
 
   // 並べるタイル：アプリ制作（常設）＋ アイデアのあるアプリのみ
   const tiles = [NEW_APP];
-  APP_CATALOG.forEach(a=>{ if(counts[a.key]) tiles.push(a); });
+  APP_CATALOG.forEach(a=>{ if(total[a.key]) tiles.push(a); });
   // カタログ外のkeyにアイデアが残っていても拾う（保険）
-  Object.keys(counts).forEach(k=>{
+  Object.keys(total).forEach(k=>{
     if(k==='_new') return;
     if(!tiles.some(t=>t.key===k)) tiles.push(bucketMeta(k));
   });
 
   let html = '<div class="idea-grid">';
   html += tiles.map(a=>{
-    const n = counts[a.key] || 0;
+    const n = active[a.key] || 0, tt = total[a.key] || 0;
+    const label = n ? n+'件のアイデア' : (tt ? 'すべて完了' : 'メモする');
     return '<button class="app-tile'+(a.key==='_new'?' make':'')+'" data-app="'+esc(a.key)+'">'+
       '<span class="at-emoji">'+a.emoji+'</span>'+
       '<span class="at-label">'+esc(a.label)+'</span>'+
-      '<span class="at-count">'+(n ? n+'件のアイデア' : 'メモする')+'</span>'+
+      '<span class="at-count">'+label+'</span>'+
     '</button>';
   }).join('');
   html += '<button class="app-tile add" data-pick="1"><span class="at-emoji">＋</span><span class="at-label">アプリを選ぶ</span></button>';
@@ -621,22 +644,28 @@ function renderIdeas(){
 }
 function renderIdeaDetail(el){
   const meta = bucketMeta(ideaApp);
-  const items = db.ideas.filter(x=>x.app===ideaApp)
-    .sort((a,b)=>(b.updated||b.ts||0) - (a.updated||a.ts||0));
+  const all = db.ideas.filter(x=>x.app===ideaApp);
+  const active = all.filter(x=>!x.done).sort((a,b)=>(b.updated||b.ts||0) - (a.updated||a.ts||0));
+  const done = all.filter(x=>x.done).sort((a,b)=>(b.doneAt||0) - (a.doneAt||0));
   let html = '<div class="idea-head">'+
     '<button class="ih-back" data-back="1">‹ アプリ一覧</button>'+
     '<div class="ih-title"><span class="ih-emoji">'+meta.emoji+'</span>'+esc(meta.label)+'</div>'+
   '</div>';
-  if(!items.length){
+  if(!all.length){
     html += '<div class="empty"><span class="e-ico">'+meta.emoji+'</span>下の入力欄から<br>アイデアを箇条書きで足していこう</div>';
   } else {
-    html += items.map(ideaItemHTML).join('');
+    html += active.map(ideaItemHTML).join('');
+    if(done.length){
+      html += '<div class="group-label">✓ 完了（'+done.length+'）</div>';
+      html += done.map(ideaItemHTML).join('');
+      html += '<div class="foot-act"><button data-clearidea="1">完了したものを消す</button></div>';
+    }
   }
   el.innerHTML = html;
 }
 function ideaItemHTML(x){
-  return '<div class="ibul" data-id="'+x.id+'">'+
-    '<span class="ib-dot">•</span>'+
+  return '<div class="ibul'+(x.done?' is-done':'')+'" data-id="'+x.id+'">'+
+    '<div class="ib-check'+(x.done?' on':'')+'" data-act="toggle">'+(x.done?'✓':'')+'</div>'+
     '<div class="ib-text" data-act="edit">'+esc(x.text)+'</div>'+
     '<div class="ib-act">'+
       '<button data-act="copy" title="コピー">📋</button>'+
@@ -675,26 +704,41 @@ function renderAddbar(){
     return;
   }
   bar.style.display='';
-  const ph = tab==='todo' ? 'やることを入力…' : '買うものを入力…';
-  el.innerHTML = '<input type="text" id="quickInput" placeholder="'+ph+'" autocomplete="off" enterkeyhint="done">'+
-    '<button class="add" id="quickAdd">＋</button>';
+  const isTodo = tab==='todo';
+  const ph = isTodo ? 'やることを入力…' : '買うものを入力…';
+  let html = '<input type="text" id="quickInput" placeholder="'+ph+'" autocomplete="off" enterkeyhint="done">';
+  if(isTodo){
+    const di = newDue ? dueInfo(newDue) : null;
+    html += '<button class="add datebtn'+(newDue?' on':'')+'" id="quickDate" title="期限を付ける">'+(di?'📅 '+esc(di.txt):'📅')+'</button>';
+  }
+  html += '<button class="add" id="quickAdd">＋</button>';
+  el.innerHTML = html;
   const inp = document.getElementById('quickInput');
   const addIt = ()=>{
     const v = inp.value.trim(); if(!v) return;
-    const arr = tab==='todo' ? db.todos : db.shopping;
+    const arr = isTodo ? db.todos : db.shopping;
     const minOrder = arr.reduce((m,x)=>Math.min(m, x.order||0), 0);
     const item = { id:uid(), text:v, done:false, ts:Date.now(), order:minOrder-1 };
-    if(tab==='todo') item.due='';
+    if(isTodo){ item.due = newDue || ''; newDue=''; }
     arr.unshift(item);
     save();
     inp.value='';
     // 入力欄(addbar)は作り直さずリストとカウントだけ更新 → iOSでキーボードが閉じず連続入力できる
+    if(isTodo) refreshDateBtn();
     renderCounts();
     renderChecklist(tab);
     inp.focus();
   };
   document.getElementById('quickAdd').onclick = addIt;
   inp.addEventListener('keydown', e=>{ if(e.key==='Enter') addIt(); });
+  if(isTodo) document.getElementById('quickDate').onclick = openNewDuePicker;
+}
+// 追加バーの期限ボタンの見た目を newDue に合わせて更新（addbarは作り直さない）
+function refreshDateBtn(){
+  const btn = document.getElementById('quickDate'); if(!btn) return;
+  const di = newDue ? dueInfo(newDue) : null;
+  btn.innerHTML = di ? '📅 '+esc(di.txt) : '📅';
+  btn.classList.toggle('on', !!newDue);
 }
 
 /* ===================== タブ切替 ===================== */
@@ -772,20 +816,35 @@ function startInlineEdit(row, item){
 const dueProxy = document.getElementById('dueProxy');
 let dueEditId = null;
 dueProxy.addEventListener('change', ()=>{
+  if(dueEditId==='__new__'){
+    dueEditId = null;
+    newDue = dueProxy.value || '';
+    refreshDateBtn();
+    return;
+  }
   if(!dueEditId) return;
   const it = db.todos.find(x=>x.id===dueEditId);
   dueEditId = null;
   if(it){ it.due = dueProxy.value || ''; save(); render(); }
 });
-function openDuePicker(id){
-  const it = db.todos.find(x=>x.id===id); if(!it) return;
-  dueEditId = id;
-  dueProxy.value = it.due || '';
+function showDuePicker(){
   try{
     if(typeof dueProxy.showPicker === 'function'){ dueProxy.showPicker(); return; }
   }catch(e){}
   // 古い環境向けフォールバック
   dueProxy.focus(); dueProxy.click();
+}
+function openDuePicker(id){
+  const it = db.todos.find(x=>x.id===id); if(!it) return;
+  dueEditId = id;
+  dueProxy.value = it.due || '';
+  showDuePicker();
+}
+// 追加バーから「次に追加するやること」の期限を選ぶ
+function openNewDuePicker(){
+  dueEditId = '__new__';
+  dueProxy.value = newDue || '';
+  showDuePicker();
 }
 
 /* ドラッグ並べ替え（ポインタ操作・タッチ/マウス両対応） */
@@ -834,11 +893,17 @@ document.getElementById('panel-idea').addEventListener('click', e=>{
   if(e.target.closest('[data-pick]')){ openPicker(); return; }
   const tile = e.target.closest('[data-app]');
   if(tile){ openIdeaApp(tile.dataset.app); return; }
+  // 詳細：完了したものをまとめて消す
+  if(e.target.closest('[data-clearidea]')){
+    db.ideas = db.ideas.filter(i=>!(i.app===ideaApp && i.done));
+    save(); renderCounts(); renderIdeas(); return;
+  }
   // 詳細：箇条書き1件の操作
   const bul = e.target.closest('.ibul'); if(!bul) return;
   const x = db.ideas.find(i=>i.id===bul.dataset.id); if(!x) return;
   const act = e.target.closest('[data-act]')?.dataset.act;
-  if(act==='copy'){ copyText(x.text).then(ok=>toast(ok?'📋 コピーしました':'コピーできませんでした')); }
+  if(act==='toggle'){ x.done=!x.done; if(x.done) x.doneAt=Date.now(); save(); renderCounts(); renderIdeas(); }
+  else if(act==='copy'){ copyText(x.text).then(ok=>toast(ok?'📋 コピーしました':'コピーできませんでした')); }
   else if(act==='edit'){ startIdeaEdit(bul, x); }
   else if(act==='del'){ db.ideas.splice(db.ideas.indexOf(x),1); save(); renderCounts(); renderIdeas(); }
 });
