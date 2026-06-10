@@ -89,24 +89,12 @@
     margin: 18px 4px 8px; display: flex; align-items: center; gap: 6px;
   }
 
-  /* 並べ替えバー */
-  .sortbar { display: flex; align-items: center; gap: 8px; margin: 14px 2px 10px; }
-  .sortbar .sl { font-size: 12px; color: var(--sub); font-weight: 600; }
-  .seg-sm { display: inline-flex; background: var(--chip); border-radius: 10px; padding: 2px; }
-  .seg-sm button {
-    border: none; background: none; cursor: pointer; font-family: inherit;
-    font-size: 12.5px; font-weight: 600; color: var(--sub);
-    border-radius: 8px; padding: 5px 12px;
-  }
-  .seg-sm button.on { background: #fff; color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
-
   /* チェックリスト行（やること・買い物） */
   .row {
     display: flex; align-items: center; gap: 10px;
     background: var(--card); border: 1px solid var(--line);
     border-radius: 14px; padding: 12px 12px 12px 8px; margin-bottom: 8px;
   }
-  .row.has-due { align-items: flex-start; }
   .row.dragging { opacity: .92; box-shadow: 0 10px 26px rgba(0,0,0,.16); border-color: var(--accent); }
   .row .handle {
     flex: 0 0 auto; align-self: center; cursor: grab; color: #cdced3;
@@ -120,21 +108,10 @@
     cursor: pointer; display: flex; align-items: center; justify-content: center;
     color: #fff; font-size: 14px; transition: all .15s;
   }
-  .row.has-due .check { margin-top: 1px; }
   .row .check.on { background: var(--green); border-color: var(--green); }
   .row .body { flex: 1; min-width: 0; }
   .row .label { font-size: 15px; word-break: break-word; cursor: pointer; }
   .row.is-done .label { color: var(--sub); text-decoration: line-through; }
-  .row .due-line { display: flex; align-items: center; gap: 6px; margin-top: 5px; }
-  .row .due {
-    display: inline-flex; align-items: center; gap: 4px;
-    font-size: 11.5px; font-weight: 600; border-radius: 8px; padding: 3px 9px;
-    border: none; font-family: inherit; white-space: nowrap; cursor: pointer;
-  }
-  .row .due:active { transform: scale(.97); }
-  .row .due.set-over { background: #ffe5e3; color: #d70015; }
-  .row .due.set-today { background: #fff0db; color: #c25e00; }
-  .row .due.set-future { background: var(--accent-soft); color: var(--accent); }
   /* やこと・買い物のテキスト編集（インライン） */
   .row .label-edit {
     width: 100%; font: inherit; font-size: 16px; color: var(--text);
@@ -150,19 +127,6 @@
     flex: 0 0 auto; align-self: center; border: none; background: none; cursor: pointer;
     color: #c7c7cc; font-size: 20px; padding: 0 2px; line-height: 1;
   }
-  /* 期限なし項目に後から期限を付ける小さなカレンダー（右アクション内・控えめ） */
-  .row .adddue {
-    flex: 0 0 auto; align-self: center; border: none; background: none; cursor: pointer;
-    font-size: 15px; padding: 0 3px; line-height: 1; opacity: .32; filter: grayscale(.2);
-  }
-  .row .adddue:active { opacity: .7; }
-
-  /* 追加バーの「期限を付ける」ボタン（.add より後勝ちにするため .add.datebtn で指定） */
-  .addbar .add.datebtn {
-    background: var(--bg); color: var(--sub); border: 1px solid var(--line);
-    font-size: 15px; font-weight: 600; padding: 0 13px; min-width: 52px; white-space: nowrap;
-  }
-  .addbar .add.datebtn.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
 
   /* ===== アイデア：アプリ選択グリッド ===== */
   .idea-grid {
@@ -265,6 +229,17 @@
   .addbar .add.wide { width: auto; flex: 1; font-size: 16px; gap: 6px; }
   .addbar .add:active { transform: scale(.96); }
 
+  /* ===== やること追加の丸ボタン（右下FAB） ===== */
+  .fab {
+    position: fixed; right: 20px; bottom: calc(26px + env(safe-area-inset-bottom));
+    z-index: 35; width: 64px; height: 64px; border-radius: 50%;
+    border: none; cursor: pointer; font-family: inherit;
+    background: var(--accent); color: #fff; font-size: 34px; font-weight: 300; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 10px 26px rgba(91,108,240,.45);
+  }
+  .fab:active { transform: scale(.93); }
+
   /* ===== シート（アプリ選択ピッカー） ===== */
   .sheet-bg {
     position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.32);
@@ -283,6 +258,17 @@
     font-size: 16px; font-weight: 600; border-radius: 13px; padding: 13px;
   }
   .sheet-act .cancel { background: var(--chip); color: var(--text); }
+  .sheet-act .confirm { background: var(--accent); color: #fff; }
+  .sheet-act .confirm:active { transform: scale(.98); }
+
+  /* やること追加シートの入力欄 */
+  .add-ta {
+    width: 100%; font: inherit; font-size: 16px; color: var(--text);
+    border: 1px solid var(--line); background: var(--bg);
+    border-radius: 13px; padding: 12px 14px; min-height: 104px;
+    line-height: 1.6; resize: none; margin-top: 4px;
+  }
+  .add-ta:focus { outline: none; border-color: var(--accent); background: #fff; }
 
   .toast {
     position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom));
@@ -316,6 +302,9 @@
 
 <div class="addbar"><div class="addbar-inner" id="addbar"></div></div>
 
+<!-- やること追加の丸ボタン（右下FAB） -->
+<button class="fab" id="todoFab" style="display:none" aria-label="やることを追加">＋</button>
+
 <!-- アプリ選択ピッカー -->
 <div class="sheet-bg" id="sheetBg">
   <div class="sheet" id="sheet">
@@ -328,8 +317,18 @@
   </div>
 </div>
 
-<!-- 期限ピッカー用の隠しinput（リスト再描画の影響を受けないようにリスト外に置く） -->
-<input type="date" id="dueProxy" style="position:fixed; left:-9999px; top:0; width:1px; height:1px; opacity:0; pointer-events:none;" aria-hidden="true" tabindex="-1">
+<!-- やること追加シート -->
+<div class="sheet-bg" id="addSheetBg">
+  <div class="sheet" id="addSheet">
+    <h3>やることを追加</h3>
+    <p class="sheet-sub">改行で複数まとめて追加できます</p>
+    <textarea class="add-ta" id="addTodoInput" placeholder="例）牛乳を買う" autocomplete="off"></textarea>
+    <div class="sheet-act">
+      <button class="cancel" id="addTodoCancel">閉じる</button>
+      <button class="confirm" id="addTodoSave">追加</button>
+    </div>
+  </div>
+</div>
 
 <div class="toast" id="toast"></div>
 
@@ -413,21 +412,6 @@ async function copyText(text){
     return ok;
   }catch(e){ return false; }
 }
-const DOW = ['日','月','火','水','木','金','土'];
-function todayYmd(){ const d=new Date(); d.setHours(0,0,0,0); return d; }
-function parseYmd(s){ if(!s) return null; const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
-function dueInfo(s){
-  const d = parseYmd(s); if(!d) return null;
-  const t = todayYmd();
-  const diff = Math.round((d - t)/86400000);
-  let cls, txt;
-  if(diff < 0){ cls='set-over'; txt='期限切れ '+(d.getMonth()+1)+'/'+d.getDate(); }
-  else if(diff === 0){ cls='set-today'; txt='今日'; }
-  else if(diff === 1){ cls='set-future'; txt='明日'; }
-  else { cls='set-future'; txt=(d.getMonth()+1)+'/'+d.getDate()+'('+DOW[d.getDay()]+')'; }
-  return { cls, txt };
-}
-
 /* ===================== 状態 ===================== */
 function blank(){ return { todos:[], ideas:[], shopping:[] }; }
 let db = blank();
@@ -435,13 +419,11 @@ let online = null;        // null=確認中 true=同期OK false=オフライン�
 let lastPushed = '';
 let tab = 'todo';
 let ideaApp = null;       // null=アプリ選択グリッド / それ以外=そのアプリの箇条書き詳細
-let todoSort = 'manual';  // 'manual' | 'due'
-let newDue = '';          // 次に追加するやることに付ける期限（''＝期限なし）
 
 /* ===================== 永続化・同期 ===================== */
 function migrate(){
   let o = 0;
-  db.todos.forEach(x=>{ if(typeof x.order!=='number') x.order=o; o++; if(!('due' in x)) x.due=''; });
+  db.todos.forEach(x=>{ if(typeof x.order!=='number') x.order=o; o++; });
   o = 0;
   db.shopping.forEach(x=>{ if(typeof x.order!=='number') x.order=o; o++; });
   // 旧アイデア（title/memo/kind/tag/priority/status）→ 新アイデア（app別の箇条書き text）へ変換
@@ -541,19 +523,8 @@ function renderCounts(){
 }
 
 /* やること / 買い物 */
-function sortActive(list, kind){
-  const arr = list.slice();
-  if(kind==='todo' && todoSort==='due'){
-    arr.sort((a,b)=>{
-      const ad=a.due||'', bd=b.due||'';
-      if(!!ad !== !!bd) return ad?-1:1;     // 期限ありが先
-      if(ad && bd && ad!==bd) return ad<bd?-1:1;
-      return (a.order||0)-(b.order||0);
-    });
-  } else {
-    arr.sort((a,b)=>(a.order||0)-(b.order||0));
-  }
-  return arr;
+function sortActive(list){
+  return list.slice().sort((a,b)=>(a.order||0)-(b.order||0));
 }
 function renderChecklist(kind){
   const isTodo = kind==='todo';
@@ -561,19 +532,12 @@ function renderChecklist(kind){
   const el = document.getElementById(isTodo ? 'panel-todo' : 'panel-shop');
   if(!list.length){
     el.innerHTML = '<div class="empty"><span class="e-ico">'+(isTodo?'📝':'🛒')+'</span>'+
-      (isTodo ? '下の入力欄から<br>今日のやることを追加しよう' : '下の入力欄から<br>買うものを追加しよう')+'</div>';
+      (isTodo ? '右下の ＋ ボタンから<br>やることを足していこう' : '下の入力欄から<br>買うものを追加しよう')+'</div>';
     return;
   }
-  const active = sortActive(list.filter(x=>!x.done), kind);
+  const active = sortActive(list.filter(x=>!x.done));
   const done = list.filter(x=>x.done);
   let html = '';
-  if(isTodo){
-    html += '<div class="sortbar"><span class="sl">並び順</span>'+
-      '<span class="seg-sm" id="todoSort">'+
-        '<button data-sort="manual"'+(todoSort==='manual'?' class="on"':'')+'>手動（ドラッグ）</button>'+
-        '<button data-sort="due"'+(todoSort==='due'?' class="on"':'')+'>期限順</button>'+
-      '</span></div>';
-  }
   html += active.map(x=>rowHTML(x, kind)).join('');
   if(done.length){
     html += '<div class="group-label">✓ '+(isTodo?'完了':'買ったもの')+'（'+done.length+'）</div>';
@@ -583,29 +547,12 @@ function renderChecklist(kind){
   el.innerHTML = html;
 }
 function rowHTML(x, kind){
-  const isTodo = kind==='todo';
-  const dragOff = (isTodo && todoSort==='due');
-  const di = isTodo ? dueInfo(x.due) : null;
-  const hasDue = !!di;
-  // 期限ありの行だけ期限を表示（タップで変更／× で解除）
-  let dueLine = '';
-  if(hasDue){
-    dueLine = '<div class="due-line">'+
-      '<button class="due '+di.cls+'" data-act="due">📅 '+esc(di.txt)+'</button>'+
-      '<button class="dx" data-act="dueClear">×</button>'+
-    '</div>';
-  }
-  // 期限なしの未完了やることには、右側に控えめなカレンダーで後付け可能に
-  const addDue = (isTodo && !hasDue && !x.done)
-    ? '<button class="adddue" data-act="due" title="期限を付ける">📅</button>' : '';
-  return '<div class="row'+(x.done?' is-done':'')+(hasDue?' has-due':'')+'" data-kind="'+kind+'" data-id="'+x.id+'">'+
-    '<span class="handle"'+(dragOff?' style="visibility:hidden"':'')+' data-act="handle">⠿</span>'+
+  return '<div class="row'+(x.done?' is-done':'')+'" data-kind="'+kind+'" data-id="'+x.id+'">'+
+    '<span class="handle" data-act="handle">⠿</span>'+
     '<div class="check'+(x.done?' on':'')+'" data-act="toggle">'+(x.done?'✓':'')+'</div>'+
     '<div class="body">'+
       '<div class="label" data-act="editText">'+esc(x.text)+'</div>'+
-      dueLine+
     '</div>'+
-    addDue+
     '<button class="del" data-act="del">×</button>'+
   '</div>';
 }
@@ -681,6 +628,8 @@ function goIdeaGrid(){ ideaApp = null; renderIdeas(); renderAddbar(); window.scr
 function renderAddbar(){
   const bar = document.querySelector('.addbar');
   const el = document.getElementById('addbar');
+  const fab = document.getElementById('todoFab');
+  fab.style.display='none';   // やること以外では隠す（既定）
   if(tab==='idea'){
     // アプリ選択グリッドでは入力欄を出さない（アプリを選んでから箇条書きを足す）
     if(!ideaApp){ bar.style.display='none'; el.innerHTML=''; return; }
@@ -703,42 +652,32 @@ function renderAddbar(){
     inp.addEventListener('keydown', e=>{ if(e.key==='Enter') addIt(); });
     return;
   }
-  bar.style.display='';
-  const isTodo = tab==='todo';
-  const ph = isTodo ? 'やることを入力…' : '買うものを入力…';
-  let html = '<input type="text" id="quickInput" placeholder="'+ph+'" autocomplete="off" enterkeyhint="done">';
-  if(isTodo){
-    const di = newDue ? dueInfo(newDue) : null;
-    html += '<button class="add datebtn'+(newDue?' on':'')+'" id="quickDate" title="期限を付ける">'+(di?'📅 '+esc(di.txt):'📅')+'</button>';
+  if(tab==='todo'){
+    // やること：右下の丸ボタンをタップ → 追加シート（下バーは隠す）
+    bar.style.display='none'; el.innerHTML='';
+    fab.style.display='flex';
+    fab.onclick = openAddSheet;
+    return;
   }
-  html += '<button class="add" id="quickAdd">＋</button>';
-  el.innerHTML = html;
+  bar.style.display='';
+  // 買い物：下バーで即追加（テキスト→Enter/＋）
+  el.innerHTML = '<input type="text" id="quickInput" placeholder="買うものを入力…" autocomplete="off" enterkeyhint="done">'+
+    '<button class="add" id="quickAdd">＋</button>';
   const inp = document.getElementById('quickInput');
   const addIt = ()=>{
     const v = inp.value.trim(); if(!v) return;
-    const arr = isTodo ? db.todos : db.shopping;
+    const arr = db.shopping;
     const minOrder = arr.reduce((m,x)=>Math.min(m, x.order||0), 0);
-    const item = { id:uid(), text:v, done:false, ts:Date.now(), order:minOrder-1 };
-    if(isTodo){ item.due = newDue || ''; newDue=''; }
-    arr.unshift(item);
+    arr.unshift({ id:uid(), text:v, done:false, ts:Date.now(), order:minOrder-1 });
     save();
     inp.value='';
     // 入力欄(addbar)は作り直さずリストとカウントだけ更新 → iOSでキーボードが閉じず連続入力できる
-    if(isTodo) refreshDateBtn();
     renderCounts();
-    renderChecklist(tab);
+    renderChecklist('shop');
     inp.focus();
   };
   document.getElementById('quickAdd').onclick = addIt;
   inp.addEventListener('keydown', e=>{ if(e.key==='Enter') addIt(); });
-  if(isTodo) document.getElementById('quickDate').onclick = openNewDuePicker;
-}
-// 追加バーの期限ボタンの見た目を newDue に合わせて更新（addbarは作り直さない）
-function refreshDateBtn(){
-  const btn = document.getElementById('quickDate'); if(!btn) return;
-  const di = newDue ? dueInfo(newDue) : null;
-  btn.innerHTML = di ? '📅 '+esc(di.txt) : '📅';
-  btn.classList.toggle('on', !!newDue);
 }
 
 /* ===================== タブ切替 ===================== */
@@ -763,8 +702,6 @@ let suppressClick = false;
 });
 function onChecklistClick(e){
   if(suppressClick){ suppressClick=false; return; }
-  const sortBtn = e.target.closest('[data-sort]');
-  if(sortBtn){ todoSort = sortBtn.dataset.sort; renderChecklist('todo'); return; }
   const clear = e.target.closest('[data-clear]');
   if(clear){
     if(clear.dataset.clear==='todo') db.todos = db.todos.filter(x=>!x.done);
@@ -776,9 +713,7 @@ function onChecklistClick(e){
   const arr = kind==='todo' ? db.todos : db.shopping;
   const item = arr.find(x=>x.id===id); if(!item) return;
   const act = e.target.closest('[data-act]')?.dataset.act;
-  if(act==='due'){ openDuePicker(item.id); }
-  else if(act==='dueClear'){ item.due=''; save(); render(); }
-  else if(act==='editText'){ startInlineEdit(row, item); }
+  if(act==='editText'){ startInlineEdit(row, item); }
   else if(act==='toggle'){ item.done=!item.done; if(item.done) item.doneAt=Date.now(); save(); render(); }
   else if(act==='del'){ arr.splice(arr.indexOf(item),1); save(); render(); }
 }
@@ -812,46 +747,37 @@ function startInlineEdit(row, item){
   input.addEventListener('blur', ()=>commit(true));
 }
 
-/* 期限ピッカー：リスト外の専用inputで純正ピッカーを開く（iOSでの二重起動・取りこぼしを防ぐ） */
-const dueProxy = document.getElementById('dueProxy');
-let dueEditId = null;
-dueProxy.addEventListener('change', ()=>{
-  if(dueEditId==='__new__'){
-    dueEditId = null;
-    newDue = dueProxy.value || '';
-    refreshDateBtn();
-    return;
-  }
-  if(!dueEditId) return;
-  const it = db.todos.find(x=>x.id===dueEditId);
-  dueEditId = null;
-  if(it){ it.due = dueProxy.value || ''; save(); render(); }
-});
-function showDuePicker(){
-  try{
-    if(typeof dueProxy.showPicker === 'function'){ dueProxy.showPicker(); return; }
-  }catch(e){}
-  // 古い環境向けフォールバック
-  dueProxy.focus(); dueProxy.click();
+/* やること追加シート：タップで開き、テキストを入力して追加（改行で複数まとめて） */
+const addSheetBg = document.getElementById('addSheetBg');
+const addTodoInput = document.getElementById('addTodoInput');
+function openAddSheet(){
+  addTodoInput.value = '';
+  addSheetBg.classList.add('on');
+  // iOSでキーボードが確実に出るよう少し遅らせてフォーカス
+  setTimeout(()=>addTodoInput.focus(), 60);
 }
-function openDuePicker(id){
-  const it = db.todos.find(x=>x.id===id); if(!it) return;
-  dueEditId = id;
-  dueProxy.value = it.due || '';
-  showDuePicker();
+function closeAddSheet(){ addSheetBg.classList.remove('on'); }
+function saveAddSheet(){
+  const lines = addTodoInput.value.split('\n').map(s=>s.trim()).filter(Boolean);
+  if(!lines.length){ closeAddSheet(); return; }
+  // 既存の最小orderより前に、入力順を保って積む（1行目が一番上）
+  let base = db.todos.reduce((m,x)=>Math.min(m, x.order||0), 0);
+  lines.forEach((text,i)=>{
+    db.todos.push({ id:uid(), text, done:false, ts:Date.now(), order: base - lines.length + i });
+  });
+  save();
+  closeAddSheet();
+  render();
+  toast(lines.length>1 ? ('✅ '+lines.length+'件追加しました') : '✅ 追加しました');
 }
-// 追加バーから「次に追加するやること」の期限を選ぶ
-function openNewDuePicker(){
-  dueEditId = '__new__';
-  dueProxy.value = newDue || '';
-  showDuePicker();
-}
+document.getElementById('addTodoSave').onclick = saveAddSheet;
+document.getElementById('addTodoCancel').onclick = closeAddSheet;
+addSheetBg.addEventListener('click', e=>{ if(e.target===addSheetBg) closeAddSheet(); });
 
 /* ドラッグ並べ替え（ポインタ操作・タッチ/マウス両対応） */
 let drag = null;
 function onHandleDown(e){
   const handle = e.target.closest('[data-act="handle"]'); if(!handle) return;
-  if(tab==='todo' && todoSort==='due') return;
   const row = handle.closest('.row'); if(!row || row.classList.contains('is-done')) return;
   e.preventDefault();
   const cont = row.parentElement;
