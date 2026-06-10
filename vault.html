@@ -144,13 +144,47 @@
   }
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
 
-  /* バックアップ行 */
-  .tools{display:flex; justify-content:center; gap:18px; margin-top:30px;}
-  .tools button{background:none; border:none; color:var(--sub); font-size:13px; font-weight:600; cursor:pointer; text-decoration:underline;}
-
   footer{text-align:center; color:var(--sub); font-size:11px; margin-top:24px; line-height:1.8;}
   .note{background:#fff8e6; border:1px solid #ffe7a3; color:#8a6d00; font-size:12px; border-radius:12px; padding:10px 13px; margin-top:14px; line-height:1.5;}
+
+  /* 同期チップ */
+  .sync{
+    display:inline-flex; align-items:center; gap:6px; margin-top:10px;
+    font-size:12px; font-weight:600; color:var(--sub);
+    padding:5px 12px; border-radius:999px; background:var(--card); border:1px solid var(--line);
+  }
+  .sync .dot{width:7px; height:7px; border-radius:50%; background:#c7c7cc;}
+  .sync.ok .dot{background:#34c759;}
+  .sync.off .dot{background:#ff9f0a;}
+
+  /* メモ項目エディタ */
+  .cf-row{display:flex; gap:6px; align-items:center; margin-bottom:7px;}
+  .cf-row .cf-label{flex:0 0 34%; min-width:0;}
+  .cf-row .cf-value{flex:1; min-width:0;}
+  .cf-row input{
+    width:100%; border:1px solid var(--line); background:#fbfbfd; border-radius:10px;
+    padding:10px 11px; font-size:15px; color:var(--ink);
+  }
+  .cf-row input:focus{outline:none; border-color:var(--accent); background:#fff;}
+  .cf-secret,.cf-del{
+    flex:0 0 auto; border:1px solid var(--line); background:#fbfbfd; border-radius:10px;
+    width:40px; height:41px; font-size:15px; cursor:pointer;
+  }
+  .cf-secret.on{background:#fff3cd; border-color:#ffe08a;}
+  .cf-del{color:var(--danger);}
+
+  /* ロック画面 */
+  .lock-sheet{text-align:center;}
+  .lock-emoji{font-size:40px; margin-bottom:8px;}
+  .lock-desc{font-size:13px; color:var(--sub); line-height:1.65; margin-bottom:16px; text-align:left;}
+  .lock-err{color:var(--danger); font-size:13px; min-height:18px; margin:2px 0 10px;}
+  #lockOverlay .sheet input{
+    width:100%; border:1px solid var(--line); background:#fbfbfd; border-radius:12px;
+    padding:13px 14px; font-size:16px; color:var(--ink);
+  }
+  #lockOverlay .sheet input:focus{outline:none; border-color:var(--accent); background:#fff;}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="career.js"></script>
 </head>
 <body>
@@ -159,6 +193,7 @@
     <div class="logo">🔐</div>
     <h1>Password manager</h1>
     <p class="tagline">パスワードを、ジャンルごとに保管</p>
+    <div class="sync" id="syncChip"><span class="dot"></span><span id="syncText">接続中…</span></div>
   </header>
 
   <div class="search">
@@ -170,15 +205,8 @@
 
   <div class="list" id="list"></div>
 
-  <div class="tools">
-    <button id="exportBtn">⬇️ バックアップ書き出し</button>
-    <button id="importBtn">⬆️ 読み込み</button>
-    <input type="file" id="importFile" accept="application/json" hidden>
-  </div>
-
   <div class="note">
-    🔒 データはこの端末のブラウザ内だけに保存されます（暗号化はしていません）。
-    同じブラウザを使える人には中身が見えるのでご注意を。大事なデータは時々「書き出し」でバックアップを。
+    🔒 パスワードはマスターパスワードで暗号化してから同期されます。クラウドには暗号文だけが保存され、マスターパスワードを知らない限り中身は読めません。<b>マスターパスワードを忘れると復元できない</b>ので大切に保管してください。
   </div>
 
   <footer>
@@ -214,6 +242,11 @@
         <button type="button" class="mini-btn" id="genBtn">🎲 自動生成</button>
       </div>
     </div>
+    <div class="form-group">
+      <label>メモ項目（任意）</label>
+      <div id="customFields"></div>
+      <button type="button" class="mini-btn" id="addFieldBtn" style="width:100%; padding:11px 0; margin-top:4px;">＋ 項目を追加</button>
+    </div>
     <div class="sheet-actions">
       <button class="btn btn-ghost" id="cancelBtn">キャンセル</button>
       <button class="btn btn-primary" id="saveBtn">保存</button>
@@ -222,11 +255,37 @@
   </div>
 </div>
 
+<!-- マスターパスワードのロック画面 -->
+<div class="overlay" id="lockOverlay">
+  <div class="sheet lock-sheet">
+    <div class="lock-emoji">🔑</div>
+    <h2 id="lockTitle">マスターパスワード</h2>
+    <p class="lock-desc" id="lockDesc"></p>
+    <div class="form-group">
+      <input id="lockPw" type="password" placeholder="マスターパスワード" autocomplete="off" autocapitalize="off" autocorrect="off">
+    </div>
+    <div class="form-group" id="lockConfirmGroup" style="display:none;">
+      <input id="lockPw2" type="password" placeholder="もう一度入力（確認）" autocomplete="off" autocapitalize="off" autocorrect="off">
+    </div>
+    <p class="lock-err" id="lockErr"></p>
+    <button class="btn btn-primary" id="lockBtn" style="width:100%;">解除</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
-  const STORE = "tsumiki-vault-v1";
+  const STORE = "tsumiki-vault-v1";        // この端末の復号済みデータ
+  const MPW_KEY = "tsumiki-vault-mpw";     // この端末に記憶するマスターパス（クラウドは暗号文のみ）
+  const SALT_KEY = "tsumiki-vault-salt";   // 端末キャッシュ用のソルト
   const DEFAULT_CATS = ["SNS","金融・銀行","買い物","仕事","メール","ゲーム","その他"];
+
+  // ---- Supabase（クラウド同期：暗号文だけを保存するゼロ知識方式） ----
+  const SUPABASE_URL  = 'https://okbjqtdirrathscctyvx.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rYmpxdGRpcnJhdGhzY2N0eXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMjI4NTIsImV4cCI6MjA5NTg5ODg1Mn0.T-1AOK6vCD6uGdqrVGXjPui3L6WPSNrnygS-IHyfZ6Y';
+  const sb = (window.supabase && window.supabase.createClient) ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON) : null;
+  const STATE_TABLE = 'vault_state';
+  const STATE_ID = 'kodai';                // 個人の複数端末で共有する1行
 
   // ジャンル名 → 配色（決まった色で一貫させる）
   const PALETTE = ["#ff6b6b","#4d8bf0","#34c759","#ff9f0a","#af52de","#5ac8fa","#ff2d92","#30b0c7","#a2845e","#8e8e93"];
@@ -236,15 +295,173 @@
     return PALETTE[h % PALETTE.length];
   }
 
+  function normalize(d){ if(!Array.isArray(d.fields)) d.fields = []; return d; }
+
   let data = load();
   let filterCat = "すべて";
   let query = "";
 
   function load(){
-    try{ return JSON.parse(localStorage.getItem(STORE)) || []; }catch(e){ return []; }
+    try{ return (JSON.parse(localStorage.getItem(STORE)) || []).map(normalize); }catch(e){ return []; }
   }
-  function save(){ localStorage.setItem(STORE, JSON.stringify(data)); }
   function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+  // ===== 暗号化（マスターパスワードで端末間ゼロ知識同期） =====
+  const _enc = new TextEncoder(), _dec = new TextDecoder();
+  let cryptoKey = null;                                  // 導出済みAES鍵（メモリ上のみ）
+  let saltB64 = localStorage.getItem(SALT_KEY) || null;
+  let online = null;                                     // null=確認中, true=同期OK, false=オフライン
+  let lastPushed = null;
+
+  function b64e(buf){ let s=""; const b=new Uint8Array(buf); for(let i=0;i<b.length;i++) s+=String.fromCharCode(b[i]); return btoa(s); }
+  function b64d(str){ return Uint8Array.from(atob(str), c=>c.charCodeAt(0)); }
+
+  async function deriveKey(password, salt){
+    const base = await crypto.subtle.importKey("raw", _enc.encode(password), "PBKDF2", false, ["deriveKey"]);
+    return crypto.subtle.deriveKey(
+      { name:"PBKDF2", salt, iterations:150000, hash:"SHA-256" },
+      base, { name:"AES-GCM", length:256 }, false, ["encrypt","decrypt"]);
+  }
+  async function encryptData(obj){
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({ name:"AES-GCM", iv }, cryptoKey, _enc.encode(JSON.stringify(obj)));
+    return { v:1, salt:saltB64, iv:b64e(iv), ct:b64e(ct) };
+  }
+  async function decryptBlob(blob){
+    const pt = await crypto.subtle.decrypt({ name:"AES-GCM", iv:b64d(blob.iv) }, cryptoKey, b64d(blob.ct));
+    return JSON.parse(_dec.decode(pt));
+  }
+
+  // ローカル保存＋クラウドへ暗号化アップロード（デバウンス）
+  let saveTimer=null;
+  function save(){
+    localStorage.setItem(STORE, JSON.stringify(data));
+    if(!sb || !cryptoKey) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(pushRemote, 350);
+  }
+  async function pushRemote(){
+    if(!sb || !cryptoKey) return;
+    try{
+      const blob = await encryptData(data);
+      lastPushed = JSON.stringify(blob);
+      const { error } = await sb.from(STATE_TABLE).upsert({ id:STATE_ID, state:blob, updated_at:new Date().toISOString() });
+      online = !error;
+    }catch(e){ online=false; }
+    renderSync();
+  }
+  function applyRemote(obj){
+    data = (Array.isArray(obj) ? obj : []).map(normalize);
+    localStorage.setItem(STORE, JSON.stringify(data));
+    render();
+  }
+
+  async function startSync(){
+    if(!sb){ online=false; renderSync(); return; }
+    let row;
+    try{
+      const { data:r, error } = await sb.from(STATE_TABLE).select('state').eq('id', STATE_ID).maybeSingle();
+      if(error) throw error;
+      row = r;
+    }catch(e){ online=false; renderSync(); return; }
+    online = true; renderSync();
+    if(row && row.state && row.state.ct){
+      saltB64 = row.state.salt; localStorage.setItem(SALT_KEY, saltB64);
+      await unlockExisting(row.state);
+    }else{
+      await setupNew();
+    }
+  }
+  async function unlockExisting(blob){
+    const salt = b64d(blob.salt);
+    const cached = localStorage.getItem(MPW_KEY);
+    if(cached){
+      try{ cryptoKey = await deriveKey(cached, salt); applyRemote(await decryptBlob(blob)); return; }
+      catch(e){ cryptoKey=null; }
+    }
+    showLock("unlock", async (pw)=>{
+      try{
+        cryptoKey = await deriveKey(pw, salt);
+        const obj = await decryptBlob(blob);     // 復号に失敗（=パス違い）なら例外
+        localStorage.setItem(MPW_KEY, pw);
+        applyRemote(obj);
+        return true;
+      }catch(e){ cryptoKey=null; return false; }
+    });
+  }
+  async function setupNew(){
+    const cached = localStorage.getItem(MPW_KEY);
+    if(cached && saltB64){       // この端末では設定済み → そのままクラウドへ種を上げる
+      cryptoKey = await deriveKey(cached, b64d(saltB64));
+      await pushRemote();
+      return;
+    }
+    showLock("setup", async (pw)=>{
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      saltB64 = b64e(salt);
+      localStorage.setItem(SALT_KEY, saltB64);
+      cryptoKey = await deriveKey(pw, salt);
+      localStorage.setItem(MPW_KEY, pw);
+      await pushRemote();        // 今あるローカルを暗号化して初回アップ
+      return true;
+    });
+  }
+  function subscribeRealtime(){
+    if(!sb) return;
+    sb.channel('vault-rt')
+      .on('postgres_changes', { event:'*', schema:'public', table:STATE_TABLE, filter:'id=eq.'+STATE_ID }, async (payload)=>{
+        const blob = payload.new && payload.new.state;
+        if(!blob || !blob.ct || !cryptoKey) return;
+        if(JSON.stringify(blob) === lastPushed) return;   // 自分の書き込みのエコー
+        try{ applyRemote(await decryptBlob(blob)); toast("🔄 他の端末から更新"); }catch(e){}
+      })
+      .subscribe();
+  }
+  function renderSync(){
+    const chip=document.getElementById("syncChip"), txt=document.getElementById("syncText");
+    if(!chip) return;
+    chip.classList.remove("ok","off");
+    if(!sb){ txt.textContent="この端末に保存"; return; }
+    if(online===true){ chip.classList.add("ok"); txt.textContent="クラウド同期中"; }
+    else if(online===false){ chip.classList.add("off"); txt.textContent="オフライン（この端末に保存）"; }
+    else { txt.textContent="接続中…"; }
+  }
+
+  // ===== マスターパスワードのロック画面 =====
+  function showLock(mode, onSubmit){
+    const ov=document.getElementById("lockOverlay");
+    const pw=document.getElementById("lockPw"), pw2=document.getElementById("lockPw2");
+    const err=document.getElementById("lockErr"), btn=document.getElementById("lockBtn");
+    err.textContent=""; pw.value=""; pw2.value="";
+    if(mode==="setup"){
+      document.getElementById("lockTitle").textContent="マスターパスワードを設定";
+      document.getElementById("lockDesc").innerHTML="このパスワードでパスワード帳を暗号化して端末間を同期します。クラウドには暗号文だけが保存され、このパスワードを知らない限り誰も中身を読めません。<b>忘れると復元できない</b>ので大切に保管してください。";
+      document.getElementById("lockConfirmGroup").style.display="block";
+      btn.textContent="設定して同期を開始";
+    }else{
+      document.getElementById("lockTitle").textContent="ロックを解除";
+      document.getElementById("lockDesc").innerHTML="クラウドのデータを読み込むには、設定したマスターパスワードを入力してください。";
+      document.getElementById("lockConfirmGroup").style.display="none";
+      btn.textContent="解除";
+    }
+    ov.classList.add("show");
+    setTimeout(()=>pw.focus(),100);
+    async function submit(){
+      const v=pw.value;
+      if(mode==="setup"){
+        if(v.length<6){ err.textContent="6文字以上にしてください"; return; }
+        if(v!==pw2.value){ err.textContent="確認用と一致しません"; return; }
+      }else if(!v){ err.textContent="入力してください"; return; }
+      btn.disabled=true; err.textContent="確認中…";
+      let ok=false; try{ ok = await onSubmit(v); }catch(e){ ok=false; }
+      btn.disabled=false;
+      if(ok){ ov.classList.remove("show"); }
+      else{ err.textContent="パスワードが違うようです"; }
+    }
+    btn.onclick=submit;
+    pw.onkeydown=(e)=>{ if(e.key==="Enter" && mode!=="setup") submit(); };
+    pw2.onkeydown=(e)=>{ if(e.key==="Enter") submit(); };
+  }
 
   // ---- 描画 ----
   const listEl = document.getElementById("list");
@@ -315,6 +532,14 @@
             <span class="field-val mask js-pw" data-pw="${esc(d.password||"")}" data-shown="0">${"•".repeat(Math.min((d.password||"").length||6,12))}</span>
             <button class="copy-btn js-copy" data-val="${esc(d.password||"")}">コピー</button>
           </div>
+          ${(d.fields||[]).map(f=>`
+          <div class="field">
+            <span class="field-label">${esc(f.label||"メモ")}</span>
+            ${ f.secret
+              ? `<span class="field-val mask js-pw" data-pw="${esc(f.value||"")}" data-shown="0">${"•".repeat(Math.min((f.value||"").length||6,12))}</span>`
+              : `<span class="field-val">${esc(f.value||"")}</span>` }
+            <button class="copy-btn js-copy" data-val="${esc(f.value||"")}">コピー</button>
+          </div>`).join("")}
         </div>
       </div>`;
     }).join("");
@@ -326,8 +551,7 @@
         item.classList.toggle("open");
       };
       item.querySelector(".js-edit").onclick = ()=> openSheet(id);
-      const pw = item.querySelector(".js-pw");
-      if(pw){
+      item.querySelectorAll(".js-pw").forEach(pw=>{
         pw.onclick = ()=>{
           const shown = pw.dataset.shown==="1";
           if(shown){
@@ -337,7 +561,7 @@
             pw.textContent = pw.dataset.pw; pw.classList.remove("mask"); pw.dataset.shown="1";
           }
         };
-      }
+      });
       item.querySelectorAll(".js-copy").forEach(b=>{
         b.onclick = ()=> copy(b.dataset.val);
       });
@@ -374,6 +598,27 @@
   const fUser=document.getElementById("fUser");
   const fPass=document.getElementById("fPass");
 
+  // メモ項目（1件ごとの自由項目）
+  let editFields = [];
+  function renderCustomFields(){
+    const wrap=document.getElementById("customFields");
+    wrap.innerHTML = editFields.map((f,i)=>`
+      <div class="cf-row" data-i="${i}">
+        <input class="cf-label" placeholder="項目名" value="${esc(f.label||"")}">
+        <input class="cf-value" placeholder="内容" value="${esc(f.value||"")}">
+        <button type="button" class="cf-secret ${f.secret?'on':''}" title="隠す">${f.secret?'🙈':'👁️'}</button>
+        <button type="button" class="cf-del" title="削除">✕</button>
+      </div>`).join("");
+    wrap.querySelectorAll(".cf-row").forEach(row=>{
+      const i=+row.dataset.i;
+      row.querySelector(".cf-label").oninput=e=>{ editFields[i].label=e.target.value; };
+      row.querySelector(".cf-value").oninput=e=>{ editFields[i].value=e.target.value; };
+      row.querySelector(".cf-secret").onclick=()=>{ editFields[i].secret=!editFields[i].secret; renderCustomFields(); };
+      row.querySelector(".cf-del").onclick=()=>{ editFields.splice(i,1); renderCustomFields(); };
+    });
+  }
+  document.getElementById("addFieldBtn").onclick=()=>{ editFields.push({label:"",value:"",secret:false}); renderCustomFields(); };
+
   function renderCatSuggest(){
     const cats = [...new Set([...allCats(), ...DEFAULT_CATS])];
     document.getElementById("catSuggest").innerHTML =
@@ -390,12 +635,15 @@
       document.getElementById("sheetTitle").textContent="パスワードを編集";
       fId.value=d.id; fTitle.value=d.title||""; fCat.value=d.category||"";
       fUser.value=d.username||""; fPass.value=d.password||"";
+      editFields = (d.fields||[]).map(f=>({label:f.label||"", value:f.value||"", secret:!!f.secret}));
       document.getElementById("deleteBtn").style.display="block";
     }else{
       document.getElementById("sheetTitle").textContent="新しいパスワード";
       fId.value=""; fTitle.value=""; fCat.value=""; fUser.value=""; fPass.value="";
+      editFields = [];
       document.getElementById("deleteBtn").style.display="none";
     }
+    renderCustomFields();
     overlay.classList.add("show");
     setTimeout(()=>fTitle.focus(),100);
   }
@@ -410,8 +658,11 @@
     const pass=fPass.value;
     if(!title){ toast("タイトルを入力してください"); fTitle.focus(); return; }
     if(!pass){ toast("パスワードを入力してください"); fPass.focus(); return; }
+    const fields=editFields
+      .map(f=>({label:(f.label||"").trim(), value:(f.value||"").trim(), secret:!!f.secret}))
+      .filter(f=>f.label||f.value);
     const entry={
-      title, category:fCat.value.trim(), username:fUser.value.trim(), password:pass
+      title, category:fCat.value.trim(), username:fUser.value.trim(), password:pass, fields
     };
     if(fId.value){
       const i=data.findIndex(x=>x.id===fId.value);
@@ -443,38 +694,10 @@
   // ---- 検索 ----
   document.getElementById("search").oninput=(e)=>{ query=e.target.value.trim(); render(); };
 
-  // ---- バックアップ ----
-  document.getElementById("exportBtn").onclick=()=>{
-    const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
-    const a=document.createElement("a");
-    a.href=URL.createObjectURL(blob);
-    a.download=`password-manager-backup-${new Date().toISOString().slice(0,10)}.json`;
-    a.click(); URL.revokeObjectURL(a.href);
-    toast("書き出しました");
-  };
-  document.getElementById("importBtn").onclick=()=>document.getElementById("importFile").click();
-  document.getElementById("importFile").onchange=(e)=>{
-    const file=e.target.files[0]; if(!file) return;
-    const r=new FileReader();
-    r.onload=()=>{
-      try{
-        const arr=JSON.parse(r.result);
-        if(!Array.isArray(arr)) throw new Error();
-        if(!confirm(`${arr.length}件を読み込みます。現在のデータに追加されます。よろしいですか？`)) return;
-        arr.forEach(x=>{
-          if(x && x.title){
-            data.push({id:uid(), title:x.title, category:x.category||"", username:x.username||"", password:x.password||""});
-          }
-        });
-        save(); render(); toast("読み込みました");
-      }catch(err){ toast("読み込めませんでした"); }
-    };
-    r.readAsText(file);
-    e.target.value="";
-  };
-
   // 初期描画
   render();
+  renderSync();
+  if(sb){ startSync(); subscribeRealtime(); }
 </script>
 <!-- tsumiki-back-button -->
 <style>
