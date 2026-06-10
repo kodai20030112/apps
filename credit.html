@@ -100,6 +100,35 @@ h1{font-size:22px;font-weight:600;text-align:center;margin:4px 0 2px}
 .nec-pill strong{font-size:14px;font-weight:600}
 .nec-pill.need{background:var(--soft-green)}.nec-pill.need strong{color:var(--green)}
 .nec-pill.save{background:var(--soft-orange)}.nec-pill.save strong{color:var(--red)}
+/* 仕分け（必要/節約 大ボタン） */
+.triage-head{text-align:center;margin:4px 0 18px}
+.triage-progress{font-size:13px;color:var(--sub)}
+.triage-progress strong{color:var(--text);font-size:16px}
+.triage-bar{height:6px;border-radius:999px;background:var(--line);margin:10px auto 0;max-width:300px;overflow:hidden}
+.triage-bar>div{height:100%;background:var(--green);transition:width .35s ease}
+.triage-card{background:var(--card);border-radius:18px;padding:26px 20px 22px;box-shadow:0 2px 12px rgba(0,0,0,.07);text-align:center;max-width:440px;margin:0 auto}
+.triage-meta{font-size:12px;color:var(--sub);display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:8px}
+.triage-cat{padding:1px 8px;border-radius:999px;background:var(--bg);border:1px solid var(--line)}
+.triage-desc{font-size:18px;font-weight:600;margin-bottom:4px;word-break:break-word;line-height:1.35}
+.triage-amt{font-size:40px;font-weight:700;letter-spacing:-.02em;margin:8px 0 2px}
+.triage-btns{display:flex;gap:30px;justify-content:center;margin:30px 0 16px}
+.triage-btn{width:138px;height:138px;border-radius:50%;border:none;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;box-shadow:0 5px 16px rgba(0,0,0,.16);transition:transform .12s ease,box-shadow .12s ease;color:#fff;-webkit-tap-highlight-color:transparent}
+.triage-btn:active{transform:scale(.92);box-shadow:0 2px 8px rgba(0,0,0,.16)}
+.triage-btn .emoji{font-size:36px;line-height:1}
+.triage-btn .lbl{font-size:19px;font-weight:700;letter-spacing:.04em}
+.triage-btn .q{font-size:11px;opacity:.9}
+.triage-btn.need{background:linear-gradient(160deg,#3ad15f,#28a14a)}
+.triage-btn.save{background:linear-gradient(160deg,#ffb43a,#ff6a2b)}
+.triage-sub-actions{display:flex;gap:18px;justify-content:center;margin-top:4px}
+.triage-skip{background:none;border:none;color:var(--sub);font-size:13px;cursor:pointer;font-family:inherit;padding:6px 4px}
+.triage-skip:active{opacity:.6}
+.triage-tally{display:flex;gap:10px;justify-content:center;margin-top:20px;flex-wrap:wrap}
+.triage-tally .t{padding:8px 16px;border-radius:12px;background:var(--bg);font-size:13px;font-weight:600}
+.triage-tally .t.need{background:var(--soft-green);color:var(--green)}
+.triage-tally .t.save{background:var(--soft-orange);color:var(--red)}
+.triage-done{text-align:center;padding:34px 20px}
+.triage-done .big{font-size:52px;margin-bottom:8px}
+@media(max-width:480px){.triage-btn{width:122px;height:122px}.triage-btns{gap:20px}.triage-amt{font-size:34px}}
 .empty{text-align:center;padding:24px 14px;color:var(--sub);font-size:13px}
 .btn{padding:7px 12px;border-radius:8px;border:1px solid var(--line);background:#fff;font-size:12px;cursor:pointer;color:var(--text);font-family:inherit}
 .btn-primary{background:var(--blue);color:#fff;border-color:var(--blue)}
@@ -171,6 +200,7 @@ h1{font-size:22px;font-weight:600;text-align:center;margin:4px 0 2px}
 
   <div class="top-tabs">
     <button class="top-tab active" data-tab="credit">💳 明細</button>
+    <button class="top-tab" data-tab="triage">🗂️ 仕分け <span class="badge" id="triageBadge" style="display:none"></span></button>
     <button class="top-tab" data-tab="amazon">📦 Amazon</button>
     <button class="top-tab" data-tab="loans">🤝 立て替え <span class="badge" id="loanBadge" style="display:none"></span></button>
   </div>
@@ -246,6 +276,11 @@ h1{font-size:22px;font-weight:600;text-align:center;margin:4px 0 2px}
       </div>
       <div class="amz-order-list" id="amazonOrdersList"></div>
     </div>
+  </div>
+
+  <!-- 仕分けタブ -->
+  <div class="tab-content" id="tab-triage">
+    <div id="triageBody"></div>
   </div>
 
   <!-- 立て替え台帳タブ -->
@@ -375,7 +410,7 @@ const STATE_TABLE='credit_state', STATE_ID='kodai';
 const sb=(window.supabase&&window.supabase.createClient)?supabase.createClient(SUPABASE_URL,SUPABASE_ANON):null;
 let online=null, lastPushed='', pendingSync=false, saveTimer=null;
 let data={months:{},amazonOrders:[],loans:[],payments:[],people:[]};
-let state={currentTab:'credit',currentMonth:null,currentFilter:'all',currentSort:'date-desc',currentAmzFilter:'all',loanFromTxTarget:null,moveTxTarget:null,editingLoanId:null,paymentTargetLoanId:null,editingAmazonId:null,expandedTxIds:new Set(),expandedLoanIds:new Set(),expandedPersonNames:new Set(),expandedCats:new Set()};
+let state={currentTab:'credit',currentMonth:null,currentFilter:'all',currentSort:'date-desc',currentAmzFilter:'all',loanFromTxTarget:null,moveTxTarget:null,editingLoanId:null,paymentTargetLoanId:null,editingAmazonId:null,expandedTxIds:new Set(),expandedLoanIds:new Set(),expandedPersonNames:new Set(),expandedCats:new Set(),triageSkipped:new Set(),triageLast:null};
 
 function load(){
   try{
@@ -791,10 +826,91 @@ function escapeJs(s){return String(s).replace(/['\\]/g,c=>'\\'+c);}
 function render(){
   renderTopTabs();renderPeopleList();
   if(state.currentTab==='credit')renderCreditTab();
+  else if(state.currentTab==='triage')renderTriageTab();
   else if(state.currentTab==='amazon')renderAmazonTab();
   else if(state.currentTab==='loans')renderLoansTab();
-  renderLoanBadge();
+  renderLoanBadge();renderTriageBadge();
 }
+function triagePending(){
+  if(!state.currentMonth||!data.months[state.currentMonth])return [];
+  return data.months[state.currentMonth].transactions.filter(t=>!t.necessity&&selfAmt(t)>0);
+}
+function renderTriageBadge(){
+  const b=document.getElementById('triageBadge');if(!b)return;
+  const n=triagePending().filter(t=>!state.triageSkipped.has(t.id)).length;
+  if(n>0){b.textContent=n;b.style.display='';}else{b.style.display='none';}
+}
+function renderTriageTab(){
+  const body=document.getElementById('triageBody');
+  if(!state.currentMonth||!data.months[state.currentMonth]){
+    body.innerHTML='<div class="card"><div class="empty">明細を取り込むと、必要経費か節約かを仕分けできます。</div></div>';return;
+  }
+  const txs=data.months[state.currentMonth].transactions;
+  const total=txs.filter(t=>selfAmt(t)>0).length;
+  const pending=txs.filter(t=>!t.necessity&&selfAmt(t)>0);
+  const queue=pending.filter(t=>!state.triageSkipped.has(t.id));
+  const needCount=txs.filter(t=>t.necessity==='need'&&selfAmt(t)>0).length;
+  const saveCount=txs.filter(t=>t.necessity==='save'&&selfAmt(t)>0).length;
+  const tally=`<div class="triage-tally"><div class="t need">✅ 必要 ${needCount}件</div><div class="t save">✂️ 節約 ${saveCount}件</div></div>`;
+
+  if(queue.length===0){
+    const skipN=pending.length;
+    body.innerHTML=`<div class="card triage-done">
+      <div class="big">🎉</div>
+      <div style="font-size:18px;font-weight:600">${cycleLabel(state.currentMonth,true)} の仕分け完了！</div>
+      <div class="muted" style="margin-top:6px">自分の支出 ${total}件をすべて分類しました</div>
+      ${tally}
+      ${skipN>0?`<button class="btn" style="margin-top:18px" onclick="resetTriageSkip()">⏭️ あとで判断した${skipN}件をもう一度</button>`:''}
+      <div style="margin-top:14px"><button class="btn" onclick="switchTab('credit')">明細を見る</button></div>
+    </div>`;
+    return;
+  }
+
+  const t=queue[0];
+  const self=selfAmt(t);
+  const done=total-pending.length;
+  const pct=total?Math.round(done/total*100):0;
+  body.innerHTML=`
+    <div class="triage-head">
+      <div class="triage-progress">${cycleLabel(state.currentMonth,true)} ・ 残り <strong>${queue.length}</strong>件</div>
+      <div class="triage-bar"><div style="width:${pct}%"></div></div>
+    </div>
+    <div class="triage-card">
+      <div class="triage-meta"><span>${t.date}</span><span class="triage-cat">${t.category}</span></div>
+      <div class="triage-desc">${escapeHtml(t.description)}</div>
+      <div class="triage-amt">¥${self.toLocaleString()}</div>
+      ${self!==t.amount?`<div class="muted" style="font-size:11px">（決済¥${t.amount.toLocaleString()} のうち自分の分）</div>`:''}
+      <div class="triage-btns">
+        <button class="triage-btn need" onclick="triagePick('${t.id}','need')"><span class="emoji">✅</span><span class="lbl">必要</span><span class="q">必要経費？</span></button>
+        <button class="triage-btn save" onclick="triagePick('${t.id}','save')"><span class="emoji">✂️</span><span class="lbl">節約</span><span class="q">節約できそう？</span></button>
+      </div>
+      <div class="triage-sub-actions">
+        <button class="triage-skip" onclick="triageSkip('${t.id}')">あとで判断 →</button>
+        ${state.triageLast?`<button class="triage-skip" onclick="triageUndo()">↩︎ 1つ戻す</button>`:''}
+      </div>
+    </div>
+    ${tally}`;
+}
+function triagePick(id,val){
+  const t=findTx(id);if(!t)return;
+  state.triageLast={id,prev:t.necessity};
+  t.necessity=val;
+  state.triageSkipped.delete(id);
+  save();renderTriageTab();renderTriageBadge();
+}
+function triageSkip(id){
+  state.triageSkipped.add(id);
+  state.triageLast=null;
+  renderTriageTab();renderTriageBadge();
+}
+function triageUndo(){
+  if(!state.triageLast)return;
+  const t=findTx(state.triageLast.id);
+  if(t)t.necessity=state.triageLast.prev;
+  state.triageLast=null;
+  save();renderTriageTab();renderTriageBadge();
+}
+function resetTriageSkip(){state.triageSkipped=new Set();renderTriageTab();renderTriageBadge();}
 function renderTopTabs(){
   document.querySelectorAll('.top-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===state.currentTab));
   document.querySelectorAll('.tab-content').forEach(el=>el.classList.toggle('active',el.id==='tab-'+state.currentTab));
