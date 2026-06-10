@@ -152,76 +152,70 @@
     color: #c7c7cc; font-size: 20px; padding: 0 2px; line-height: 1;
   }
 
-  /* ===== アイデア ===== */
-  .idea-tools {
-    background: var(--card); border: 1px solid var(--line);
-    border-radius: 14px; padding: 13px 13px 3px; margin: 14px 0 16px;
+  /* ===== アイデア：アプリ選択グリッド ===== */
+  .idea-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    margin: 14px 0 24px;
   }
-  .ffield { margin-bottom: 12px; }
-  .ffield .flabel {
-    display: block; font-size: 11px; font-weight: 700; color: var(--sub);
-    margin: 0 2px 7px; letter-spacing: .06em;
+  .app-tile {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 5px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    padding: 15px 14px 13px; cursor: pointer; font-family: inherit; text-align: left;
   }
-  .filters { display: flex; gap: 7px; flex-wrap: wrap; }
-  .fchip {
-    border: 1px solid var(--line); background: var(--card); color: var(--sub);
-    border-radius: 999px; padding: 6px 13px; font-size: 13px; font-weight: 600;
-    cursor: pointer; font-family: inherit;
+  .app-tile:active { transform: scale(.98); }
+  .app-tile .at-emoji { font-size: 26px; line-height: 1; }
+  .app-tile .at-label { font-size: 14px; font-weight: 700; color: var(--text); word-break: break-word; }
+  .app-tile .at-count { font-size: 11.5px; font-weight: 600; color: var(--sub); }
+  .app-tile.make { background: linear-gradient(135deg,#f3efff,#eaf2ff); border-color: #e1d8ff; }
+  .app-tile.add {
+    flex-direction: row; align-items: center; justify-content: center; gap: 8px;
+    border-style: dashed; border-color: var(--accent);
   }
-  .fchip.on { background: var(--text); color: #fff; border-color: var(--text); }
-  .fchip.kc.on { background: var(--accent); border-color: var(--accent); }
+  .app-tile.add .at-emoji { font-size: 20px; }
+  .app-tile.add .at-label { color: var(--accent); }
 
-  .idea {
-    display: flex; align-items: flex-start; gap: 12px;
+  /* ===== アイデア：選んだアプリの箇条書き ===== */
+  .idea-head { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 16px; }
+  .ih-back {
+    align-self: flex-start; border: none; background: none; cursor: pointer;
+    font-family: inherit; font-size: 14px; font-weight: 600; color: var(--accent); padding: 4px 0;
+  }
+  .ih-title { display: flex; align-items: center; gap: 9px; font-size: 20px; font-weight: 700; }
+  .ih-title .ih-emoji { font-size: 24px; }
+
+  .ibul {
+    display: flex; align-items: flex-start; gap: 9px;
     background: var(--card); border: 1px solid var(--line);
-    border-radius: 16px; padding: 14px 15px; margin-bottom: 10px;
-    border-left: 4px solid var(--gray);
+    border-radius: 14px; padding: 12px 12px 12px 13px; margin-bottom: 8px;
   }
-  .idea.p-high { border-left-color: var(--red); }
-  .idea.p-mid { border-left-color: var(--orange); }
-  .idea.p-low { border-left-color: var(--gray); }
-  .idea.s-done { opacity: .64; }
-  .idea .i-check {
-    flex: 0 0 auto; width: 24px; height: 24px; margin-top: 1px;
-    border-radius: 50%; border: 2px solid var(--line);
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-    color: #fff; font-size: 14px; transition: all .15s;
+  .ibul .ib-dot { color: var(--accent); font-size: 18px; line-height: 1.45; flex: 0 0 auto; }
+  .ibul .ib-text {
+    flex: 1; min-width: 0; font-size: 15px; line-height: 1.5;
+    white-space: pre-wrap; word-break: break-word; cursor: pointer; padding-top: 1px;
   }
-  .idea .i-check.on { background: var(--green); border-color: var(--green); }
-  .idea .i-main { flex: 1; min-width: 0; }
-  .idea .i-top { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-bottom: 11px; }
-  .pill {
-    border: none; cursor: pointer; font-family: inherit;
-    border-radius: 999px; padding: 4px 11px; font-size: 12px; font-weight: 700;
+  .ibul .ib-act { flex: 0 0 auto; display: flex; gap: 1px; align-items: flex-start; }
+  .ibul .ib-act button {
+    border: none; background: none; cursor: pointer; font-size: 16px;
+    padding: 1px 4px; line-height: 1.3;
   }
-  .pill.prio.p-high { background: #ffe5e3; color: #d70015; }
-  .pill.prio.p-mid { background: #fff0db; color: #c25e00; }
-  .pill.prio.p-low { background: #ececef; color: #636366; }
-  .pill.status.s-backlog { background: #ececef; color: #636366; }
-  .pill.status.s-doing { background: #e3f0ff; color: #0058c7; }
-  .pill.status.s-done { background: #e2f6e6; color: #1a8a3a; }
-  .kchip {
-    border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 700;
-    display: inline-flex; align-items: center; gap: 3px;
+  .ib-edit {
+    flex: 1; min-width: 0; font: inherit; font-size: 15px; line-height: 1.5; color: var(--text);
+    border: none; border-bottom: 2px solid var(--accent); background: transparent;
+    padding: 0 0 3px; outline: none; resize: none;
   }
-  .kchip.k-plan { background: #efeaff; color: #6b3bf0; }
-  .kchip.k-bug { background: #ffe9e6; color: #d23a26; }
-  .kchip.k-improve { background: #e4f5ec; color: #1f9d57; }
-  .kchip.k-other { background: #eceef3; color: #5b606b; }
-  .tag {
-    background: var(--accent-soft); color: var(--accent);
-    border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 600;
+
+  /* アプリ選択ピッカー */
+  .sheet-sub { font-size: 13px; color: var(--sub); margin: 2px 2px 14px; }
+  .picker { display: flex; flex-direction: column; gap: 6px; max-height: 60vh; overflow-y: auto; }
+  .pk-row {
+    display: flex; align-items: center; gap: 11px;
+    border: 1px solid var(--line); background: var(--bg); border-radius: 12px;
+    padding: 11px 13px; cursor: pointer; font-family: inherit; text-align: left;
   }
-  .idea .i-title { font-size: 16px; font-weight: 600; word-break: break-word; }
-  .idea.s-done .i-title { text-decoration: line-through; }
-  .idea .i-memo { font-size: 13.5px; color: var(--sub); margin-top: 5px; white-space: pre-wrap; word-break: break-word; cursor: pointer; }
-  .idea .i-memo:active { background: var(--accent-soft); border-radius: 8px; }
-  .idea .i-act { display: flex; gap: 14px; margin-top: 11px; align-items: center; }
-  .idea .i-act button {
-    border: none; background: none; cursor: pointer; font-family: inherit;
-    font-size: 13px; font-weight: 600; color: var(--accent); padding: 2px 0;
-  }
-  .idea .i-act button.danger { color: #c7c7cc; margin-left: auto; }
+  .pk-row:active { background: var(--accent-soft); }
+  .pk-emoji { font-size: 20px; flex: 0 0 auto; }
+  .pk-label { flex: 1; font-size: 15px; font-weight: 600; color: var(--text); }
+  .pk-count { font-size: 12px; font-weight: 700; color: var(--sub); background: var(--chip); border-radius: 999px; padding: 2px 9px; }
 
   .foot-act { text-align: center; margin: 16px 0 4px; }
   .foot-act button {
@@ -252,7 +246,7 @@
   .addbar .add.wide { width: auto; flex: 1; font-size: 16px; gap: 6px; }
   .addbar .add:active { transform: scale(.96); }
 
-  /* ===== アイデア入力シート ===== */
+  /* ===== シート（アプリ選択ピッカー） ===== */
   .sheet-bg {
     position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.32);
     display: none; align-items: flex-end; justify-content: center;
@@ -264,38 +258,11 @@
     max-height: 90vh; overflow-y: auto;
   }
   .sheet h3 { font-size: 18px; font-weight: 700; margin: 0 0 4px; }
-  .sheet label { display: block; font-size: 12.5px; font-weight: 600; color: var(--sub); margin: 14px 2px 6px; }
-  .sheet input[type=text], .sheet textarea {
-    width: 100%; font: inherit; font-size: 16px;
-    border: 1px solid var(--line); background: var(--bg);
-    border-radius: 12px; padding: 11px 13px;
-  }
-  .sheet input:focus, .sheet textarea:focus { outline: none; border-color: var(--accent); background: #fff; }
-  .sheet textarea { min-height: 76px; resize: vertical; }
-  .seg { display: flex; gap: 7px; flex-wrap: wrap; }
-  .seg.cols4 button { flex: 1 1 40%; }
-  .seg button {
-    flex: 1; border: 1px solid var(--line); background: var(--bg); cursor: pointer;
-    font-family: inherit; font-size: 14px; font-weight: 600; color: var(--sub);
-    border-radius: 11px; padding: 10px 4px;
-  }
-  .seg button.on { color: #fff; }
-  .seg.prio button.on[data-v=high] { background: var(--red); border-color: var(--red); }
-  .seg.prio button.on[data-v=mid] { background: var(--orange); border-color: var(--orange); }
-  .seg.prio button.on[data-v=low] { background: var(--gray); border-color: var(--gray); }
-  .seg.status button.on[data-v=backlog] { background: var(--gray); border-color: var(--gray); }
-  .seg.status button.on[data-v=doing] { background: var(--blue); border-color: var(--blue); }
-  .seg.status button.on[data-v=done] { background: var(--green); border-color: var(--green); }
-  .seg.kind button.on[data-v=plan] { background: var(--purple); border-color: var(--purple); }
-  .seg.kind button.on[data-v=bug] { background: var(--red); border-color: var(--red); }
-  .seg.kind button.on[data-v=improve] { background: var(--green); border-color: var(--green); }
-  .seg.kind button.on[data-v=other] { background: var(--gray); border-color: var(--gray); }
-  .sheet-act { display: flex; gap: 10px; margin-top: 22px; }
+  .sheet-act { display: flex; gap: 10px; margin-top: 18px; }
   .sheet-act button {
     flex: 1; border: none; cursor: pointer; font-family: inherit;
     font-size: 16px; font-weight: 600; border-radius: 13px; padding: 13px;
   }
-  .sheet-act .save { background: var(--accent); color: #fff; }
   .sheet-act .cancel { background: var(--chip); color: var(--text); }
 
   .toast {
@@ -330,38 +297,14 @@
 
 <div class="addbar"><div class="addbar-inner" id="addbar"></div></div>
 
-<!-- アイデア入力シート -->
+<!-- アプリ選択ピッカー -->
 <div class="sheet-bg" id="sheetBg">
   <div class="sheet" id="sheet">
-    <h3 id="sheetTitle">アイデアを追加</h3>
-    <label>タイトル（やりたいこと・直したいバグ）</label>
-    <input type="text" id="f-title" placeholder="例：たびのきの地図がたまにズレる" autocomplete="off">
-    <label>メモ（詳細・再現手順・補足）</label>
-    <textarea id="f-memo" placeholder="任意"></textarea>
-    <label>種類</label>
-    <div class="seg kind cols4" id="f-kind">
-      <button data-v="plan">✨ 新アプリ構想</button>
-      <button data-v="bug">🐛 バグ</button>
-      <button data-v="improve">🔧 改善</button>
-      <button data-v="other">📌 その他</button>
-    </div>
-    <label>対象アプリ・補足タグ（任意）</label>
-    <input type="text" id="f-tag" placeholder="例：たびのき" autocomplete="off">
-    <label>優先度</label>
-    <div class="seg prio" id="f-prio">
-      <button data-v="high">高</button>
-      <button data-v="mid">中</button>
-      <button data-v="low">低</button>
-    </div>
-    <label>ステータス</label>
-    <div class="seg status" id="f-status">
-      <button data-v="backlog">バックログ</button>
-      <button data-v="doing">進行中</button>
-      <button data-v="done">完了</button>
-    </div>
+    <h3>どのアプリのアイデア？</h3>
+    <p class="sheet-sub">アイデアを書きたいアプリを選んでください</p>
+    <div class="picker" id="appPicker"></div>
     <div class="sheet-act">
-      <button class="cancel" id="sheetCancel">キャンセル</button>
-      <button class="save" id="sheetSave">保存</button>
+      <button class="cancel" id="sheetCancel">閉じる</button>
     </div>
   </div>
 </div>
@@ -374,15 +317,53 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ===================== 定数 ===================== */
-const PRIO = { high:'高', mid:'中', low:'低' };
-const STAT = { backlog:'バックログ', doing:'進行中', done:'完了' };
-const PRIO_RANK = { high:0, mid:1, low:2 };
-const KINDS = {
-  plan:    { label:'新アプリ構想', short:'構想', emoji:'✨', cls:'k-plan' },
-  bug:     { label:'バグ',        short:'バグ', emoji:'🐛', cls:'k-bug' },
-  improve: { label:'改善',        short:'改善', emoji:'🔧', cls:'k-improve' },
-  other:   { label:'その他',      short:'メモ', emoji:'📌', cls:'k-other' },
+// アイデアを束ねるアプリ一覧（index.html と揃える）。key は href から .html を除いたもの。
+const NEW_APP = { key:'_new', emoji:'✨', label:'アプリ制作' };  // 新しいアプリの構想用（常設）
+const APP_CATALOG = [
+  { key:'search',      emoji:'🔎',  label:'横断検索' },
+  { key:'nps',         emoji:'📊',  label:'NPSカウンター' },
+  { key:'recap',       emoji:'📈',  label:'Weekly Recap' },
+  { key:'recognition', emoji:'🌟',  label:'Recognition' },
+  { key:'grownote',    emoji:'🌳',  label:'GROW ノート' },
+  { key:'team5whys',   emoji:'🔍',  label:'5Whys ノート' },
+  { key:'reflection',  emoji:'🪞',  label:'STARS 振り返り' },
+  { key:'vault',       emoji:'🔐',  label:'Password mgr' },
+  { key:'osusowake',   emoji:'🎁',  label:'おすそわけ' },
+  { key:'schedule',    emoji:'🗓️',  label:'スケジュール→カレンダー' },
+  { key:'career',      emoji:'🗂️',  label:'キャリアログ' },
+  { key:'interview',   emoji:'🎤',  label:'Interviewノート' },
+  { key:'tsugi',       emoji:'⏰',  label:'つぎいつ？' },
+  { key:'cooking',     emoji:'🍳',  label:'ゆずごはん日記' },
+  { key:'tsunagu',     emoji:'🌱',  label:'ツナグ' },
+  { key:'tabinoki',    emoji:'🌴',  label:'たびのき' },
+  { key:'yarukoto',    emoji:'✅',  label:'やることばこ' },
+  { key:'credit',      emoji:'💳',  label:'クレジット明細マネージャー' },
+  { key:'money',       emoji:'💴',  label:'お金の残高 計算ツール' },
+  { key:'forecast',    emoji:'📉',  label:'資産予測グラフ' },
+  { key:'copybox',     emoji:'📋',  label:'コピペ箱' },
+];
+// 旧データの「対象アプリタグ」をアプリkeyへ寄せるための別名
+const APP_ALIAS = {
+  'クレカ':'credit', 'クレジット':'credit', '残高':'money', 'お金':'money',
+  '旅':'tabinoki', '献立':'cooking', 'ごはん':'cooking', 'パスワード':'vault',
+  'やること':'yarukoto', 'スケジュール':'schedule', 'キャリア':'career',
 };
+function bucketMeta(key){
+  if(key==='_new') return NEW_APP;
+  return APP_CATALOG.find(a=>a.key===key) || { key, emoji:'💡', label:key };
+}
+// 旧アイデアの tag 文字列からアプリkeyを推定（見つからなければ null）
+function matchApp(tag){
+  if(!tag) return null;
+  const t = String(tag).trim(); if(!t) return null;
+  const tl = t.toLowerCase();
+  for(const a of APP_CATALOG){
+    const lbl = a.label.toLowerCase();
+    if(a.key===tl || lbl===tl || lbl.includes(tl) || tl.includes(lbl) || tl.includes(a.key)) return a.key;
+  }
+  for(const k in APP_ALIAS){ if(t.includes(k)) return APP_ALIAS[k]; }
+  return null;
+}
 
 /* ===================== Supabase（たびのき等と同じプロジェクト） ===================== */
 const SUPABASE_URL  = 'https://okbjqtdirrathscctyvx.supabase.co';
@@ -434,10 +415,8 @@ let db = blank();
 let online = null;        // null=確認中 true=同期OK false=オフライン（sbあり）
 let lastPushed = '';
 let tab = 'todo';
-let ideaStatusFilter = 'all';
-let ideaKindFilter = 'all';
+let ideaApp = null;       // null=アプリ選択グリッド / それ以外=そのアプリの箇条書き詳細
 let todoSort = 'manual';  // 'manual' | 'due'
-let editingId = null;
 
 /* ===================== 永続化・同期 ===================== */
 function migrate(){
@@ -445,7 +424,22 @@ function migrate(){
   db.todos.forEach(x=>{ if(typeof x.order!=='number') x.order=o; o++; if(!('due' in x)) x.due=''; });
   o = 0;
   db.shopping.forEach(x=>{ if(typeof x.order!=='number') x.order=o; o++; });
-  db.ideas.forEach(x=>{ if(!x.kind) x.kind='other'; });
+  // 旧アイデア（title/memo/kind/tag/priority/status）→ 新アイデア（app別の箇条書き text）へ変換
+  db.ideas.forEach(x=>{
+    if(x.text===undefined && x.title!==undefined){
+      const app = (x.kind==='plan') ? '_new' : (matchApp(x.tag) || '_new');
+      let text = x.title || '';
+      if(x.memo) text += '\n' + x.memo;
+      x.app = app;
+      x.text = text;
+      delete x.title; delete x.memo; delete x.kind; delete x.tag;
+      delete x.priority; delete x.status; delete x.prevStatus;
+      if(!x.ts) x.ts = Date.now();
+      if(!x.updated) x.updated = x.ts;
+    }
+    if(!x.app) x.app = '_new';
+    if(x.text===undefined) x.text = '';
+  });
 }
 function loadLocal(){ try{ const s=localStorage.getItem(KEY); if(s) db=Object.assign(blank(), JSON.parse(s)); }catch(e){} }
 
@@ -518,7 +512,7 @@ function render(){
 }
 function renderCounts(){
   const t = db.todos.filter(x=>!x.done).length;
-  const i = db.ideas.filter(x=>x.status!=='done').length;
+  const i = db.ideas.length;
   const s = db.shopping.filter(x=>!x.done).length;
   document.getElementById('c-todo').textContent = t || '';
   document.getElementById('c-idea').textContent = i || '';
@@ -594,106 +588,123 @@ function rowHTML(x, kind){
   '</div>';
 }
 
-/* アイデア */
+/* アイデア — アプリ選択グリッド / 選んだアプリの箇条書き詳細 の2階層 */
 function renderIdeas(){
   const el = document.getElementById('panel-idea');
-  const active = db.ideas.filter(x=>x.status!=='done');
-  const sfilters = [['all','すべて',active.length],['backlog','バックログ',db.ideas.filter(x=>x.status==='backlog').length],
-    ['doing','進行中',db.ideas.filter(x=>x.status==='doing').length],['done','完了（アーカイブ）',db.ideas.filter(x=>x.status==='done').length]];
-  let html = '<div class="idea-tools">';
-  html += '<div class="ffield"><span class="flabel">状態</span><div class="filters">'+sfilters.map(([v,l,n])=>
-    '<button class="fchip'+(ideaStatusFilter===v?' on':'')+'" data-sfilter="'+v+'">'+l+(n?' '+n:'')+'</button>'
-  ).join('')+'</div></div>';
-  // 種類フィルタ
-  const kf = [['all','すべて']].concat(Object.keys(KINDS).map(k=>[k, KINDS[k].emoji+' '+KINDS[k].label]));
-  html += '<div class="ffield"><span class="flabel">種類</span><div class="filters kind">'+kf.map(([v,l])=>
-    '<button class="fchip kc'+(ideaKindFilter===v?' on':'')+'" data-kfilter="'+v+'">'+l+'</button>'
-  ).join('')+'</div></div>';
-  html += '</div>';
+  if(ideaApp){ renderIdeaDetail(el); return; }
 
-  let items = db.ideas.slice();
-  if(ideaStatusFilter==='all') items = items.filter(x=>x.status!=='done');
-  else items = items.filter(x=>x.status===ideaStatusFilter);
-  if(ideaKindFilter!=='all') items = items.filter(x=>x.kind===ideaKindFilter);
+  // 件数を集計
+  const counts = {};
+  db.ideas.forEach(x=>{ counts[x.app] = (counts[x.app]||0) + 1; });
 
-  items.sort((a,b)=>{
-    if(PRIO_RANK[a.priority]!==PRIO_RANK[b.priority]) return PRIO_RANK[a.priority]-PRIO_RANK[b.priority];
-    return (b.updated||b.ts||0) - (a.updated||a.ts||0);
+  // 並べるタイル：アプリ制作（常設）＋ アイデアのあるアプリのみ
+  const tiles = [NEW_APP];
+  APP_CATALOG.forEach(a=>{ if(counts[a.key]) tiles.push(a); });
+  // カタログ外のkeyにアイデアが残っていても拾う（保険）
+  Object.keys(counts).forEach(k=>{
+    if(k==='_new') return;
+    if(!tiles.some(t=>t.key===k)) tiles.push(bucketMeta(k));
   });
 
+  let html = '<div class="idea-grid">';
+  html += tiles.map(a=>{
+    const n = counts[a.key] || 0;
+    return '<button class="app-tile'+(a.key==='_new'?' make':'')+'" data-app="'+esc(a.key)+'">'+
+      '<span class="at-emoji">'+a.emoji+'</span>'+
+      '<span class="at-label">'+esc(a.label)+'</span>'+
+      '<span class="at-count">'+(n ? n+'件のアイデア' : 'メモする')+'</span>'+
+    '</button>';
+  }).join('');
+  html += '<button class="app-tile add" data-pick="1"><span class="at-emoji">＋</span><span class="at-label">アプリを選ぶ</span></button>';
+  html += '</div>';
+  el.innerHTML = html;
+}
+function renderIdeaDetail(el){
+  const meta = bucketMeta(ideaApp);
+  const items = db.ideas.filter(x=>x.app===ideaApp)
+    .sort((a,b)=>(b.updated||b.ts||0) - (a.updated||a.ts||0));
+  let html = '<div class="idea-head">'+
+    '<button class="ih-back" data-back="1">‹ アプリ一覧</button>'+
+    '<div class="ih-title"><span class="ih-emoji">'+meta.emoji+'</span>'+esc(meta.label)+'</div>'+
+  '</div>';
   if(!items.length){
-    html += '<div class="empty"><span class="e-ico">💡</span>'+
-      (db.ideas.length ? 'この条件のアイデアはありません' : 'アプリの構想やバグメモを<br>下のボタンから書き留めよう')+'</div>';
-    el.innerHTML = html;
-    return;
-  }
-  html += items.map(ideaHTML).join('');
-  if(ideaStatusFilter==='done' && items.length){
-    html += '<div class="foot-act"><button data-archclear="1">アーカイブをすべて削除</button></div>';
+    html += '<div class="empty"><span class="e-ico">'+meta.emoji+'</span>下の入力欄から<br>アイデアを箇条書きで足していこう</div>';
+  } else {
+    html += items.map(ideaItemHTML).join('');
   }
   el.innerHTML = html;
 }
-function ideaHTML(x){
-  const k = KINDS[x.kind] || KINDS.other;
-  const done = x.status==='done';
-  return '<div class="idea p-'+x.priority+' s-'+x.status+'" data-id="'+x.id+'">'+
-    '<div class="i-check'+(done?' on':'')+'" data-act="toggleDone" title="'+(done?'未完了に戻す':'完了にする')+'">'+(done?'✓':'')+'</div>'+
-    '<div class="i-main">'+
-      '<div class="i-top">'+
-        '<span class="kchip '+k.cls+'">'+k.emoji+' '+k.short+'</span>'+
-        '<button class="pill prio p-'+x.priority+'" data-act="cyclePrio">優先度 '+PRIO[x.priority]+'</button>'+
-        '<button class="pill status s-'+x.status+'" data-act="cycleStatus">'+STAT[x.status]+'</button>'+
-        (x.tag ? '<span class="tag">'+esc(x.tag)+'</span>' : '')+
-      '</div>'+
-      '<div class="i-title">'+esc(x.title)+'</div>'+
-      (x.memo ? '<div class="i-memo" data-act="copyMemo" title="タップでコピー">'+esc(x.memo)+'</div>' : '')+
-      '<div class="i-act">'+
-        (x.status==='done'
-          ? '<button data-act="restore">↩︎ 戻す</button>'
-          : '<button data-act="edit">編集</button>')+
-        (x.memo ? '<button data-act="copyMemo">📋 メモをコピー</button>' : '')+
-        '<button class="danger" data-act="del">削除</button>'+
-      '</div>'+
+function ideaItemHTML(x){
+  return '<div class="ibul" data-id="'+x.id+'">'+
+    '<span class="ib-dot">•</span>'+
+    '<div class="ib-text" data-act="edit">'+esc(x.text)+'</div>'+
+    '<div class="ib-act">'+
+      '<button data-act="copy" title="コピー">📋</button>'+
+      '<button data-act="edit" title="編集">✏️</button>'+
+      '<button data-act="del" title="削除">🗑️</button>'+
     '</div>'+
   '</div>';
 }
+function openIdeaApp(key){ ideaApp = key; renderIdeas(); renderAddbar(); window.scrollTo({ top:0 }); }
+function goIdeaGrid(){ ideaApp = null; renderIdeas(); renderAddbar(); window.scrollTo({ top:0 }); }
 
 /* 追加バー */
 function renderAddbar(){
+  const bar = document.querySelector('.addbar');
   const el = document.getElementById('addbar');
   if(tab==='idea'){
-    el.innerHTML = '<button class="add wide" id="openSheet">＋ アイデアを追加</button>';
-    document.getElementById('openSheet').onclick = ()=>openSheet(null);
-  } else {
-    const ph = tab==='todo' ? 'やることを入力…' : '買うものを入力…';
-    el.innerHTML = '<input type="text" id="quickInput" placeholder="'+ph+'" autocomplete="off" enterkeyhint="done">'+
+    // アプリ選択グリッドでは入力欄を出さない（アプリを選んでから箇条書きを足す）
+    if(!ideaApp){ bar.style.display='none'; el.innerHTML=''; return; }
+    bar.style.display='';
+    const meta = bucketMeta(ideaApp);
+    el.innerHTML = '<input type="text" id="quickInput" placeholder="'+esc(meta.label)+'のアイデアを入力…" autocomplete="off" enterkeyhint="done">'+
       '<button class="add" id="quickAdd">＋</button>';
     const inp = document.getElementById('quickInput');
     const addIt = ()=>{
       const v = inp.value.trim(); if(!v) return;
-      const arr = tab==='todo' ? db.todos : db.shopping;
-      const minOrder = arr.reduce((m,x)=>Math.min(m, x.order||0), 0);
-      const item = { id:uid(), text:v, done:false, ts:Date.now(), order:minOrder-1 };
-      if(tab==='todo') item.due='';
-      arr.unshift(item);
+      db.ideas.unshift({ id:uid(), app:ideaApp, text:v, ts:Date.now(), updated:Date.now() });
       save();
       inp.value='';
-      // 入力欄(addbar)は作り直さずリストとカウントだけ更新 → iOSでキーボードが閉じず連続入力できる
+      // 入力欄は作り直さずリストとカウントだけ更新 → iOSでキーボードが閉じず連続入力できる
       renderCounts();
-      renderChecklist(tab);
+      renderIdeas();
       inp.focus();
     };
     document.getElementById('quickAdd').onclick = addIt;
     inp.addEventListener('keydown', e=>{ if(e.key==='Enter') addIt(); });
+    return;
   }
+  bar.style.display='';
+  const ph = tab==='todo' ? 'やることを入力…' : '買うものを入力…';
+  el.innerHTML = '<input type="text" id="quickInput" placeholder="'+ph+'" autocomplete="off" enterkeyhint="done">'+
+    '<button class="add" id="quickAdd">＋</button>';
+  const inp = document.getElementById('quickInput');
+  const addIt = ()=>{
+    const v = inp.value.trim(); if(!v) return;
+    const arr = tab==='todo' ? db.todos : db.shopping;
+    const minOrder = arr.reduce((m,x)=>Math.min(m, x.order||0), 0);
+    const item = { id:uid(), text:v, done:false, ts:Date.now(), order:minOrder-1 };
+    if(tab==='todo') item.due='';
+    arr.unshift(item);
+    save();
+    inp.value='';
+    // 入力欄(addbar)は作り直さずリストとカウントだけ更新 → iOSでキーボードが閉じず連続入力できる
+    renderCounts();
+    renderChecklist(tab);
+    inp.focus();
+  };
+  document.getElementById('quickAdd').onclick = addIt;
+  inp.addEventListener('keydown', e=>{ if(e.key==='Enter') addIt(); });
 }
 
 /* ===================== タブ切替 ===================== */
 document.querySelectorAll('.tab').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     tab = btn.dataset.tab;
+    if(tab==='idea') ideaApp = null;   // アイデアタブは常にアプリ一覧から
     document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on', b===btn));
     Object.entries(panels).forEach(([k,id])=>document.getElementById(id).classList.toggle('on', k===tab));
+    if(tab==='idea') renderIdeas();
     renderAddbar();
     window.scrollTo({ top:0 });
   });
@@ -818,65 +829,71 @@ function onDragEnd(){
 
 /* ===================== アイデア操作 ===================== */
 document.getElementById('panel-idea').addEventListener('click', e=>{
-  const sf = e.target.closest('[data-sfilter]');
-  if(sf){ ideaStatusFilter = sf.dataset.sfilter; renderIdeas(); return; }
-  const kf = e.target.closest('[data-kfilter]');
-  if(kf){ ideaKindFilter = kf.dataset.kfilter; renderIdeas(); return; }
-  const ac = e.target.closest('[data-archclear]');
-  if(ac){ if(confirm('アーカイブ（完了したアイデア）をすべて削除しますか？')){ db.ideas=db.ideas.filter(x=>x.status!=='done'); save(); render(); } return; }
-  const card = e.target.closest('.idea'); if(!card) return;
-  const x = db.ideas.find(i=>i.id===card.dataset.id); if(!x) return;
+  // グリッド：戻る / アプリを選ぶ / タイル
+  if(e.target.closest('[data-back]')){ goIdeaGrid(); return; }
+  if(e.target.closest('[data-pick]')){ openPicker(); return; }
+  const tile = e.target.closest('[data-app]');
+  if(tile){ openIdeaApp(tile.dataset.app); return; }
+  // 詳細：箇条書き1件の操作
+  const bul = e.target.closest('.ibul'); if(!bul) return;
+  const x = db.ideas.find(i=>i.id===bul.dataset.id); if(!x) return;
   const act = e.target.closest('[data-act]')?.dataset.act;
-  if(act==='toggleDone'){
-    if(x.status==='done'){ x.status = x.prevStatus || 'backlog'; }
-    else { x.prevStatus = x.status; x.status = 'done'; }
-    x.updated=Date.now(); save(); render();
-  }
-  else if(act==='cyclePrio'){ x.priority = ({high:'mid',mid:'low',low:'high'})[x.priority]; x.updated=Date.now(); save(); render(); }
-  else if(act==='cycleStatus'){ x.status = ({backlog:'doing',doing:'done',done:'backlog'})[x.status]; x.updated=Date.now(); save(); render(); }
-  else if(act==='restore'){ x.status='backlog'; x.updated=Date.now(); save(); render(); }
-  else if(act==='edit'){ openSheet(x); }
-  else if(act==='copyMemo'){ copyText(x.memo).then(ok=>toast(ok?'📋 メモをコピーしました':'コピーできませんでした')); }
-  else if(act==='del'){ db.ideas.splice(db.ideas.indexOf(x),1); save(); render(); }
+  if(act==='copy'){ copyText(x.text).then(ok=>toast(ok?'📋 コピーしました':'コピーできませんでした')); }
+  else if(act==='edit'){ startIdeaEdit(bul, x); }
+  else if(act==='del'){ db.ideas.splice(db.ideas.indexOf(x),1); save(); renderCounts(); renderIdeas(); }
 });
 
-/* ===================== アイデア入力シート ===================== */
-const sheetBg = document.getElementById('sheetBg');
-let sheetPrio='mid', sheetStatus='backlog', sheetKind='plan';
-function setSeg(group, val){ document.querySelectorAll('#f-'+group+' button').forEach(b=>b.classList.toggle('on', b.dataset.v===val)); }
-document.querySelectorAll('#f-prio button').forEach(b=>b.onclick=()=>{ sheetPrio=b.dataset.v; setSeg('prio',sheetPrio); });
-document.querySelectorAll('#f-status button').forEach(b=>b.onclick=()=>{ sheetStatus=b.dataset.v; setSeg('status',sheetStatus); });
-document.querySelectorAll('#f-kind button').forEach(b=>b.onclick=()=>{ sheetKind=b.dataset.v; setSeg('kind',sheetKind); });
-
-function openSheet(x){
-  editingId = x ? x.id : null;
-  document.getElementById('sheetTitle').textContent = x ? 'アイデアを編集' : 'アイデアを追加';
-  document.getElementById('f-title').value = x ? x.title : '';
-  document.getElementById('f-memo').value = x ? (x.memo||'') : '';
-  document.getElementById('f-tag').value = x ? (x.tag||'') : '';
-  sheetPrio = x ? x.priority : 'mid';
-  sheetStatus = x ? x.status : 'backlog';
-  sheetKind = x ? (x.kind||'other') : 'plan';
-  setSeg('prio',sheetPrio); setSeg('status',sheetStatus); setSeg('kind',sheetKind);
-  sheetBg.classList.add('on');
-  setTimeout(()=>document.getElementById('f-title').focus(), 80);
+/* 箇条書きをその場で編集（タップ→入力欄に変身。複数行も可） */
+function startIdeaEdit(bul, item){
+  const textEl = bul.querySelector('.ib-text');
+  if(!textEl || bul.querySelector('.ib-edit')) return;
+  const input = document.createElement('textarea');
+  input.className = 'ib-edit';
+  input.value = item.text;
+  input.rows = Math.min(8, item.text.split('\n').length + 1);
+  textEl.replaceWith(input);
+  input.focus();
+  const v = input.value; input.value=''; input.value=v;   // キャレットを末尾に
+  let committed = false;
+  function commit(persist){
+    if(committed) return; committed = true;
+    if(persist){
+      const nv = input.value.trim();
+      if(nv && nv !== item.text){ item.text = nv; item.updated = Date.now(); save(); }
+    }
+    renderIdeas();
+  }
+  input.addEventListener('keydown', e=>{
+    if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); commit(true); }
+    else if(e.key==='Escape'){ commit(false); }
+  });
+  input.addEventListener('blur', ()=>commit(true));
 }
-function closeSheet(){ sheetBg.classList.remove('on'); editingId=null; }
+
+/* ===================== アプリ選択ピッカー ===================== */
+const sheetBg = document.getElementById('sheetBg');
+function openPicker(){
+  const wrap = document.getElementById('appPicker');
+  const counts = {};
+  db.ideas.forEach(x=>{ counts[x.app] = (counts[x.app]||0) + 1; });
+  const all = [NEW_APP].concat(APP_CATALOG);
+  wrap.innerHTML = all.map(a=>
+    '<button class="pk-row" data-pickapp="'+esc(a.key)+'">'+
+      '<span class="pk-emoji">'+a.emoji+'</span>'+
+      '<span class="pk-label">'+esc(a.label)+'</span>'+
+      (counts[a.key] ? '<span class="pk-count">'+counts[a.key]+'</span>' : '')+
+    '</button>'
+  ).join('');
+  sheetBg.classList.add('on');
+}
+function closeSheet(){ sheetBg.classList.remove('on'); }
 document.getElementById('sheetCancel').onclick = closeSheet;
 sheetBg.addEventListener('click', e=>{ if(e.target===sheetBg) closeSheet(); });
-document.getElementById('sheetSave').onclick = ()=>{
-  const title = document.getElementById('f-title').value.trim();
-  if(!title){ document.getElementById('f-title').focus(); return; }
-  const memo = document.getElementById('f-memo').value.trim();
-  const tag = document.getElementById('f-tag').value.trim();
-  if(editingId){
-    const x = db.ideas.find(i=>i.id===editingId);
-    if(x) Object.assign(x, { title, memo, tag, kind:sheetKind, priority:sheetPrio, status:sheetStatus, updated:Date.now() });
-  } else {
-    db.ideas.unshift({ id:uid(), title, memo, tag, kind:sheetKind, priority:sheetPrio, status:sheetStatus, ts:Date.now(), updated:Date.now() });
-  }
-  save(); closeSheet(); render();
-};
+document.getElementById('appPicker').addEventListener('click', e=>{
+  const row = e.target.closest('[data-pickapp]'); if(!row) return;
+  closeSheet();
+  openIdeaApp(row.dataset.pickapp);
+});
 
 /* ===================== 起動 ===================== */
 loadLocal();

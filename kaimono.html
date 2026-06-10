@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="apple-touch-icon" href="icons/icon-index.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="おつかいカート">
+<title>おつかいカート — Amazon買い物アシスト</title>
+<style>
+  :root{
+    --bg:#f5f5f7; --card:#ffffff; --ink:#1d1d1f; --sub:#6e6e73;
+    --line:#e5e5ea; --accent:#0071e3; --amazon:#ff9900;
+    --green:#34c759; --orange:#ff9500; --red:#ff3b30; --gray:#c7c7cc;
+    --radius:18px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Helvetica Neue",Arial,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.6;
+    padding:env(safe-area-inset-top) 14px calc(120px + env(safe-area-inset-bottom));
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:680px; margin:0 auto;}
+  header{padding:30px 4px 14px; text-align:center;}
+  .logo{font-size:40px; line-height:1;}
+  h1{font-size:26px; font-weight:800; letter-spacing:-.02em; margin-top:8px;}
+  .tagline{color:var(--sub); font-size:13px; margin-top:5px;}
+  .sync{display:inline-flex; align-items:center; gap:6px; margin-top:12px;
+    font-size:11.5px; font-weight:600; color:var(--sub);
+    background:var(--card); border:1px solid var(--line); border-radius:999px; padding:4px 11px;}
+  .sync .dot{width:7px; height:7px; border-radius:50%; background:var(--gray);}
+  .sync.ok .dot{background:var(--green);} .sync.off .dot{background:var(--orange);}
+  .sync.local .dot{background:var(--gray);}
+
+  /* ===== 検索設定バー ===== */
+  .panel{background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px; margin-top:16px;}
+  .panel h2{font-size:13px; font-weight:700; color:var(--sub); display:flex; align-items:center;
+    gap:6px; margin-bottom:10px;}
+  .addrow{display:flex; gap:8px;}
+  .addrow input{flex:1; min-width:0; border:1px solid var(--line); border-radius:12px;
+    padding:12px 13px; font-size:16px; background:var(--bg); color:var(--ink);}
+  .addrow input:focus{outline:none; border-color:var(--accent); background:#fff;}
+  .req-input{flex:0 0 96px !important;}
+  .btn{border:none; border-radius:12px; font-size:15px; font-weight:700; cursor:pointer;
+    padding:12px 16px; transition:transform .12s ease, opacity .12s ease;}
+  .btn:active{transform:scale(.95);}
+  .btn-primary{background:var(--accent); color:#fff;}
+  .btn-amazon{background:var(--amazon); color:#1d1d1f;}
+  .btn-ghost{background:var(--bg); color:var(--ink); border:1px solid var(--line);}
+  .btn-add{flex:0 0 auto; padding:12px 18px;}
+  .toggles{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;}
+  .tg{display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600;
+    background:var(--bg); border:1px solid var(--line); border-radius:999px;
+    padding:7px 13px; cursor:pointer; color:var(--sub); user-select:none;}
+  .tg.on{background:#e7f0ff; border-color:#bcd9ff; color:var(--accent);}
+  .tg .sw{width:14px; height:14px; border-radius:50%; background:var(--gray); flex:0 0 auto;}
+  .tg.on .sw{background:var(--accent);}
+  .hint{font-size:11.5px; color:var(--sub); margin-top:10px; line-height:1.5;
+    background:#fffaf0; border:1px solid #ffe9c2; border-radius:12px; padding:9px 11px;}
+
+  /* ===== フィルタタブ ===== */
+  .tabs{display:flex; gap:6px; margin:18px 2px 6px; overflow-x:auto; -webkit-overflow-scrolling:touch;}
+  .tab{flex:0 0 auto; font-size:13px; font-weight:700; color:var(--sub);
+    background:var(--card); border:1px solid var(--line); border-radius:999px;
+    padding:8px 14px; cursor:pointer;}
+  .tab.on{background:var(--ink); color:#fff; border-color:var(--ink);}
+  .tab .n{opacity:.6; margin-left:4px; font-weight:600;}
+
+  /* ===== アイテムカード ===== */
+  .list{margin-top:10px; display:flex; flex-direction:column; gap:12px;}
+  .item{background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:15px 15px 13px; position:relative;}
+  .item.done{opacity:.62;}
+  .item-top{display:flex; align-items:flex-start; gap:10px;}
+  .item-name{font-size:17px; font-weight:700; letter-spacing:-.01em; flex:1; min-width:0;
+    word-break:break-word; cursor:text;}
+  .item.done .item-name{text-decoration:line-through; text-decoration-color:var(--gray);}
+  .star{flex:0 0 auto; font-size:19px; cursor:pointer; line-height:1; color:var(--gray);
+    background:none; border:none; padding:2px;}
+  .star.on{color:var(--orange);}
+  .meta{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:7px;}
+  .chip{font-size:11.5px; font-weight:700; border-radius:999px; padding:3px 9px;}
+  .chip.req{background:#f0e9ff; color:#7d4ae0;}
+  .chip.memo{background:var(--bg); color:var(--sub); font-weight:600;}
+  .chip.price{background:#eafbf0; color:#1a9c4b;}
+  .chip.up{background:#ffeceb; color:var(--red);}
+  .chip.down{background:#eafbf0; color:#1a9c4b;}
+
+  /* ステータスステッパー */
+  .steps{display:flex; gap:5px; margin-top:11px;}
+  .step{flex:1; text-align:center; font-size:11px; font-weight:700; color:var(--sub);
+    background:var(--bg); border:1px solid var(--line); border-radius:9px; padding:7px 2px; cursor:pointer;}
+  .step.cur{color:#fff; border-color:transparent;}
+  .step.s-requested.cur{background:var(--sub);}
+  .step.s-incart.cur{background:var(--amazon); color:#1d1d1f;}
+  .step.s-bought.cur{background:var(--accent);}
+  .step.s-delivered.cur{background:var(--green);}
+  .step.passed{background:#eef6ff; color:var(--accent); border-color:#d6e8ff;}
+
+  /* アクション行 */
+  .actions{display:flex; gap:8px; margin-top:11px; flex-wrap:wrap;}
+  .actions .btn{flex:1; min-width:0; padding:11px 10px; font-size:14px;
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;}
+  .linkbox{margin-top:11px; display:flex; gap:8px; align-items:center;
+    background:var(--bg); border:1px solid var(--line); border-radius:12px; padding:9px 11px;}
+  .linkbox a{flex:1; min-width:0; font-size:12.5px; color:var(--accent); text-decoration:none;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .linkbox .mini{flex:0 0 auto; font-size:12px; font-weight:700; padding:7px 11px; border-radius:9px;
+    border:none; cursor:pointer; background:var(--accent); color:#fff;}
+  .linkbox .mini.g{background:var(--card); color:var(--ink); border:1px solid var(--line);}
+  .paste{margin-top:10px; display:flex; gap:8px;}
+  .paste input{flex:1; min-width:0; border:1px solid var(--line); border-radius:11px;
+    padding:10px 12px; font-size:14px; background:var(--bg); color:var(--ink);}
+  .paste input:focus{outline:none; border-color:var(--accent); background:#fff;}
+  .paste .price-in{flex:0 0 92px !important;}
+  .del{display:block; margin:10px 0 0 auto; background:none; border:none; cursor:pointer;
+    color:var(--gray); font-size:13px; padding:4px 2px;}
+  .del:active{color:var(--red);}
+  .empty{text-align:center; color:var(--sub); font-size:14px; padding:42px 16px;}
+  .empty .e{font-size:34px; display:block; margin-bottom:10px;}
+
+  /* リピート品 */
+  .repeat-sec{margin-top:24px;}
+  .repeat-sec h2{font-size:14px; font-weight:800; color:var(--ink); display:flex; gap:7px;
+    align-items:center; padding:0 2px 8px;}
+  .rchips{display:flex; flex-wrap:wrap; gap:8px;}
+  .rchip{display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:600;
+    background:var(--card); border:1px solid var(--line); border-radius:999px; padding:8px 13px;
+    cursor:pointer; color:var(--ink);}
+  .rchip:active{transform:scale(.96);}
+  .rchip .re{color:var(--orange);}
+
+  /* 下部固定バー */
+  .footbar{position:fixed; left:0; right:0; bottom:0; z-index:40;
+    padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+    background:rgba(245,245,247,.86);
+    -webkit-backdrop-filter:saturate(180%) blur(16px); backdrop-filter:saturate(180%) blur(16px);
+    border-top:1px solid var(--line);}
+  .footbar .inner{max-width:680px; margin:0 auto; display:flex; gap:9px; align-items:center;}
+  .total{flex:1; min-width:0;}
+  .total b{font-size:19px; font-weight:800; letter-spacing:-.02em;}
+  .total span{display:block; font-size:11px; color:var(--sub);}
+  .footbar .btn{flex:0 0 auto;}
+
+  /* トースト */
+  #toast{position:fixed; left:50%; bottom:calc(96px + env(safe-area-inset-bottom));
+    transform:translateX(-50%) translateY(20px); z-index:90;
+    background:rgba(29,29,31,.94); color:#fff; font-size:13.5px; font-weight:600;
+    padding:11px 18px; border-radius:999px; opacity:0; pointer-events:none;
+    transition:opacity .2s ease, transform .2s ease; white-space:nowrap;}
+  #toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  footer{text-align:center; color:var(--sub); font-size:11px; margin-top:30px; line-height:1.7;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">🛒</div>
+    <h1>おつかいカート</h1>
+    <p class="tagline">頼まれた物を、いちばん安く・安心して買う</p>
+    <div class="sync local" id="syncChip"><span class="dot"></span><span id="syncText">この端末に保存</span></div>
+  </header>
+
+  <!-- 追加＆検索設定 -->
+  <div class="panel">
+    <h2>🔍 買う物を追加 / 検索</h2>
+    <div class="addrow">
+      <input id="nameInput" type="text" placeholder="何を買う？（例：トイレットペーパー）" autocomplete="off">
+      <input id="reqInput" class="req-input" type="text" placeholder="頼んだ人" value="お母さん" autocomplete="off">
+      <button class="btn btn-primary btn-add" id="addBtn">＋</button>
+    </div>
+    <div class="toggles">
+      <span class="tg" id="tgPrime"><span class="sw"></span>プライムのみ</span>
+      <span class="tg" id="tgAmazon"><span class="sw"></span>Amazon直販のみ</span>
+    </div>
+    <div class="hint" id="searchHint"></div>
+  </div>
+
+  <!-- フィルタ -->
+  <div class="tabs" id="tabs"></div>
+
+  <!-- リスト -->
+  <div class="list" id="list"></div>
+
+  <!-- リピート品 -->
+  <div class="repeat-sec" id="repeatSec" hidden>
+    <h2>⭐ リピート品（タップで安い順検索）</h2>
+    <div class="rchips" id="rchips"></div>
+  </div>
+
+  <footer>
+    安い順で検索 → 中身を確認 → リンクを貼って保存。<br>
+    最終的な購入操作はご自身で行ってください。
+  </footer>
+</div>
+
+<!-- 下部：立替合計＆報告 -->
+<div class="footbar">
+  <div class="inner">
+    <div class="total">
+      <b id="totalAmt">¥0</b>
+      <span id="totalSub">立替中の合計</span>
+    </div>
+    <button class="btn btn-ghost" id="reportBtn">📋 報告文</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ====================================================================
+   おつかいカート — Amazon買い物アシスト（手動アシスト型・単一HTML）
+   ・商品名 → 安い順 / プライム / Amazon直販 で絞った検索を開く
+   ・見つけた商品リンクを貼ると /dp/ASIN のきれいなURLに整形して保存
+   ・ワンタップでコピー、ステータス管理、価格履歴、報告文コピー
+   ==================================================================== */
+const STORAGE_KEY='kaimonoCart_v1';
+
+/* ===== Supabase 同期（クレジット明細マネージャー等と同じ個人用1行ブロブ） ===== */
+const SUPABASE_URL='https://okbjqtdirrathscctyvx.supabase.co';
+const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rYmpxdGRpcnJhdGhzY2N0eXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMjI4NTIsImV4cCI6MjA5NTg5ODg1Mn0.T-1AOK6vCD6uGdqrVGXjPui3L6WPSNrnygS-IHyfZ6Y';
+const STATE_TABLE='kaimono_state', STATE_ID='kodai';
+const sb=(window.supabase&&window.supabase.createClient)?supabase.createClient(SUPABASE_URL,SUPABASE_ANON):null;
+let online=null, lastPushed='', pendingSync=false, saveTimer=null;
+
+/* ===== データ ===== */
+let data={items:[], settings:{primeOnly:true, amazonOnly:false}, updatedAt:0};
+let state={filter:'all'};
+
+const STATUSES=[
+  {key:'requested', label:'依頼中'},
+  {key:'incart',    label:'カゴ'},
+  {key:'bought',    label:'買った'},
+  {key:'delivered', label:'渡した'},
+];
+const STATUS_IDX=Object.fromEntries(STATUSES.map((s,i)=>[s.key,i]));
+
+/* ===== ユーティリティ ===== */
+function uid(){return 'i'+Math.floor((performance.now()*1000))+'_'+(data.items.length);}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function yen(n){return '¥'+Number(n||0).toLocaleString('ja-JP');}
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+
+/* Amazonの色々なURLから ASIN(10桁) を取り出す */
+function extractAsin(url){
+  if(!url) return null;
+  let m = url.match(/\/(?:dp|gp\/product|gp\/aw\/d|product|gp\/offer-listing)\/([A-Z0-9]{10})/i)
+       || url.match(/[\/?&](?:asin|ASIN)=([A-Z0-9]{10})\b/);
+  return m ? m[1].toUpperCase() : null;
+}
+/* 余計な追跡パラメータを落としてキレイな購入URLにする */
+function cleanUrl(url){
+  url=(url||'').trim();
+  if(!url) return '';
+  const asin=extractAsin(url);
+  if(asin) return 'https://www.amazon.co.jp/dp/'+asin;
+  return url; // ASINが取れない（検索URL等）はそのまま
+}
+function isAmazon(url){return /amazon\.(co\.jp|com)/i.test(url||'');}
+
+/* 検索URLを設定トグルに従って組み立てる */
+function searchUrl(q){
+  let u='https://www.amazon.co.jp/s?k='+encodeURIComponent(q);
+  u+='&s=price-asc-rank';                                  // 価格の安い順
+  if(data.settings.primeOnly) u+='&rh='+encodeURIComponent('p_76:2227299051'); // プライム対象
+  if(data.settings.amazonOnly) u+='&emi=AN1VRQENFRJN5';    // 販売元 Amazon（直販）のみ
+  return u;
+}
+function openSearch(q){
+  if(!q || !q.trim()){toast('品名を入れてね');return;}
+  window.open(searchUrl(q.trim()),'_blank','noopener');
+}
+
+/* ===== 保存・同期 ===== */
+function persistLocal(){data.updatedAt=Date.now();localStorage.setItem(STORAGE_KEY,JSON.stringify(data));}
+function save(){
+  persistLocal();
+  if(!sb)return;
+  pendingSync=true; clearTimeout(saveTimer); saveTimer=setTimeout(flushSave,350);
+}
+async function flushSave(){
+  if(!sb||!pendingSync)return;
+  clearTimeout(saveTimer); lastPushed=JSON.stringify(data); pendingSync=false;
+  try{
+    const {error}=await sb.from(STATE_TABLE).upsert({id:STATE_ID,state:data,updated_at:new Date().toISOString()});
+    if(error){online=false;pendingSync=true;}else if(online!==true){online=true;}
+  }catch(e){online=false;pendingSync=true;}
+  renderSync();
+}
+function normalize(s){
+  return {
+    items:Array.isArray(s.items)?s.items:[],
+    settings:Object.assign({primeOnly:true,amazonOnly:false},s.settings||{}),
+    updatedAt:s.updatedAt||0,
+  };
+}
+async function loadRemote(){
+  if(!sb){online=false;renderSync();return;}
+  try{
+    const {data:row,error}=await sb.from(STATE_TABLE).select('state').eq('id',STATE_ID).maybeSingle();
+    if(error){online=false;renderSync();return;}
+    online=true;
+    if(row&&row.state&&typeof row.state==='object'){
+      const localT=data.updatedAt||0, remoteT=row.state.updatedAt||0;
+      if(remoteT>=localT){ data=normalize(row.state); localStorage.setItem(STORAGE_KEY,JSON.stringify(data)); renderAll(); }
+      else { save(); }
+    } else {
+      if(data.items.length) save();
+    }
+  }catch(e){online=false;}
+  renderSync();
+}
+function subscribeRealtime(){
+  if(!sb)return;
+  sb.channel('kaimono-rt')
+    .on('postgres_changes',{event:'*',schema:'public',table:STATE_TABLE,filter:'id=eq.'+STATE_ID},(payload)=>{
+      const incoming=payload.new&&payload.new.state;
+      if(!incoming)return;
+      if(JSON.stringify(incoming)===lastPushed)return;
+      if((incoming.updatedAt||0)<(data.updatedAt||0))return;
+      data=normalize(incoming);
+      localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+      renderAll();
+      toast('🔄 他の端末から更新しました');
+    })
+    .subscribe();
+}
+function renderSync(){
+  const chip=document.getElementById('syncChip'),txt=document.getElementById('syncText');
+  chip.classList.remove('ok','off','local');
+  if(!sb){chip.classList.add('local');txt.textContent='この端末に保存';return;}
+  if(online===true){chip.classList.add('ok');txt.textContent='クラウド同期中';}
+  else if(online===false){chip.classList.add('off');txt.textContent='オフライン（この端末に保存）';}
+  else{chip.classList.add('local');txt.textContent='接続中…';}
+}
+
+/* ===== トースト ===== */
+let toastTimer=null;
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),1800);
+}
+async function copyText(text){
+  try{ await navigator.clipboard.writeText(text); toast('📋 コピーしました'); }
+  catch(e){
+    const ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed';
+    ta.style.left='-9999px'; document.body.appendChild(ta); ta.select();
+    try{document.execCommand('copy');toast('📋 コピーしました');}catch(_){toast('コピーできませんでした');}
+    document.body.removeChild(ta);
+  }
+}
+
+/* ===== 操作 ===== */
+function addItem(){
+  const ni=document.getElementById('nameInput'), ri=document.getElementById('reqInput');
+  const name=ni.value.trim();
+  if(!name){toast('品名を入れてね');ni.focus();return;}
+  data.items.unshift({
+    id:uid(), name, requester:ri.value.trim(), memo:'',
+    status:'requested', link:'', price:null, repeat:false,
+    priceHistory:[], createdAt:Date.now(),
+  });
+  ni.value=''; save(); renderAll(); ni.focus();
+}
+function getItem(id){return data.items.find(i=>i.id===id);}
+function setStatus(id,key){
+  const it=getItem(id); if(!it)return;
+  // 「買った」に進んだら、その時の価格を履歴に記録（値段が入っていれば）
+  if(key==='bought' && it.status!=='bought' && it.price!=null){
+    it.priceHistory=it.priceHistory||[];
+    it.priceHistory.push({price:it.price, date:todayStr()});
+  }
+  it.status=key; save(); renderAll();
+}
+function saveLink(id){
+  const it=getItem(id); if(!it)return;
+  const raw=document.getElementById('pl_'+id).value;
+  const priceRaw=document.getElementById('pp_'+id).value.replace(/[^\d]/g,'');
+  if(raw.trim()){
+    if(isAmazon(raw) && !extractAsin(raw) && !/\/s\?/.test(raw)){
+      // amazonっぽいが商品ページではない → 一応そのまま入れるが軽く注意
+    }
+    it.link=cleanUrl(raw);
+  }
+  it.price = priceRaw ? Number(priceRaw) : it.price;
+  // リンクor価格が入ったら、まだ依頼中なら「カゴ」へ自動で進める
+  if((it.link||it.price!=null) && it.status==='requested') it.status='incart';
+  document.getElementById('pl_'+id).value='';
+  save(); renderAll(); toast('保存しました');
+}
+function toggleStar(id){const it=getItem(id);if(!it)return;it.repeat=!it.repeat;save();renderAll();}
+function delItem(id){
+  const it=getItem(id);if(!it)return;
+  if(!confirm('「'+it.name+'」を削除しますか？'))return;
+  data.items=data.items.filter(i=>i.id!==id); save(); renderAll();
+}
+function editName(id){
+  const it=getItem(id);if(!it)return;
+  const v=prompt('品名を編集',it.name); if(v==null)return;
+  if(v.trim()){it.name=v.trim();save();renderAll();}
+}
+function editMemo(id){
+  const it=getItem(id);if(!it)return;
+  const v=prompt('メモ（数量・銘柄・色など）',it.memo||''); if(v==null)return;
+  it.memo=v.trim(); save(); renderAll();
+}
+
+/* ===== 描画 ===== */
+const FILTERS=[
+  {key:'all',      label:'すべて',  test:()=>true},
+  {key:'active',   label:'依頼中',  test:i=>i.status==='requested'},
+  {key:'progress', label:'買い物中',test:i=>i.status==='incart'||i.status==='bought'},
+  {key:'done',     label:'渡した',  test:i=>i.status==='delivered'},
+];
+function renderTabs(){
+  const el=document.getElementById('tabs');
+  el.innerHTML=FILTERS.map(f=>{
+    const n=data.items.filter(f.test).length;
+    return '<div class="tab'+(state.filter===f.key?' on':'')+'" data-f="'+f.key+'">'+
+      f.label+'<span class="n">'+n+'</span></div>';
+  }).join('');
+  el.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{state.filter=t.dataset.f;renderAll();});
+}
+function lastBoughtPrice(it){
+  const h=it.priceHistory||[];
+  if(h.length>=2) return h[h.length-2].price;   // 今回の1つ前
+  return null;
+}
+function itemHTML(it){
+  const idx=STATUS_IDX[it.status];
+  const steps=STATUSES.map((s,i)=>{
+    let cls='step s-'+s.key;
+    if(i===idx)cls+=' cur'; else if(i<idx)cls+=' passed';
+    return '<div class="'+cls+'" data-act="status" data-id="'+it.id+'" data-key="'+s.key+'">'+s.label+'</div>';
+  }).join('');
+
+  const meta=[];
+  if(it.requester) meta.push('<span class="chip req">🙋 '+esc(it.requester)+'</span>');
+  if(it.memo) meta.push('<span class="chip memo" data-act="memo" data-id="'+it.id+'">📝 '+esc(it.memo)+'</span>');
+  else meta.push('<span class="chip memo" data-act="memo" data-id="'+it.id+'">＋メモ</span>');
+  if(it.price!=null){
+    meta.push('<span class="chip price">'+yen(it.price)+'</span>');
+    const prev=lastBoughtPrice(it);
+    if(prev!=null && it.price!==prev){
+      const up=it.price>prev;
+      meta.push('<span class="chip '+(up?'up':'down')+'">'+(up?'↑前回より +':'↓前回より -')+
+        yen(Math.abs(it.price-prev)).slice(1)+'</span>');
+    }
+  }
+
+  let linkbox='';
+  if(it.link){
+    linkbox='<div class="linkbox">'+
+      '<a href="'+esc(it.link)+'" target="_blank" rel="noopener">'+esc(it.link)+'</a>'+
+      '<button class="mini" data-act="copy" data-id="'+it.id+'">コピー</button>'+
+      '<button class="mini g" data-act="open" data-id="'+it.id+'">開く</button>'+
+    '</div>';
+  }
+
+  const pasteName=esc(it.name);
+  return '<div class="item'+(it.status==='delivered'?' done':'')+'" data-id="'+it.id+'">'+
+    '<div class="item-top">'+
+      '<div class="item-name" data-act="rename" data-id="'+it.id+'">'+esc(it.name)+'</div>'+
+      '<button class="star'+(it.repeat?' on':'')+'" data-act="star" data-id="'+it.id+'" title="リピート品">★</button>'+
+    '</div>'+
+    '<div class="meta">'+meta.join('')+'</div>'+
+    '<div class="actions">'+
+      '<button class="btn btn-amazon" data-act="search" data-id="'+it.id+'">🔍 安い順で検索</button>'+
+    '</div>'+
+    '<div class="steps">'+steps+'</div>'+
+    linkbox+
+    '<div class="paste">'+
+      '<input id="pl_'+it.id+'" type="url" inputmode="url" placeholder="商品リンクを貼り付け" autocomplete="off">'+
+      '<input id="pp_'+it.id+'" class="price-in" type="text" inputmode="numeric" placeholder="価格" autocomplete="off">'+
+      '<button class="btn btn-primary" style="flex:0 0 auto;padding:10px 14px;font-size:14px;" data-act="savelink" data-id="'+it.id+'">保存</button>'+
+    '</div>'+
+    '<button class="del" data-act="del" data-id="'+it.id+'">🗑 削除</button>'+
+  '</div>';
+}
+function renderList(){
+  const el=document.getElementById('list');
+  const f=FILTERS.find(x=>x.key===state.filter)||FILTERS[0];
+  const items=data.items.filter(f.test);
+  if(!items.length){
+    el.innerHTML='<div class="empty"><span class="e">🛍️</span>'+
+      (data.items.length? 'この条件の品物はありません':'上の欄から、頼まれた物を追加してみましょう')+'</div>';
+    return;
+  }
+  el.innerHTML=items.map(itemHTML).join('');
+  // イベント委譲
+  el.querySelectorAll('[data-act]').forEach(node=>{
+    const id=node.dataset.id, act=node.dataset.act;
+    node.onclick=(e)=>{
+      if(act==='status') setStatus(id,node.dataset.key);
+      else if(act==='search') openSearch(getItem(id).name);
+      else if(act==='copy') copyText(getItem(id).link);
+      else if(act==='open') window.open(getItem(id).link,'_blank','noopener');
+      else if(act==='savelink') saveLink(id);
+      else if(act==='star') toggleStar(id);
+      else if(act==='del') delItem(id);
+      else if(act==='rename') editName(id);
+      else if(act==='memo') editMemo(id);
+    };
+  });
+}
+function renderRepeat(){
+  const sec=document.getElementById('repeatSec'), box=document.getElementById('rchips');
+  const reps=data.items.filter(i=>i.repeat);
+  if(!reps.length){sec.hidden=true;return;}
+  sec.hidden=false;
+  box.innerHTML=reps.map(it=>
+    '<button class="rchip" data-id="'+it.id+'"><span class="re">★</span>'+esc(it.name)+'</button>'
+  ).join('');
+  box.querySelectorAll('.rchip').forEach(c=>c.onclick=()=>openSearch(getItem(c.dataset.id).name));
+}
+function renderTotal(){
+  // 「買った」けどまだ「渡した」になっていない＝立替中
+  const pending=data.items.filter(i=>i.status==='bought');
+  const sum=pending.reduce((a,i)=>a+(i.price||0),0);
+  document.getElementById('totalAmt').textContent=yen(sum);
+  document.getElementById('totalSub').textContent=
+    pending.length? '立替中 '+pending.length+'件（未精算）' : '立替中の合計';
+}
+function renderToggles(){
+  document.getElementById('tgPrime').classList.toggle('on',!!data.settings.primeOnly);
+  document.getElementById('tgAmazon').classList.toggle('on',!!data.settings.amazonOnly);
+  const parts=['価格の安い順'];
+  if(data.settings.primeOnly)parts.push('プライム対象');
+  if(data.settings.amazonOnly)parts.push('Amazon直販のみ');
+  document.getElementById('searchHint').innerHTML=
+    '💡 <b>'+parts.join('・')+'</b>で検索を開きます。いちばん上が今いちばん安い商品です。'+
+    '送料・出品者・商品の状態を確認してから選んでね。';
+}
+function renderAll(){renderTabs();renderList();renderRepeat();renderTotal();renderToggles();}
+
+/* ===== 報告文 ===== */
+function buildReport(){
+  const bought=data.items.filter(i=>i.status==='bought'||i.status==='delivered');
+  if(!bought.length){toast('「買った」物がまだありません');return;}
+  const lines=['【おかいもの報告】'];
+  let sum=0;
+  bought.forEach(i=>{
+    const p=i.price!=null?(' '+yen(i.price)):'';
+    lines.push('・'+i.name+p);
+    sum+=i.price||0;
+  });
+  lines.push('合計 '+yen(sum));
+  copyText(lines.join('\n'));
+}
+
+/* ===== 初期化 ===== */
+function init(){
+  try{const s=localStorage.getItem(STORAGE_KEY); if(s)data=normalize(JSON.parse(s));}catch(e){}
+  renderAll(); renderSync();
+
+  document.getElementById('addBtn').onclick=addItem;
+  document.getElementById('nameInput').addEventListener('keydown',e=>{if(e.key==='Enter')addItem();});
+  document.getElementById('reqInput').addEventListener('keydown',e=>{if(e.key==='Enter')addItem();});
+  document.getElementById('tgPrime').onclick=()=>{data.settings.primeOnly=!data.settings.primeOnly;save();renderToggles();};
+  document.getElementById('tgAmazon').onclick=()=>{data.settings.amazonOnly=!data.settings.amazonOnly;save();renderToggles();};
+  document.getElementById('reportBtn').onclick=buildReport;
+
+  loadRemote(); subscribeRealtime();
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)flushSave();});
+  window.addEventListener('pagehide',flushSave);
+}
+init();
+</script>
+</body>
+</html>

@@ -66,11 +66,40 @@ h1{font-size:22px;font-weight:600;text-align:center;margin:4px 0 2px}
 .amz-candidate-btn{text-align:left;background:#fff;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--text)}
 .amz-candidate-btn:hover{border-color:var(--blue);background:#f0f8ff}
 .cat-list{display:flex;flex-direction:column;gap:7px}
-.cat-row{display:flex;align-items:center;gap:10px}
-.cat-row .name{flex:0 0 110px;font-size:13px}
-.cat-row .bar-wrap{flex:1;background:var(--bg);border-radius:6px;height:7px;overflow:hidden}
+.cat-chart-wrap{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.donut{width:150px;height:150px;flex:0 0 auto;margin:0 auto;display:block}
+.donut-total{font-size:15px;font-weight:700;fill:var(--text)}
+.donut-label{font-size:9px;fill:var(--sub)}
+.cat-rows{flex:1 1 260px;display:flex;flex-direction:column;gap:7px;min-width:0}
+.cat-item{border-radius:8px}
+.cat-row{display:flex;align-items:center;gap:8px;cursor:pointer;padding:3px 4px;border-radius:8px}
+.cat-row:hover{background:var(--bg)}
+.cat-dot{flex:0 0 auto;width:9px;height:9px;border-radius:50%}
+.cat-row .name{flex:0 0 92px;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cat-row .bar-wrap{flex:1;background:var(--bg);border-radius:6px;height:7px;overflow:hidden;min-width:30px}
 .cat-row .bar{height:100%;background:var(--blue);border-radius:6px}
-.cat-row .amt{font-size:12px;font-weight:500;text-align:right;flex:0 0 76px}
+.cat-row .amt{font-size:12px;font-weight:500;text-align:right;flex:0 0 70px}
+.cat-caret{flex:0 0 auto;color:var(--sub);font-size:14px;transition:transform .15s;transform:rotate(0deg)}
+.cat-caret.open{transform:rotate(90deg)}
+.cat-drill{display:flex;flex-direction:column;gap:5px;padding:6px 4px 8px 18px;border-left:2px solid var(--line);margin:4px 0 4px 8px}
+.cat-drill-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start;background:var(--bg);border-radius:8px;padding:8px 10px}
+.cd-desc{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cd-meta{font-size:10px;color:var(--sub);margin-top:2px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.cd-amt{font-size:14px;font-weight:600;text-align:right;white-space:nowrap}
+.nec-row{display:flex;gap:5px;margin-top:6px}
+.nec-btn{padding:3px 9px;font-size:11px;background:#fff;border:1px solid var(--line);border-radius:6px;cursor:pointer;color:var(--sub);font-family:inherit}
+.nec-btn.on-need{background:var(--soft-green);color:var(--green);border-color:#bfe9c8;font-weight:600}
+.nec-btn.on-save{background:var(--soft-orange);color:var(--red);border-color:#ffd9c9;font-weight:600}
+.nec-tag{padding:1px 6px;border-radius:4px;font-size:10px}
+.nec-tag.need{background:var(--soft-green);color:var(--green)}
+.nec-tag.save{background:var(--soft-orange);color:var(--red)}
+.tx.nec-save{box-shadow:inset 3px 0 0 var(--orange)}
+.nec-summary{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.nec-pill{flex:1 1 0;min-width:90px;display:flex;flex-direction:column;gap:2px;padding:8px 10px;border-radius:10px;background:var(--bg)}
+.nec-pill span{font-size:10px;color:var(--sub)}
+.nec-pill strong{font-size:14px;font-weight:600}
+.nec-pill.need{background:var(--soft-green)}.nec-pill.need strong{color:var(--green)}
+.nec-pill.save{background:var(--soft-orange)}.nec-pill.save strong{color:var(--red)}
 .empty{text-align:center;padding:24px 14px;color:var(--sub);font-size:13px}
 .btn{padding:7px 12px;border-radius:8px;border:1px solid var(--line);background:#fff;font-size:12px;cursor:pointer;color:var(--text);font-family:inherit}
 .btn-primary{background:var(--blue);color:#fff;border-color:var(--blue)}
@@ -178,6 +207,8 @@ h1{font-size:22px;font-weight:600;text-align:center;margin:4px 0 2px}
         <button class="filter-btn" data-filter="self">自分の支出のみ</button>
         <button class="filter-btn" data-filter="has-loan">立て替えあり</button>
         <button class="filter-btn" data-filter="amazon">Amazon</button>
+        <button class="filter-btn" data-filter="save">✂️節約候補</button>
+        <button class="filter-btn" data-filter="need">✅必要経費</button>
       </div>
       <div class="filter-bar" style="margin-top:-4px">
         <span class="muted" style="align-self:center;margin-right:2px">並び:</span>
@@ -344,7 +375,7 @@ const STATE_TABLE='credit_state', STATE_ID='kodai';
 const sb=(window.supabase&&window.supabase.createClient)?supabase.createClient(SUPABASE_URL,SUPABASE_ANON):null;
 let online=null, lastPushed='', pendingSync=false, saveTimer=null;
 let data={months:{},amazonOrders:[],loans:[],payments:[],people:[]};
-let state={currentTab:'credit',currentMonth:null,currentFilter:'all',currentSort:'date-desc',currentAmzFilter:'all',loanFromTxTarget:null,moveTxTarget:null,editingLoanId:null,paymentTargetLoanId:null,editingAmazonId:null,expandedTxIds:new Set(),expandedLoanIds:new Set(),expandedPersonNames:new Set()};
+let state={currentTab:'credit',currentMonth:null,currentFilter:'all',currentSort:'date-desc',currentAmzFilter:'all',loanFromTxTarget:null,moveTxTarget:null,editingLoanId:null,paymentTargetLoanId:null,editingAmazonId:null,expandedTxIds:new Set(),expandedLoanIds:new Set(),expandedPersonNames:new Set(),expandedCats:new Set()};
 
 function load(){
   try{
@@ -498,6 +529,8 @@ function categorize(desc){
   }
   return 'その他';
 }
+const CAT_COLORS=['#0071e3','#34c759','#ff9f0a','#ff3b30','#ff2d55','#5856d6','#af52de','#ff6482','#00c7be','#a2845e','#ffcc00','#64d2ff','#bf5af2','#30b0c7','#ac8e68','#8e8e93'];
+function catColor(i){return CAT_COLORS[i%CAT_COLORS.length];}
 
 // CSVヘルパ
 function parseCsvLine(line){
@@ -810,18 +843,84 @@ function renderSummary(){
   document.getElementById('outstandingCount').textContent=oc+'件';
 }
 
+function selfAmt(t){return t.amount-getLoanTotalForTx(t.id);}
 function renderCategories(){
   const txs=data.months[state.currentMonth].transactions;
   const byCat={};
-  txs.forEach(t=>{const lt=getLoanTotalForTx(t.id);const s=t.amount-lt;if(s>0)byCat[t.category]=(byCat[t.category]||0)+s;});
+  txs.forEach(t=>{const s=selfAmt(t);if(s>0)byCat[t.category]=(byCat[t.category]||0)+s;});
   const total=Object.values(byCat).reduce((s,v)=>s+v,0)||1;
   const sorted=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
   const list=document.getElementById('categoryList');
   if(sorted.length===0){list.innerHTML='<div class="empty">自分の支出がありません</div>';return;}
-  list.innerHTML=sorted.map(([cat,amt])=>{
-    const pct=(amt/total*100).toFixed(1);
-    return `<div class="cat-row"><div class="name">${cat}</div><div class="bar-wrap"><div class="bar" style="width:${pct}%"></div></div><div class="amt">¥${amt.toLocaleString()}</div></div>`;
+
+  // 必要経費／節約できそう 集計（実質支出ベース）
+  let needSum=0,saveSum=0,unsetSum=0;
+  txs.forEach(t=>{const s=selfAmt(t);if(s<=0)return;if(t.necessity==='need')needSum+=s;else if(t.necessity==='save')saveSum+=s;else unsetSum+=s;});
+
+  // ドーナツ円グラフ
+  const R=58,CIRC=2*Math.PI*R;let off=0;
+  const segs=sorted.map(([cat,amt],i)=>{
+    const len=amt/total*CIRC;
+    const seg=`<circle cx="75" cy="75" r="${R}" fill="none" stroke="${catColor(i)}" stroke-width="20" stroke-dasharray="${len} ${CIRC-len}" stroke-dashoffset="${-off}" transform="rotate(-90 75 75)"/>`;
+    off+=len;return seg;
   }).join('');
+  const donut=`<svg viewBox="0 0 150 150" class="donut">${segs}<text x="75" y="73" text-anchor="middle" class="donut-total">¥${total.toLocaleString()}</text><text x="75" y="88" text-anchor="middle" class="donut-label">自分の実質支出</text></svg>`;
+
+  // カテゴリ行（クリックで中身を展開）
+  const rows=sorted.map(([cat,amt],i)=>{
+    const pct=(amt/total*100).toFixed(1);
+    const exp=state.expandedCats.has(cat);
+    let drill='';
+    if(exp){
+      const inner=txs.filter(t=>t.category===cat&&selfAmt(t)>0)
+        .sort((a,b)=>selfAmt(b)-selfAmt(a)).map(renderCatDrillRow).join('');
+      drill=`<div class="cat-drill">${inner}</div>`;
+    }
+    return `<div class="cat-item">
+      <div class="cat-row" onclick="toggleCat('${cat}')">
+        <span class="cat-dot" style="background:${catColor(i)}"></span>
+        <div class="name">${cat}</div>
+        <div class="bar-wrap"><div class="bar" style="width:${pct}%;background:${catColor(i)}"></div></div>
+        <div class="amt">¥${amt.toLocaleString()}</div>
+        <span class="cat-caret ${exp?'open':''}">›</span>
+      </div>
+      ${drill}
+    </div>`;
+  }).join('');
+
+  const necBar=`<div class="nec-summary">
+    <div class="nec-pill need"><span>✅ 必要経費</span><strong>¥${needSum.toLocaleString()}</strong></div>
+    <div class="nec-pill save"><span>✂️ 節約できそう</span><strong>¥${saveSum.toLocaleString()}</strong></div>
+    <div class="nec-pill"><span>未分類</span><strong>¥${unsetSum.toLocaleString()}</strong></div>
+  </div>`;
+
+  list.innerHTML=`<div class="cat-chart-wrap">${donut}<div class="cat-rows">${rows}</div></div>${necBar}`;
+}
+function toggleCat(cat){
+  if(state.expandedCats.has(cat))state.expandedCats.delete(cat);
+  else state.expandedCats.add(cat);
+  renderCategories();
+}
+function renderCatDrillRow(t){
+  const lt=getLoanTotalForTx(t.id);const self=t.amount-lt;
+  const necTag=t.necessity==='need'?'<span class="nec-tag need">必要</span>':t.necessity==='save'?'<span class="nec-tag save">節約</span>':'';
+  const loanNote=lt>0?`<span>（決済¥${t.amount.toLocaleString()}）</span>`:'';
+  return `<div class="cat-drill-row">
+    <div>
+      <div class="cd-desc">${escapeHtml(t.description)}</div>
+      <div class="cd-meta"><span>${t.date}</span>${loanNote}${necTag}</div>
+      <div class="nec-row">
+        <button class="nec-btn ${t.necessity==='need'?'on-need':''}" onclick="cycleNecessity('${t.id}','need')">✅必要</button>
+        <button class="nec-btn ${t.necessity==='save'?'on-save':''}" onclick="cycleNecessity('${t.id}','save')">✂️節約</button>
+      </div>
+    </div>
+    <div class="cd-amt">¥${self.toLocaleString()}</div>
+  </div>`;
+}
+function cycleNecessity(id,val){
+  const t=findTx(id);if(!t)return;
+  t.necessity=(t.necessity===val)?null:val;
+  save();renderCategories();renderTransactions();
 }
 
 function renderTransactions(){
@@ -831,6 +930,8 @@ function renderTransactions(){
     if(state.currentFilter==='self')return lt<t.amount;
     if(state.currentFilter==='has-loan')return lt>0;
     if(state.currentFilter==='amazon')return isAmazonTx(t);
+    if(state.currentFilter==='save')return t.necessity==='save';
+    if(state.currentFilter==='need')return t.necessity==='need';
     return true;
   });
   if(state.currentSort==='amount-desc')f.sort((a,b)=>b.amount-a.amount);
@@ -851,6 +952,8 @@ function renderTxRow(t){
   const classes=['tx'];
   if(lt>0&&!fullyLoaned)classes.push('has-loan');
   if(fullyLoaned)classes.push('fully-loaned');
+  if(t.necessity==='save')classes.push('nec-save');
+  const necTag=t.necessity==='need'?'<span class="nec-tag need">必要</span>':t.necessity==='save'?'<span class="nec-tag save">節約</span>':'';
 
   const chips=loans.map(l=>{
     const paid=getRemaining(l)<=0;
@@ -878,9 +981,13 @@ function renderTxRow(t){
   return `<div class="${classes.join(' ')}" data-id="${t.id}">
     <div onclick="toggleTxExpand('${t.id}')">
       <div class="desc">${escapeHtml(t.description)}</div>
-      <div class="meta"><span>${t.date}</span><span class="cat-tag">${t.category}</span>${amzTag}</div>
+      <div class="meta"><span>${t.date}</span><span class="cat-tag">${t.category}</span>${necTag}${amzTag}</div>
       ${strip}
       ${amzHtml}
+      <div class="nec-row">
+        <button class="nec-btn ${t.necessity==='need'?'on-need':''}" onclick="event.stopPropagation();cycleNecessity('${t.id}','need')">✅必要</button>
+        <button class="nec-btn ${t.necessity==='save'?'on-save':''}" onclick="event.stopPropagation();cycleNecessity('${t.id}','save')">✂️節約</button>
+      </div>
       <div class="tx-actions">
         <button class="btn-mini primary" onclick="event.stopPropagation();openLoanFromTxModal('${t.id}')">${loans.length>0?'+ 立て替えを追加':'立て替えに送る'}</button>
         ${loans.length>0?`<button class="btn-mini" onclick="event.stopPropagation();switchTab('loans')">台帳で見る</button>`:''}
