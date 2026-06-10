@@ -146,6 +146,12 @@ h1{font-size:22px;font-weight:600;text-align:center;margin:4px 0 2px}
 .form-row textarea{resize:vertical;min-height:50px}
 .amount-presets{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
 .preset-btn{padding:4px 10px;font-size:11px;background:var(--bg);border:1px solid var(--line);border-radius:999px;cursor:pointer;color:var(--text);font-family:inherit}
+.person-tags{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center}
+.person-tag{padding:6px 13px;font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:999px;cursor:pointer;color:var(--text);font-family:inherit;display:inline-flex;align-items:center}
+.person-tag.active{background:var(--pink);color:#fff;border-color:var(--pink)}
+.person-tag .del{margin-left:7px;font-size:10px;opacity:.7}
+.tags-edit{font-size:11px;color:var(--sub);cursor:pointer;text-decoration:underline;background:none;border:none;font-family:inherit;padding:4px}
+.person-tags .empty-hint{font-size:11px;color:var(--sub)}
 .person-card{background:var(--card);border-radius:14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
 .person-header{padding:14px 18px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;gap:8px}
 .person-header .name{font-size:15px;font-weight:600}
@@ -318,7 +324,7 @@ h1{font-size:22px;font-weight:600;text-align:center;margin:4px 0 2px}
   <div class="modal">
     <h3>立て替えに登録</h3>
     <p class="modal-sub" id="loanFromTxSub"></p>
-    <div class="form-row"><label>相手</label><input type="text" id="loanPersonName" list="peopleList" placeholder="名前を入力"></div>
+    <div class="form-row"><label>相手</label><input type="text" id="loanPersonName" list="peopleList" placeholder="名前を入力" oninput="renderPeopleTags('loanPersonTags','loanPersonName')"><div class="person-tags" id="loanPersonTags"></div></div>
     <div class="form-row"><label>立て替え金額</label><input type="number" id="loanAmount" placeholder="0"><div class="amount-presets" id="loanAmountPresets"></div></div>
     <div class="form-row"><label>メモ（任意）</label><input type="text" id="loanMemo" placeholder="例: 新幹線2枚、夕食代の半額"></div>
     <div class="actions"><button class="btn" onclick="closeLoanFromTxModal()">キャンセル</button><button class="btn btn-primary" onclick="saveLoanFromTx()">登録</button></div>
@@ -331,7 +337,7 @@ h1{font-size:22px;font-weight:600;text-align:center;margin:4px 0 2px}
     <h3 id="manualLoanTitle">立て替えを追加</h3>
     <p class="modal-sub">クレカ以外の立て替え（現金・PayPay等）を記録</p>
     <div class="form-row"><label>日付</label><input type="date" id="manualLoanDate"></div>
-    <div class="form-row"><label>相手</label><input type="text" id="manualLoanPerson" list="peopleList" placeholder="名前を入力"></div>
+    <div class="form-row"><label>相手</label><input type="text" id="manualLoanPerson" list="peopleList" placeholder="名前を入力" oninput="renderPeopleTags('manualPersonTags','manualLoanPerson')"><div class="person-tags" id="manualPersonTags"></div></div>
     <div class="form-row"><label>金額</label><input type="number" id="manualLoanAmount" placeholder="0"></div>
     <div class="form-row"><label>内容</label><input type="text" id="manualLoanDesc" placeholder="例: 居酒屋代の立て替え"></div>
     <div class="form-row"><label>メモ（任意）</label><input type="text" id="manualLoanMemo"></div>
@@ -776,6 +782,20 @@ function getPersonStats(){
   return Object.values(stats).sort((a,b)=>b.balance-a.balance);
 }
 function addPersonName(n){if(n&&!data.people.includes(n))data.people.push(n);}
+// 相手タグ（過去に登録した相手をタップで選択）
+let peopleTagEditMode=false;
+function renderPeopleTags(containerId,inputId){
+  const c=document.getElementById(containerId);if(!c)return;
+  const cur=(document.getElementById(inputId).value||'').trim();
+  const names=data.people||[];
+  if(!names.length){c.innerHTML='<span class="empty-hint">まだ登録された相手がいません。名前を入力すると次回からタグで選べます。</span>';return;}
+  let html=names.map(n=>`<button type="button" class="person-tag ${n===cur?'active':''}" onclick="pickPersonTag('${escapeJs(n)}','${inputId}','${containerId}')">${escapeHtml(n)}${peopleTagEditMode?`<span class="del" onclick="event.stopPropagation();removePersonTag('${escapeJs(n)}','${containerId}','${inputId}')">✕</span>`:''}</button>`).join('');
+  html+=`<button type="button" class="tags-edit" onclick="togglePeopleTagEdit('${containerId}','${inputId}')">${peopleTagEditMode?'完了':'編集'}</button>`;
+  c.innerHTML=html;
+}
+function pickPersonTag(name,inputId,containerId){if(peopleTagEditMode)return;document.getElementById(inputId).value=name;renderPeopleTags(containerId,inputId);}
+function removePersonTag(name,containerId,inputId){data.people=(data.people||[]).filter(x=>x!==name);save();renderPeopleTags(containerId,inputId);}
+function togglePeopleTagEdit(containerId,inputId){peopleTagEditMode=!peopleTagEditMode;renderPeopleTags(containerId,inputId);}
 function findTx(id){for(const m of Object.values(data.months)){const t=m.transactions.find(x=>x.id===id);if(t)return t;}return null;}
 function findTxLocation(id){for(const[key,m]of Object.entries(data.months)){const idx=m.transactions.findIndex(x=>x.id===id);if(idx>=0)return{key,idx,tx:m.transactions[idx]};}return null;}
 
@@ -1228,6 +1248,7 @@ function openLoanFromTxModal(txId){
   document.getElementById('loanMemo').value='';
   const presets=[{l:'全額 ¥'+rem.toLocaleString(),v:rem},{l:'半額 ¥'+Math.round(rem/2).toLocaleString(),v:Math.round(rem/2)},{l:'¥1,000',v:1000},{l:'¥3,000',v:3000},{l:'¥5,000',v:5000}];
   document.getElementById('loanAmountPresets').innerHTML=presets.map(p=>`<button class="preset-btn" onclick="document.getElementById('loanAmount').value=${p.v}">${p.l}</button>`).join('');
+  peopleTagEditMode=false;renderPeopleTags('loanPersonTags','loanPersonName');
   document.getElementById('loanFromTxModal').classList.add('show');
   setTimeout(()=>document.getElementById('loanPersonName').focus(),100);
 }
@@ -1267,6 +1288,7 @@ function openManualLoanModal(loanId){
     document.getElementById('manualLoanMemo').value='';
     document.getElementById('manualLoanDeleteBtn').style.display='none';
   }
+  peopleTagEditMode=false;renderPeopleTags('manualPersonTags','manualLoanPerson');
   document.getElementById('manualLoanModal').classList.add('show');
 }
 function closeManualLoanModal(){document.getElementById('manualLoanModal').classList.remove('show');state.editingLoanId=null;}
