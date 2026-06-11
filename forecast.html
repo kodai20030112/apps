@@ -193,6 +193,19 @@
   .bk-msg { font-size: 13px; color: var(--green); margin-top: 8px; min-height: 18px; }
   .bk-msg.err { color: var(--red); }
 
+  /* 同期チップ・トースト（credit.html と共通デザイン） */
+  .syncbar { text-align: center; margin: -14px 0 18px; }
+  .sync-chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--sub);background:rgba(120,120,128,.12);padding:4px 10px;border-radius:999px}
+  .sync-chip .dot{width:7px;height:7px;border-radius:50%;background:#8e8e93;flex:none}
+  .sync-chip.ok .dot{background:#34c759}.sync-chip.ok{color:#0a7d2e}
+  .sync-chip.off .dot{background:#ff9f0a}
+  .sync-chip.local .dot{background:#8e8e93}
+  .sync-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:rgba(20,20,22,.92);color:#fff;font-size:13px;padding:10px 18px;border-radius:12px;opacity:0;pointer-events:none;transition:.25s;z-index:9999}
+  .sync-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  .pull:disabled { color: var(--sub); cursor: default; }
+  .pull-info { font-size: 12px; color: var(--sub); margin-top: 8px; }
+
   @media (max-width: 460px) {
     .frow input.amount { width: 120px; }
     .res-big { font-size: 40px; }
@@ -205,6 +218,7 @@
   <h1>資産予測グラフ</h1>
   <p class="tagline">理想のクレカ支出で、資産がどれくらい増えるかをシミュレーション</p>
   <div class="topnav"><a class="nav-link" href="money.html">← 残高計算に戻る</a></div>
+  <div class="syncbar"><div class="sync-chip local" id="syncChip"><span class="dot"></span><span id="syncText">接続中…</span></div></div>
 
   <!-- 入力 -->
   <div class="card">
@@ -233,6 +247,8 @@
     </div>
 
     <button class="pull" id="pullBtn">🔄 残高計算ページの「残り」と「クレカ支出」を取り込む</button>
+    <button class="pull" id="pullCredit">💳 明細マネージャーの実績から「今のクレカ支出」を取り込む</button>
+    <div class="pull-info" id="pullCreditInfo"></div>
   </div>
 
   <!-- 期間 -->
@@ -314,6 +330,220 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ===== Asset連携の共通部品（money.html / forecast.html で同じものを使う） =====
+   - AssetDB:    Supabaseクライアント。credit.html / たびのき と同じプロジェクトを再利用
+   - CreditLink: クレジット明細マネージャー（credit.html）のデータを「読み取り専用」で参照
+   - MoneySync:  残高計算＋資産予測のデータを money_state テーブル（id='kodai' の1行）へ同期 */
+(function () {
+  "use strict";
+  var SUPABASE_URL = "https://okbjqtdirrathscctyvx.supabase.co";
+  var SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rYmpxdGRpcnJhdGhzY2N0eXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMjI4NTIsImV4cCI6MjA5NTg5ODg1Mn0.T-1AOK6vCD6uGdqrVGXjPui3L6WPSNrnygS-IHyfZ6Y";
+  window.AssetDB = (window.supabase && window.supabase.createClient)
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON) : null;
+
+  /* --- CreditLink: credit.html のデータ参照（書き込みは一切しない） --- */
+  window.CreditLink = (function () {
+    var KEY = "creditMgr_v2", TABLE = "credit_state", ID = "kodai";
+    function local() {
+      try { var r = localStorage.getItem(KEY); return r ? JSON.parse(r) : null; }
+      catch (e) { return null; }
+    }
+    function remote() {
+      if (!window.AssetDB) return Promise.resolve(null);
+      return window.AssetDB.from(TABLE).select("state").eq("id", ID).maybeSingle()
+        .then(function (r) {
+          return (r && r.data && r.data.state && typeof r.data.state === "object") ? r.data.state : null;
+        })
+        .catch(function () { return null; });
+    }
+    // ローカルとクラウドの新しい方を返す（credit.html 側と同じ updatedAt 比較）
+    function getData() {
+      var l = local();
+      return remote().then(function (r) {
+        if (l && r) return ((r.updatedAt || 0) >= (l.updatedAt || 0)) ? r : l;
+        return r || l;
+      });
+    }
+    function loanTotalForTx(d, txId) {
+      return (d.loans || []).reduce(function (s, l) { return s + (l.txId === txId ? (+l.amount || 0) : 0); }, 0);
+    }
+    // サイクルキー "YYYY-MM-07" → 期間ラベル（credit.html の cycleLabel と同じ表示）
+    function cycleLabel(key) {
+      var m = String(key).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!m) return String(key);
+      var y = +m[1], mo = +m[2], d = +m[3], p = function (n) { return String(n).padStart(2, "0"); };
+      var em = mo + 1, ey = y; if (em > 12) { em = 1; ey++; }
+      return y + "/" + p(mo) + "/" + p(d) + "〜" + (ey !== y ? ey + "/" : "") + p(em) + "/06";
+    }
+    function cycleEndDate(key) {
+      var m = String(key).match(/^(\d{4})-(\d{2})-\d{2}$/);
+      if (!m) return null;
+      var y = +m[1], mo = +m[2] + 1; if (mo > 12) { mo = 1; y++; }
+      return new Date(y, mo - 1, 6);
+    }
+    // サイクルごとの集計（古い順）。total=総決済額 / self=自分の実質支出 / complete=締め済みか
+    function cycles(d) {
+      if (!d || !d.months) return [];
+      var today = new Date(); today.setHours(0, 0, 0, 0);
+      return Object.keys(d.months)
+        .filter(function (k) { return /^\d{4}-\d{2}-\d{2}$/.test(k); })
+        .sort()
+        .map(function (k) {
+          var txs = (d.months[k] && d.months[k].transactions) || [];
+          var total = 0, self = 0;
+          txs.forEach(function (t) {
+            var a = +t.amount || 0;
+            total += a;
+            self += Math.max(0, a - loanTotalForTx(d, t.id));
+          });
+          var end = cycleEndDate(k);
+          return { key: k, label: cycleLabel(k), total: total, self: self, count: txs.length, complete: end ? end < today : false };
+        })
+        .filter(function (c) { return c.count > 0; });
+    }
+    // 立て替え台帳の未回収合計（loans − payments）
+    function unrecovered(d) {
+      if (!d) return 0;
+      var paid = {};
+      (d.payments || []).forEach(function (p) { paid[p.loanId] = (paid[p.loanId] || 0) + (+p.amount || 0); });
+      return (d.loans || []).reduce(function (s, l) { return s + Math.max(0, (+l.amount || 0) - (paid[l.id] || 0)); }, 0);
+    }
+    return { local: local, getData: getData, cycles: cycles, unrecovered: unrecovered };
+  })();
+
+  /* --- MoneySync: money-balance-v1 + money-forecast-v1 をまとめて同期 --- */
+  window.MoneySync = (function () {
+    var KEYS = ["money-balance-v1", "money-forecast-v1"];
+    var META = "money-sync-meta-v1";   // この端末の最終更新時刻（updatedAt）だけを覚えるキー
+    var TABLE = "money_state", ID = "kodai";
+    var sb = window.AssetDB;
+    var online = null, pending = false, timer = null, lastPushed = "";
+
+    function meta() { try { return JSON.parse(localStorage.getItem(META)) || {}; } catch (e) { return {}; } }
+    function setMeta(m) { try { localStorage.setItem(META, JSON.stringify(m)); } catch (e) {} }
+    function hasLocalData() { return !!(localStorage.getItem(KEYS[0]) || localStorage.getItem(KEYS[1])); }
+    function blob() {
+      var b = { updatedAt: meta().updatedAt || 0 };
+      KEYS.forEach(function (k) {
+        var raw = localStorage.getItem(k);
+        if (raw) { try { b[k] = JSON.parse(raw); } catch (e) {} }
+      });
+      return b;
+    }
+
+    // 各ページの save() から呼ぶ。350ms デバウンスでクラウドへ送る
+    function schedule() {
+      setMeta({ updatedAt: Date.now() });
+      if (!sb) { renderChip(); return; }
+      pending = true;
+      clearTimeout(timer);
+      timer = setTimeout(flush, 350);
+    }
+    function flush() {
+      if (!sb || !pending) return;
+      clearTimeout(timer);
+      pending = false;
+      var b = blob();
+      b.updatedAt = meta().updatedAt || Date.now();
+      lastPushed = JSON.stringify(b);
+      sb.from(TABLE).upsert({ id: ID, state: b, updated_at: new Date().toISOString() })
+        .then(function (r) {
+          if (r && r.error) { online = false; pending = true; }
+          else { online = true; }
+          renderChip();
+        })
+        .catch(function () { online = false; pending = true; renderChip(); });
+    }
+    // バックアップ復元など「ページ側で localStorage を直接書き換えた」直後に呼ぶ
+    function touch() { setMeta({ updatedAt: Date.now() }); pending = true; flush(); }
+
+    function applyRemote(incoming, toastMsg) {
+      KEYS.forEach(function (k) {
+        if (incoming[k] != null) {
+          try { localStorage.setItem(k, JSON.stringify(incoming[k])); } catch (e) {}
+        }
+      });
+      setMeta({ updatedAt: incoming.updatedAt || Date.now() });
+      if (toastMsg) { toast(toastMsg); setTimeout(function () { location.reload(); }, 900); }
+      else location.reload();
+    }
+    function isEditing() {
+      var a = document.activeElement;
+      return !!(a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.tagName === "SELECT"));
+    }
+
+    function init() {
+      if (!sb) { online = false; renderChip(); return; }
+      sb.from(TABLE).select("state").eq("id", ID).maybeSingle()
+        .then(function (res) {
+          if (res && res.error) { online = false; renderChip(); return; }
+          online = true;
+          var row = res && res.data;
+          var localT = meta().updatedAt || 0;
+          if (row && row.state && typeof row.state === "object") {
+            var remoteT = row.state.updatedAt || 0;
+            if (remoteT > localT) {
+              // この端末がまだ一度も同期していないのに両方にデータがある → 消失防止のため必ず確認
+              if (!localT && hasLocalData()) {
+                var useRemote = confirm("クラウドに保存済みの残高データが見つかりました。\n\nOK：クラウドのデータをこの端末に反映する\nキャンセル：この端末のデータを正としてクラウドへ送る");
+                if (!useRemote) { touch(); subscribe(); renderChip(); return; }
+              }
+              applyRemote(row.state, null);
+              return;
+            }
+            if (localT > remoteT) { pending = true; flush(); }
+          } else if (hasLocalData()) {
+            // クラウドが空 → 手元のデータを初回アップロード
+            if (!localT) setMeta({ updatedAt: Date.now() });
+            pending = true;
+            flush();
+          }
+          subscribe();
+          renderChip();
+        })
+        .catch(function () { online = false; renderChip(); });
+    }
+    function subscribe() {
+      sb.channel("money-rt")
+        .on("postgres_changes", { event: "*", schema: "public", table: TABLE, filter: "id=eq." + ID }, function (p) {
+          var inc = p.new && p.new.state;
+          if (!inc) return;
+          if (JSON.stringify(inc) === lastPushed) return;          // 自分の書き込みのエコー
+          if ((inc.updatedAt || 0) <= (meta().updatedAt || 0)) return; // 自分の方が新しい
+          if (isEditing()) return;                                  // 入力中は上書きしない
+          applyRemote(inc, "🔄 他の端末の変更を反映します");
+        })
+        .subscribe();
+    }
+
+    function renderChip() {
+      var chip = document.getElementById("syncChip"), txt = document.getElementById("syncText");
+      if (!chip) return;
+      chip.classList.remove("ok", "off", "local");
+      if (!sb) { chip.classList.add("local"); txt.textContent = "この端末に保存"; return; }
+      if (online === true) { chip.classList.add("ok"); txt.textContent = "クラウド同期中"; }
+      else if (online === false) { chip.classList.add("off"); txt.textContent = "オフライン（この端末に保存）"; }
+      else { chip.classList.add("local"); txt.textContent = "接続中…"; }
+    }
+    function toast(msg) {
+      var t = document.getElementById("syncToast");
+      if (!t) { t = document.createElement("div"); t.id = "syncToast"; t.className = "sync-toast"; document.body.appendChild(t); }
+      t.textContent = msg;
+      t.classList.add("show");
+      clearTimeout(t._t);
+      t._t = setTimeout(function () { t.classList.remove("show"); }, 1800);
+    }
+
+    document.addEventListener("visibilitychange", function () { if (document.visibilityState === "hidden") flush(); });
+    window.addEventListener("pagehide", flush);
+
+    return { schedule: schedule, touch: touch, init: init };
+  })();
+  window.MoneySync.init();
+})();
+</script>
 <script>
 (function () {
   "use strict";
@@ -333,6 +563,8 @@
     months: document.getElementById("months"),
     monthsVal: document.getElementById("monthsVal"),
     pullBtn: document.getElementById("pullBtn"),
+    pullCredit: document.getElementById("pullCredit"),
+    pullCreditInfo: document.getElementById("pullCreditInfo"),
     saveIdeal: document.getElementById("saveIdeal"),
     saveCurrent: document.getElementById("saveCurrent"),
     resLabel: document.getElementById("resLabel"),
@@ -427,6 +659,7 @@
   }
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch (e) {}
+    if (window.MoneySync) MoneySync.schedule();
   }
 
   function syncInputs() {
@@ -860,6 +1093,41 @@
     settings.currentSpend = money.currentSpend;
     syncInputs(); render(); save();
   });
+
+  // ---- クレジット明細マネージャーの実績から「今のクレカ支出」を取り込む（読み取りのみ） ----
+  // 締め済みサイクル（最大3つ）の「自分の実質支出」の平均を使う
+  function avgRecentSelf(d) {
+    if (!window.CreditLink) return null;
+    var cs = CreditLink.cycles(d);
+    if (!cs.length) return null;
+    var done = cs.filter(function (c) { return c.complete; });
+    var use = (done.length ? done : cs).slice(-3);
+    var sum = use.reduce(function (a, c) { return a + c.self; }, 0);
+    return { avg: Math.round(sum / use.length), used: use, partial: done.length === 0 };
+  }
+
+  if (el.pullCredit) el.pullCredit.addEventListener("click", function () {
+    var orig = el.pullCredit.textContent;
+    el.pullCredit.disabled = true;
+    el.pullCredit.textContent = "明細を読み込み中…";
+    CreditLink.getData().then(function (d) {
+      el.pullCredit.disabled = false;
+      el.pullCredit.textContent = orig;
+      var r = d && avgRecentSelf(d);
+      if (!r) {
+        alert("クレジット明細マネージャーのデータが見つかりませんでした。\n先に「クレジット明細マネージャー」でクレカ明細CSVを取り込んでください。");
+        return;
+      }
+      settings.currentSpend = r.avg;
+      syncInputs(); render(); save();
+      var detail = r.used.map(function (c) { return c.label + "：" + yen(c.self); }).join(" ／ ");
+      el.pullCreditInfo.textContent = (r.partial ? "進行中のサイクル" : "締め済みの直近" + r.used.length + "サイクル") +
+        "の「自分の実質支出」平均 " + yen(r.avg) + " を反映しました（" + detail + "）";
+    }).catch(function () {
+      el.pullCredit.disabled = false;
+      el.pullCredit.textContent = orig;
+    });
+  });
 })();
 </script>
 
@@ -937,6 +1205,7 @@
       }
     });
     if (found === 0) { setMsg("このバックアップに引き継げるデータが見つかりませんでした。", true); return; }
+    if (window.MoneySync && MoneySync.touch) MoneySync.touch();   // 復元した内容を「最新」としてクラウドにも送る
     setMsg("復元しました。画面を更新します…");
     setTimeout(function () { location.reload(); }, 700);
   }
