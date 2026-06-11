@@ -143,6 +143,13 @@
   }
   .app-tile.add .at-emoji { font-size: 20px; }
   .app-tile.add .at-label { color: var(--accent); }
+  /* アイデアグリッド内の全幅グループ見出し（あとで / 完了） */
+  .idea-glabel {
+    grid-column: 1 / -1;
+    font-size: 12px; font-weight: 600; color: var(--sub);
+    margin: 6px 4px 0; display: flex; align-items: center; gap: 6px;
+  }
+  .idea-glabel .gl-note { font-weight: 400; font-size: 11px; opacity: .8; }
 
   /* ===== アイデア：選んだアプリの箇条書き ===== */
   .idea-head { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 16px; }
@@ -600,27 +607,27 @@ function renderIdeas(){
   const el = document.getElementById('panel-idea');
   if(ideaApp){ renderIdeaDetail(el); return; }
 
-  // 件数を集計（未完了＝activeをラベルに、全体＝totalをタイル表示判定に）
-  const total = {}, active = {}, laterCnt = {};
+  // 件数を集計（active=未完了かつ非あとで / laterCnt=あとで / total=全体）。
+  // lastAct=アプリ内アイデアの最終更新時刻（群の中の並び替え用）。
+  const total = {}, active = {}, laterCnt = {}, lastAct = {};
   db.ideas.forEach(x=>{
     total[x.app]=(total[x.app]||0)+1;
+    const t = x.updated || x.ts || 0;
+    if(t > (lastAct[x.app]||0)) lastAct[x.app] = t;
     if(x.done) return;
     // 「あとで」に送ったものは件数にカウントしない
     if(x.later) laterCnt[x.app]=(laterCnt[x.app]||0)+1;
     else active[x.app]=(active[x.app]||0)+1;
   });
 
-  // 並べるタイル：アプリ制作（常設）＋ アイデアのあるアプリのみ
-  const tiles = [NEW_APP];
-  APP_CATALOG.forEach(a=>{ if(total[a.key]) tiles.push(a); });
-  // カタログ外のkeyにアイデアが残っていても拾う（保険）
-  Object.keys(total).forEach(k=>{
-    if(k==='_new') return;
-    if(!tiles.some(t=>t.key===k)) tiles.push(bucketMeta(k));
-  });
+  // アプリ制作(_new)以外で、アイデアを持つアプリkeyを3群に分ける（各群は新しい順）
+  const byRecent = (a,b)=>(lastAct[b]||0)-(lastAct[a]||0);
+  const keys = Object.keys(total).filter(k=>k!=='_new');
+  const activeKeys = keys.filter(k=>(active[k]||0)>0).sort(byRecent);
+  const laterKeys  = keys.filter(k=>(active[k]||0)===0 && (laterCnt[k]||0)>0).sort(byRecent);
+  const doneKeys   = keys.filter(k=>(active[k]||0)===0 && (laterCnt[k]||0)===0).sort(byRecent);
 
-  let html = '<div class="idea-grid">';
-  html += tiles.map(a=>{
+  const tile = (a)=>{
     const n = active[a.key] || 0, L = laterCnt[a.key] || 0, tt = total[a.key] || 0;
     const label = n ? n+'件のアイデア' : (L ? '🌙 あとで'+L+'件' : (tt ? 'すべて完了' : 'メモする'));
     return '<button class="app-tile'+(a.key==='_new'?' make':'')+'" data-app="'+esc(a.key)+'">'+
@@ -628,7 +635,23 @@ function renderIdeas(){
       '<span class="at-label">'+esc(a.label)+'</span>'+
       '<span class="at-count">'+label+'</span>'+
     '</button>';
-  }).join('');
+  };
+  const glabel = (txt)=>'<div class="idea-glabel">'+txt+'</div>';
+
+  let html = '<div class="idea-grid">';
+  // ① アイデアあり：✨アプリ制作を常に先頭固定 ＋ 未完了アイデアのあるアプリ
+  html += tile(NEW_APP);
+  html += activeKeys.map(k=>tile(bucketMeta(k))).join('');
+  // ② 🌙 あとで：アクティブ0件であとでが残っているアプリ
+  if(laterKeys.length){
+    html += glabel('🌙 あとで');
+    html += laterKeys.map(k=>tile(bucketMeta(k))).join('');
+  }
+  // ③ ✓ すべて完了：完了のみ（当日だけ表示。翌0時に自動で消えます）
+  if(doneKeys.length){
+    html += glabel('✓ すべて完了 <span class="gl-note">日付が変わると自動的に消えます</span>');
+    html += doneKeys.map(k=>tile(bucketMeta(k))).join('');
+  }
   html += '<button class="app-tile add" data-pick="1"><span class="at-emoji">＋</span><span class="at-label">アプリを選ぶ</span></button>';
   html += '</div>';
   el.innerHTML = html;
