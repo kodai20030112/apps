@@ -32,6 +32,7 @@ APPS = {
     "tabinoki":    ("🌴", "#3fd4c4", "#0d9488"),
     "yarukoto":    ("✅", "#7c8bff", "#4f5edb"),
     "interview":   ("🎤", "#7b8cff", "#4f5bd5"),
+    "check":       ("🔍", "#8fa3c8", "#54648c"),
 }
 
 

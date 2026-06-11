@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>チェックルーム</title>
+<link rel="apple-touch-icon" href="icons/icon-check.png">
+<meta name="apple-mobile-web-app-title" content="チェック">
+<style>
+:root{color-scheme:light dark}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,'Hiragino Sans',sans-serif;background:#f4f6fa;color:#1c2433;
+  padding:calc(env(safe-area-inset-top,0px) + 28px) 18px 48px;min-height:100vh}
+h1{font-size:22px;margin-bottom:4px}
+.sub{font-size:13px;color:#6b7689;margin-bottom:22px}
+.list{display:flex;flex-direction:column;gap:12px}
+.card{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  background:#fff;border-radius:16px;padding:16px 18px;text-decoration:none;color:inherit;
+  box-shadow:0 1px 4px rgba(20,30,60,.08)}
+.card:active{transform:scale(.98)}
+.t{font-size:17px;font-weight:700}
+.s{font-size:12px;color:#8a93a5;margin-top:4px}
+.ch{font-size:22px;color:#c2c9d6}
+.empty{text-align:center;color:#8a93a5;font-size:15px;padding:64px 0}
+.hint{font-size:13px;color:#6b7689;line-height:1.9;margin-top:26px}
+@media(prefers-color-scheme:dark){
+  body{background:#11151d;color:#e8ecf4}
+  .card{background:#1c2230;box-shadow:none}
+  .sub,.s,.empty,.hint{color:#8d97ab}
+}
+</style>
+</head>
+<body>
+<h1>🔍 チェックルーム</h1>
+<p class="sub">公開前のアプリをここで実機チェックできます</p>
+<div class="list"><a class="card" href="check-forecast.html"><div><div class="t">資産予測グラフ</div><div class="s">check-forecast.html ・ 6/11 21:30 更新</div></div><div class="ch">›</div></a>
+<a class="card" href="check-money.html"><div><div class="t">お金の残高 計算ツール</div><div class="s">check-money.html ・ 6/11 21:30 更新</div></div><div class="ch">›</div></a></div>
+<p class="hint">✅ 確認できたら Claude に「OK、公開して」と伝えてください。<br>🔧 直したい点があれば、そのまま言葉で伝えてもらえれば修正します。</p>
+</body>
+</html>
