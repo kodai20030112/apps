@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <link rel="apple-touch-icon" href="icons/icon-serifu.png">
 <meta name="apple-mobile-web-app-title" content="おぼえりふ">
 <title>おぼえりふ — 台本のセリフを稽古する</title>
@@ -42,6 +42,7 @@
     background:var(--accent); color:#fff; border:none; border-radius:13px;
     padding:13px 20px; font-size:15px; font-weight:600; cursor:pointer;
     width:100%; transition:transform .12s ease, opacity .12s ease; font-family:inherit;
+    touch-action:manipulation;
   }
   .btn:active{transform:scale(.98);}
   .btn:disabled{opacity:.4; cursor:not-allowed;}
@@ -105,38 +106,56 @@
   .chip:active{transform:scale(.96);}
   .chip.on{background:var(--accent); color:#fff; border-color:var(--accent);}
 
+  /* 役を選んだら畳むバー */
+  .rolebar{display:flex; align-items:center; justify-content:space-between; gap:10px;
+    width:100%; background:var(--bg); border:1px solid var(--line); border-radius:13px;
+    padding:11px 15px; font-size:15px; font-weight:700; color:var(--ink); cursor:pointer;
+    font-family:inherit; touch-action:manipulation;}
+  .rolebar .role{color:#c2417a;}
+  .rolebar .chg{font-size:13px; font-weight:600; color:var(--sub); flex:0 0 auto;}
+
+  /* 章ジャンプ */
+  .navrow{display:flex; justify-content:flex-end; margin:14px 2px 0;}
+  .chapsel{font-family:inherit; font-size:14px; font-weight:600; color:var(--ink);
+    background:var(--card); border:1px solid var(--line); border-radius:11px;
+    padding:9px 30px 9px 12px; max-width:100%; cursor:pointer; touch-action:manipulation;
+    -webkit-appearance:none; appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%237a4ddb' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 11px center;}
+
   .progress{display:flex; align-items:center; justify-content:space-between; margin:16px 2px 8px;}
   .progress .pos{font-size:13px; color:var(--sub); font-weight:600;}
   .progress .who{font-size:13px; color:var(--accent); font-weight:700;}
 
-  /* 縦書きステージ（右→左に横スクロール） */
+  /* 縦書きステージ（右→左／枠内に完全に収める・スクロールなし） */
   .stage{
     writing-mode:vertical-rl; -webkit-writing-mode:vertical-rl;
     width:100%; max-width:100%; min-width:0;
-    height:58vh; min-height:340px;
-    overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch;
+    height:70vh; min-height:420px;
+    overflow:hidden;
     background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
-    padding:24px 22px;
-    font-size:21px; line-height:1.9; letter-spacing:.02em;
+    padding:22px 20px;
+    font-size:22px; line-height:1.95; letter-spacing:.02em;
+    touch-action:manipulation;
   }
-  .stage::-webkit-scrollbar{height:7px;}
-  .stage::-webkit-scrollbar-thumb{background:#d0c7e8; border-radius:99px;}
-  .u{margin-left:30px; display:flex; flex-direction:row;}
+  /* 各セリフ＝1列。名前とセリフを列の中央でそろえる */
+  .u{margin-left:30px; display:flex; flex-direction:row; align-items:center;}
   .u:last-child{margin-left:8px;}
-  .u .nm{font-weight:700; color:var(--accent); font-size:16px; margin-bottom:6px;
-    flex:0 0 auto;}
-  .u .tx{font-weight:500; color:var(--ink); flex:0 1 auto;}
+  .u .nm{font-weight:700; color:var(--accent); font-size:.78em; margin-bottom:8px;
+    flex:0 0 auto; text-align:center;}
+  .u .tx{font-weight:500; color:var(--ink); flex:0 1 auto; text-align:center;}
   /* ト書き */
-  .u.dir .tx{color:var(--sub); font-size:17px; font-weight:400;}
-  /* 練習キャラ（空欄→ボタン） */
+  .u.dir .tx{color:var(--sub); font-size:.82em; font-weight:400;}
+  /* 練習キャラ（空欄→？ボタン） */
   .u.me .nm{color:#c2417a;}
   .reveal{
     writing-mode:vertical-rl; -webkit-writing-mode:vertical-rl;
     border:2px dashed #e0a9c4; border-radius:12px;
     background:#fdf2f7; color:#c2417a;
-    font-size:15px; font-weight:700; font-family:inherit; cursor:pointer;
-    padding:18px 12px; min-height:140px; letter-spacing:.06em;
+    font-size:1em; font-weight:700; font-family:inherit; cursor:pointer;
+    padding:14px 10px; letter-spacing:.06em;
     display:flex; align-items:center; justify-content:center; transition:.12s;
+    touch-action:manipulation;
   }
   .reveal:active{transform:scale(.97); background:#fbe6ef;}
   .u .tx.revealed{background:#fdf2f7; color:#b4356e; border-radius:10px; padding:8px 6px;
@@ -235,25 +254,29 @@
       <button class="iconbtn" id="prDelete" title="この台本を削除">🗑️</button>
     </div>
 
-    <div class="card" style="padding:16px 16px;">
-      <div class="chooser">
+    <div class="card" id="chooserCard" style="padding:14px 16px;">
+      <button class="rolebar hidden" id="roleBar"></button>
+      <div class="chooser" id="chooserFull">
         <div class="lab">練習する登場人物をえらぶ</div>
         <div class="chips" id="charChips"></div>
       </div>
     </div>
 
     <div id="practiceBody" class="hidden">
+      <div class="navrow">
+        <select class="chapsel hidden" id="chapterSel" aria-label="章へ移動"></select>
+      </div>
       <div class="progress">
         <span class="pos" id="posLabel"></span>
         <span class="who" id="whoLabel"></span>
       </div>
       <div class="stage" id="stage"></div>
       <div class="controls">
-        <button class="btn" id="nextBtn">← つぎの5行</button>
-        <button class="btn sub" id="prevBtn">まえの5行 →</button>
+        <button class="btn" id="nextBtn">← つぎのページ</button>
+        <button class="btn sub" id="prevBtn">まえのページ →</button>
       </div>
       <div class="subrow">
-        <button class="btn ghost sm" id="revealAll">この5行を全部見る</button>
+        <button class="btn ghost sm" id="revealAll">このページを全部見る</button>
         <button class="btn ghost sm" id="toStart">最初にもどる</button>
       </div>
     </div>
@@ -342,10 +365,11 @@ function renderHome(){
 const CLAUDE_PROMPT =
 `添付した台本のPDFを、いっしょに添付したExcelテンプレート「台本テンプレート.xlsx」と同じ形式に整理してください。
 
-列は「番号／登場人物／セリフ」の3つです。
+列は「番号／ページ／登場人物／セリフ」の4つです。
 ・1行＝1つのセリフ（発言）にしてください。
+・「ページ」列には、そのセリフがPDFの何ページ目にあるかを入れてください。PDFの各ページの下に振られているページ番号を確認し、その数字を入れてください。同じページのセリフには同じ番号が入ります。
 ・話している人物の名前を「登場人物」列に、その人のセリフを「セリフ」列に入れてください。
-・ト書き（動作・情景の説明でセリフではない部分）は、「登場人物」列を空欄にして「セリフ」列に内容を入れてください。
+・ト書き（動作・情景の説明でセリフではない部分）は、「登場人物」列を空欄にして「セリフ」列に内容を入れてください。ト書きにも、そのページのページ番号を入れてください。
 ・台本に出てくる順番のまま、上から並べてください。
 ・カッコ書きの感情表現なども、その人のセリフに含めてください。
 
@@ -365,26 +389,30 @@ function initImport(){
 /* テンプレートDL */
 function downloadTemplate(){
   const data = [
-    ["番号","登場人物","セリフ"],
-    [1,"ゆずは","（ここに実際のセリフが入ります。例）おはよう。今日はいい天気ね。"],
-    [2,"たろう","（例）ほんとだ。散歩でも行こうか。"],
-    [3,"","（例：ト書き。登場人物は空欄）ふたり、窓の外をながめる。"],
+    ["番号","ページ","登場人物","セリフ"],
+    [1,1,"ゆずは","（ここに実際のセリフが入ります。例）おはよう。今日はいい天気ね。"],
+    [2,1,"たろう","（例）ほんとだ。散歩でも行こうか。"],
+    [3,1,"","（例：ト書き。登場人物は空欄）ふたり、窓の外をながめる。"],
+    [4,2,"ゆずは","（例：2ページ目のセリフ）あ、虹が出てる。"],
   ];
   const ws = XLSX.utils.aoa_to_sheet(data);
-  ws["!cols"] = [{wch:6},{wch:14},{wch:60}];
+  ws["!cols"] = [{wch:6},{wch:6},{wch:14},{wch:60}];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "台本");
   XLSX.writeFile(wb, "台本テンプレート.xlsx");
 }
 
 /* 行データを整形（共通） */
-function normLine(who, text){
+function normLine(who, text, page){
   who = String(who==null?"":who).trim();
   text = String(text==null?"":text).trim();
   if(!text) return null;
   if(text.indexOf("（例")===0 || text.indexOf("(例")===0) return null; // テンプレ例は無視
   const isDir = DIR_NAMES.indexOf(who) !== -1;
-  return { who: isDir ? "" : who, text: text, dir: isDir };
+  const obj = { who: isDir ? "" : who, text: text, dir: isDir };
+  const p = parseInt(String(page==null?"":page).replace(/[^0-9]/g,""), 10);
+  if(!isNaN(p)) obj.page = p;
+  return obj;
 }
 
 /* Excel/CSV 取り込み */
@@ -408,28 +436,34 @@ function importFromFile(file){
 function rowsToLines(rows){
   if(!rows || !rows.length) return [];
   // ヘッダー行をさがす
-  let headerIdx = -1, nameCol = -1, textCol = -1;
+  let headerIdx = -1, nameCol = -1, textCol = -1, pageCol = -1;
   for(let i=0;i<Math.min(rows.length,5);i++){
     const r = rows[i].map(c=>String(c).trim());
     const ni = r.findIndex(c=>/登場人物|人物|役名|役|名前|キャラ/.test(c));
     const ti = r.findIndex(c=>/セリフ|台詞|せりふ|発言|内容/.test(c));
-    if(ni!==-1 && ti!==-1){ headerIdx=i; nameCol=ni; textCol=ti; break; }
+    if(ni!==-1 && ti!==-1){
+      headerIdx=i; nameCol=ni; textCol=ti;
+      pageCol = r.findIndex(c=>/ページ|頁|page/i.test(c));
+      break;
+    }
   }
   const lines = [];
   if(headerIdx !== -1){
     for(let i=headerIdx+1;i<rows.length;i++){
       const r = rows[i];
-      const l = normLine(r[nameCol], r[textCol]);
+      const l = normLine(r[nameCol], r[textCol], pageCol!==-1 ? r[pageCol] : undefined);
       if(l) lines.push(l);
     }
   }else{
-    // ヘッダーなし：列数から推測（3列→[1]=名前,[2]=セリフ / 2列→[0]=名前,[1]=セリフ）
+    // ヘッダーなし：列数から推測
+    // 4列→[1]=ページ,[2]=名前,[3]=セリフ / 3列→[1]=名前,[2]=セリフ / 2列→[0]=名前,[1]=セリフ
     rows.forEach(r=>{
-      let who, text;
-      if(r.length>=3){ who=r[1]; text=r[2]; }
+      let who, text, page;
+      if(r.length>=4){ page=r[1]; who=r[2]; text=r[3]; }
+      else if(r.length===3){ who=r[1]; text=r[2]; }
       else if(r.length===2){ who=r[0]; text=r[1]; }
       else { who=""; text=r[0]; }
-      const l = normLine(who, text);
+      const l = normLine(who, text, page);
       if(l) lines.push(l);
     });
   }
@@ -492,6 +526,8 @@ function saveNewScript(){
 /* ====================================================== */
 let cur = null;        // 現在の台本レコード
 let curPage = 0;
+let pages = [];        // [{s,e}] ページ（PDFページ or 5行）の区切り。行インデックス基準
+let chapters = [];     // [{idx,label}] 章見出し
 
 function getRec(id){ return loadAll().find(s=>s.id===id); }
 function updateRec(patch){
@@ -507,14 +543,71 @@ function openPractice(id){
   if(!cur){ renderHome(); return; }
   curPage = cur.page || 0;
   $("#prTitle").textContent = cur.name;
+  buildPages();
+  buildChapters();
   renderCharChips();
   if(cur.char && uniqueChars(cur.lines).indexOf(cur.char)!==-1){
     selectChar(cur.char, false);
   }else{
+    setChooser(true);
     $("#practiceBody").classList.add("hidden");
     $("#noCharMsg").classList.remove("hidden");
   }
   show("practice");
+}
+
+/* ページの区切りを作る。
+   行に page（PDFページ番号）があればそれでグループ化、なければ5行ずつ */
+function buildPages(){
+  const L = cur.lines || [];
+  pages = [];
+  const hasPage = L.some(l => l.page != null);
+  if(hasPage){
+    let curP = null, start = 0;
+    for(let i=0;i<L.length;i++){
+      let p = (L[i].page != null) ? L[i].page : curP;   // ページ未記入の行は直前ページに従う
+      if(curP === null){ curP = p; }
+      if(p !== curP){ pages.push({s:start, e:i}); start = i; curP = p; }
+    }
+    pages.push({s:start, e:L.length});
+  }else{
+    for(let i=0;i<L.length;i+=CHUNK) pages.push({s:i, e:Math.min(i+CHUNK, L.length)});
+  }
+  if(!pages.length) pages.push({s:0, e:0});
+}
+
+/* 章見出しを拾う：番号ではじまるト書き（例「４　鳥居前の路上」） */
+function buildChapters(){
+  chapters = [];
+  (cur.lines || []).forEach((l,i)=>{
+    if(l.dir){
+      const m = String(l.text).trim().match(/^([0-9０-９]{1,3})[\s　]+(\S.*)$/);
+      if(m) chapters.push({ idx:i, label:l.text.trim() });
+    }
+  });
+}
+
+function pageOfLine(idx){
+  for(let p=0;p<pages.length;p++){ if(idx>=pages[p].s && idx<pages[p].e) return p; }
+  return 0;
+}
+
+function renderChapters(){
+  const sel = $("#chapterSel");
+  if(!chapters.length){ sel.classList.add("hidden"); sel.innerHTML=""; return; }
+  sel.classList.remove("hidden");
+  sel.innerHTML = '<option value="">章へ移動…</option>' +
+    chapters.map(c=>'<option value="'+c.idx+'">'+esc(c.label)+'</option>').join("");
+}
+
+/* 役えらびを畳む／開く */
+function setChooser(expanded){
+  $("#chooserFull").classList.toggle("hidden", !expanded);
+  $("#roleBar").classList.toggle("hidden", expanded);
+  if(!expanded && cur && cur.char){
+    $("#roleBar").innerHTML = '<span>🎭 練習：<span class="role">'+esc(cur.char)+'</span></span>' +
+      '<span class="chg">役を変える ▾</span>';
+  }
 }
 
 function renderCharChips(){
@@ -532,17 +625,23 @@ function selectChar(c, resetPage){
   updateRec({ char: c, page: resetPage ? 0 : (cur.page||0) });
   if(resetPage) curPage = 0;
   renderCharChips();
+  renderChapters();
+  setChooser(false);                       // 役を選んだら畳んで稽古画面をすぐ出す
   $("#noCharMsg").classList.add("hidden");
   $("#practiceBody").classList.remove("hidden");
   renderStage();
 }
 
-function totalPages(){ return Math.max(1, Math.ceil(cur.lines.length / CHUNK)); }
+function totalPages(){ return Math.max(1, pages.length); }
 
 function renderStage(){
-  const start = curPage * CHUNK;
-  const slice = cur.lines.slice(start, start + CHUNK);
+  if(curPage > pages.length-1) curPage = pages.length-1;
+  if(curPage < 0) curPage = 0;
+  const pg = pages[curPage] || {s:0, e:0};
+  const start = pg.s;
+  const slice = cur.lines.slice(pg.s, pg.e);
   const stage = $("#stage");
+  stage.style.fontSize = "";                // 基準サイズに戻してから収める
   stage.innerHTML = slice.map((l, i)=>{
     const idx = start + i;
     const isMe = !l.dir && l.who && l.who === cur.char;
@@ -550,15 +649,12 @@ function renderStage(){
     let inner = "";
     if(l.who && !l.dir) inner += '<div class="nm">'+esc(l.who)+'</div>';
     if(isMe){
-      inner += '<button class="reveal" data-idx="'+idx+'">？　ここにセリフ　タップで答え</button>';
+      inner += '<button class="reveal" data-idx="'+idx+'">？</button>';
     }else{
       inner += '<div class="tx">'+esc(l.text)+'</div>';
     }
     return '<div class="'+cls+'" data-idx="'+idx+'">'+inner+'</div>';
   }).join("");
-
-  // めくり：右端（読み始め）にスクロール位置を合わせる
-  stage.scrollLeft = stage.scrollWidth;
 
   stage.querySelectorAll(".reveal").forEach(btn=>{
     btn.onclick = ()=>{
@@ -570,12 +666,30 @@ function renderStage(){
     };
   });
 
+  fitStage();   // 枠からはみ出すときだけ字を縮めて、必ず枠内に収める
+
   // 進捗
-  const end = Math.min(start + slice.length, cur.lines.length);
+  const end = Math.min(pg.e, cur.lines.length);
   $("#posLabel").textContent = (cur.lines.length? (start+1):0) + "〜" + end + "行 / 全" + cur.lines.length + "行（" + (curPage+1) + "/" + totalPages() + "ページ）";
   $("#whoLabel").textContent = "練習：" + cur.char;
   $("#prevBtn").disabled = curPage <= 0;
   $("#nextBtn").disabled = curPage >= totalPages()-1;
+}
+
+/* 縦書きの内容が枠に収まるまでフォントを縮める（収まっていれば基準サイズのまま） */
+function fitStage(){
+  const stage = $("#stage");
+  const base = 22, min = 12;
+  let size = base;
+  stage.style.fontSize = size + "px";
+  let guard = 0;
+  // 横（列方向）または縦（行方向）にはみ出している間は縮める
+  while(guard < 60 && size > min &&
+        (stage.scrollWidth > stage.clientWidth + 1 || stage.scrollHeight > stage.clientHeight + 1)){
+    size -= 1;
+    stage.style.fontSize = size + "px";
+    guard++;
+  }
 }
 
 function gotoPage(p){
@@ -617,6 +731,11 @@ $("#saveBtn").onclick = saveNewScript;
 // 練習
 $("#prBack").onclick = renderHome;
 $("#prDelete").onclick = deleteCurrent;
+$("#roleBar").onclick = ()=> setChooser(true);            // 役えらびを開きなおす
+$("#chapterSel").onchange = e=>{                          // 章へジャンプ
+  const v = e.target.value;
+  if(v !== ""){ gotoPage(pageOfLine(+v)); e.target.value = ""; }
+};
 $("#prevBtn").onclick = ()=> gotoPage(curPage-1);
 $("#nextBtn").onclick = ()=> gotoPage(curPage+1);
 $("#revealAll").onclick = ()=>{
@@ -628,6 +747,16 @@ $("#revealAll").onclick = ()=>{
   });
 };
 $("#toStart").onclick = ()=> gotoPage(0);
+
+// 画面の向き・サイズが変わったら、表示中のページを枠に合わせ直す
+let resizeT;
+window.addEventListener("resize", ()=>{
+  clearTimeout(resizeT);
+  resizeT = setTimeout(()=>{
+    if(!$("#view-practice").classList.contains("hidden") &&
+       !$("#practiceBody").classList.contains("hidden")) fitStage();
+  }, 150);
+});
 
 // 起動
 ensureSeed();
