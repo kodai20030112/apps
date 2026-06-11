@@ -150,8 +150,16 @@
     align-self: flex-start; border: none; background: none; cursor: pointer;
     font-family: inherit; font-size: 14px; font-weight: 600; color: var(--accent); padding: 4px 0;
   }
-  .ih-title { display: flex; align-items: center; gap: 9px; font-size: 20px; font-weight: 700; }
-  .ih-title .ih-emoji { font-size: 24px; }
+  .ih-titlerow { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .ih-title { display: flex; align-items: center; gap: 9px; font-size: 20px; font-weight: 700; min-width: 0; }
+  .ih-title .ih-emoji { font-size: 24px; flex: 0 0 auto; }
+  .ih-copyall {
+    flex: 0 0 auto; border: none; cursor: pointer; font-family: inherit;
+    background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 700;
+    border-radius: 999px; padding: 8px 13px; display: inline-flex; align-items: center; gap: 5px;
+    white-space: nowrap;
+  }
+  .ih-copyall:active { transform: scale(.96); }
 
   .ibul {
     display: flex; align-items: flex-start; gap: 9px;
@@ -633,7 +641,10 @@ function renderIdeaDetail(el){
   const done = all.filter(x=>x.done).sort((a,b)=>(b.doneAt||0) - (a.doneAt||0));
   let html = '<div class="idea-head">'+
     '<button class="ih-back" data-back="1">‹ アプリ一覧</button>'+
-    '<div class="ih-title"><span class="ih-emoji">'+meta.emoji+'</span>'+esc(meta.label)+'</div>'+
+    '<div class="ih-titlerow">'+
+      '<div class="ih-title"><span class="ih-emoji">'+meta.emoji+'</span>'+esc(meta.label)+'</div>'+
+      (active.length ? '<button class="ih-copyall" data-copyall="1" title="まとめてプロンプトをコピー">📋 まとめてコピー</button>' : '')+
+    '</div>'+
   '</div>';
   if(!all.length){
     html += '<div class="empty"><span class="e-ico">'+meta.emoji+'</span>下の入力欄から<br>アイデアを箇条書きで足していこう</div>';
@@ -665,6 +676,22 @@ function ideaItemHTML(x){
 }
 function openIdeaApp(key){ ideaApp = key; renderIdeas(); renderAddbar(); window.scrollTo({ top:0 }); }
 function goIdeaGrid(){ ideaApp = null; renderIdeas(); renderAddbar(); window.scrollTo({ top:0 }); }
+
+/* 選んでいるアプリの通常アイデア（完了・あとでを除く）を、Claudeに渡すプロンプト文へ。
+   表示と同じ並び（新しい順）で 1→ 2→ … と番号を振る。 */
+function buildIdeaPrompt(){
+  const meta = bucketMeta(ideaApp);
+  const active = db.ideas.filter(x=>x.app===ideaApp && !x.done && !x.later)
+    .sort((a,b)=>(b.updated||b.ts||0) - (a.updated||a.ts||0));
+  if(!active.length) return '';
+  let s = meta.label+'の改善がしたいです。\n';
+  s += '以下の'+active.length+'個の改善を手伝ってください。\n';
+  s += active.map((x,i)=>(i+1)+'→'+x.text).join('\n');
+  s += '\n\nもしあなたに情報提供する必要があれば言ってください。\n';
+  s += 'この指示においてなるべくあなたに作業を任せたいです。\n';
+  s += 'すべての処理を承認しますので、できるだけあなたが操作してください。';
+  return s;
+}
 
 /* 追加バー */
 function renderAddbar(){
@@ -836,6 +863,13 @@ document.getElementById('panel-idea').addEventListener('click', e=>{
   // グリッド：戻る / アプリを選ぶ / タイル
   if(e.target.closest('[data-back]')){ goIdeaGrid(); return; }
   if(e.target.closest('[data-pick]')){ openPicker(); return; }
+  // まとめてコピー：このアプリの通常アイデアをプロンプト文にしてコピー
+  if(e.target.closest('[data-copyall]')){
+    const prompt = buildIdeaPrompt();
+    if(!prompt){ toast('コピーできるアイデアがありません'); return; }
+    copyText(prompt).then(ok=>toast(ok?'📋 プロンプトをコピーしました':'コピーできませんでした'));
+    return;
+  }
   const tile = e.target.closest('[data-app]');
   if(tile){ openIdeaApp(tile.dataset.app); return; }
   // 詳細：完了したものをまとめて消す
