@@ -33,6 +33,7 @@ APPS = {
     "yarukoto":    ("✅", "#7c8bff", "#4f5edb"),
     "interview":   ("🎤", "#7b8cff", "#4f5bd5"),
     "check":       ("🔍", "#8fa3c8", "#54648c"),
+    "serifu":      ("🎭", "#b08bff", "#7a4ddb"),
 }
 
 

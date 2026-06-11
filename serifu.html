@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="apple-touch-icon" href="icons/icon-serifu.png">
+<meta name="apple-mobile-web-app-title" content="おぼえりふ">
+<title>おぼえりふ — 台本のセリフを稽古する</title>
+<style>
+  :root{
+    --bg:#f5f5f7; --card:#ffffff; --ink:#1d1d1f; --sub:#6e6e73;
+    --line:#e5e5ea; --accent:#7a4ddb; --accent2:#b08bff;
+    --ok:#34c759; --warn:#ff9f0a; --err:#ff3b30; --radius:20px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Helvetica Neue",Arial,sans-serif;
+    background:var(--bg); color:var(--ink);
+    line-height:1.6; padding:env(safe-area-inset-top) 16px 56px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:680px; margin:0 auto;}
+  header{padding:36px 4px 18px; text-align:center;}
+  .logo{font-size:44px; line-height:1;}
+  h1{font-size:27px; font-weight:700; letter-spacing:-.02em; margin-top:10px;}
+  .tagline{color:var(--sub); font-size:14px; margin-top:8px;}
+
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:20px 18px; margin-top:16px;
+  }
+  .card h2{font-size:16px; font-weight:700; letter-spacing:-.01em; display:flex;
+    align-items:center; gap:9px; margin-bottom:12px;}
+  .step{flex:0 0 auto; width:24px; height:24px; border-radius:50%;
+    background:var(--accent); color:#fff; font-size:13px; font-weight:700;
+    display:flex; align-items:center; justify-content:center;}
+  .muted{color:var(--sub); font-size:13px;}
+  .muted strong{color:var(--ink);}
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:7px;
+    background:var(--accent); color:#fff; border:none; border-radius:13px;
+    padding:13px 20px; font-size:15px; font-weight:600; cursor:pointer;
+    width:100%; transition:transform .12s ease, opacity .12s ease; font-family:inherit;
+  }
+  .btn:active{transform:scale(.98);}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+  .btn.sub{background:var(--bg); color:var(--accent); border:1px solid var(--line);}
+  .btn.ghost{background:transparent; color:var(--sub); border:1px solid var(--line);}
+  .btn.sm{padding:9px 14px; font-size:13px; width:auto;}
+  .gap{margin-top:12px;}
+
+  .drop{
+    border:2px dashed #c7c7cc; border-radius:16px; padding:26px 16px; text-align:center;
+    color:var(--sub); cursor:pointer; transition:.15s; background:var(--bg);
+  }
+  .drop.hover{border-color:var(--accent); background:#f3edff; color:var(--accent);}
+  .drop .ico{font-size:34px;}
+  .drop .main{font-size:15px; font-weight:600; color:var(--ink); margin-top:8px;}
+  .drop .sub2{font-size:12px; margin-top:4px;}
+  input[type=file]{display:none;}
+
+  label.field{display:block; font-size:13px; font-weight:600; margin:14px 0 6px;}
+  input[type=text], textarea{
+    width:100%; padding:12px 13px; font-size:16px; border:1px solid var(--line);
+    border-radius:11px; font-family:inherit; background:var(--bg); color:var(--ink);
+  }
+  textarea{min-height:140px; line-height:1.7; resize:vertical;}
+  input[type=text]:focus, textarea:focus{outline:none; border-color:var(--accent); background:#fff;}
+
+  pre.prompt{
+    background:#faf8ff; border:1px solid #e6dcff; border-radius:13px; padding:13px 14px;
+    font-size:12.5px; line-height:1.7; color:#43306e; white-space:pre-wrap;
+    font-family:inherit; max-height:230px; overflow:auto; -webkit-overflow-scrolling:touch;
+  }
+
+  .hint{background:#fff8e8; border:1px solid #ffe6ad; border-radius:13px;
+    padding:12px 14px; font-size:13px; color:#6b4e00; margin-top:14px;}
+  .err-box{background:rgba(255,59,48,.07); border:1px solid rgba(255,59,48,.25);
+    border-radius:13px; padding:12px 14px; font-size:13px; color:#a3261d; margin-top:12px;}
+
+  /* ===== ホーム（台本一覧） ===== */
+  .lib-item{display:flex; align-items:center; gap:13px; padding:15px 16px;
+    background:var(--card); border:1px solid var(--line); border-radius:16px; margin-top:11px;}
+  .lib-item .emo{font-size:24px; flex:0 0 auto;}
+  .lib-item .meta{min-width:0; flex:1;}
+  .lib-item .nm{font-size:15px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .lib-item .sub{font-size:12px; color:var(--sub); margin-top:2px;}
+  .lib-item .go{flex:0 0 auto; color:#c7c7cc; font-size:22px;}
+  .empty{text-align:center; color:var(--sub); font-size:14px; padding:30px 10px;}
+
+  .topbar{display:flex; align-items:center; gap:10px; padding:6px 0 4px;}
+  .back{display:inline-flex; align-items:center; gap:4px; background:none; border:none;
+    color:var(--accent); font-size:15px; font-weight:600; cursor:pointer; font-family:inherit; padding:6px 2px;}
+  .topbar .ttl{font-size:16px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;}
+  .iconbtn{background:none; border:none; color:var(--sub); font-size:18px; cursor:pointer; padding:6px;}
+
+  /* ===== 練習画面 ===== */
+  .chooser{margin-top:6px;}
+  .chooser .lab{font-size:13px; font-weight:600; margin-bottom:8px; color:var(--sub);}
+  .chips{display:flex; flex-wrap:wrap; gap:8px;}
+  .chip{padding:8px 15px; border-radius:999px; border:1px solid var(--line);
+    background:var(--card); color:var(--ink); font-size:14px; font-weight:600; cursor:pointer;
+    font-family:inherit; transition:.12s;}
+  .chip:active{transform:scale(.96);}
+  .chip.on{background:var(--accent); color:#fff; border-color:var(--accent);}
+
+  .progress{display:flex; align-items:center; justify-content:space-between; margin:16px 2px 8px;}
+  .progress .pos{font-size:13px; color:var(--sub); font-weight:600;}
+  .progress .who{font-size:13px; color:var(--accent); font-weight:700;}
+
+  /* 縦書きステージ（右→左に横スクロール） */
+  .stage{
+    writing-mode:vertical-rl; -webkit-writing-mode:vertical-rl;
+    width:100%; max-width:100%; min-width:0;
+    height:58vh; min-height:340px;
+    overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch;
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:24px 22px;
+    font-size:21px; line-height:1.9; letter-spacing:.02em;
+  }
+  .stage::-webkit-scrollbar{height:7px;}
+  .stage::-webkit-scrollbar-thumb{background:#d0c7e8; border-radius:99px;}
+  .u{margin-left:30px; display:flex; flex-direction:row;}
+  .u:last-child{margin-left:8px;}
+  .u .nm{font-weight:700; color:var(--accent); font-size:16px; margin-bottom:6px;
+    flex:0 0 auto;}
+  .u .tx{font-weight:500; color:var(--ink); flex:0 1 auto;}
+  /* ト書き */
+  .u.dir .tx{color:var(--sub); font-size:17px; font-weight:400;}
+  /* 練習キャラ（空欄→ボタン） */
+  .u.me .nm{color:#c2417a;}
+  .reveal{
+    writing-mode:vertical-rl; -webkit-writing-mode:vertical-rl;
+    border:2px dashed #e0a9c4; border-radius:12px;
+    background:#fdf2f7; color:#c2417a;
+    font-size:15px; font-weight:700; font-family:inherit; cursor:pointer;
+    padding:18px 12px; min-height:140px; letter-spacing:.06em;
+    display:flex; align-items:center; justify-content:center; transition:.12s;
+  }
+  .reveal:active{transform:scale(.97); background:#fbe6ef;}
+  .u .tx.revealed{background:#fdf2f7; color:#b4356e; border-radius:10px; padding:8px 6px;
+    box-shadow:inset 0 0 0 1.5px #f1cfe0;}
+
+  .controls{display:flex; gap:10px; margin-top:14px;}
+  .controls .btn{width:auto; flex:1;}
+  .subrow{display:flex; gap:10px; margin-top:10px; align-items:center; justify-content:center;}
+  .subrow .btn{width:auto;}
+
+  footer{text-align:center; color:var(--sub); font-size:12px; margin-top:34px; line-height:1.8;}
+  .hidden{display:none !important;}
+  .toast{position:fixed; left:50%; bottom:30px; transform:translateX(-50%) translateY(20px);
+    background:rgba(30,28,40,.94); color:#fff; padding:11px 18px; border-radius:999px;
+    font-size:14px; opacity:0; pointer-events:none; transition:.25s; z-index:50;}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+</style>
+<script src="career.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ ホーム（台本一覧） ============ -->
+  <section id="view-home">
+    <header>
+      <div class="logo">🎭</div>
+      <h1>おぼえりふ</h1>
+      <p class="tagline">台本のセリフを、縦書きで稽古する</p>
+    </header>
+
+    <div id="libList"></div>
+
+    <button class="btn gap" id="newBtn">＋ 新しい台本をとりこむ</button>
+  </section>
+
+  <!-- ============ 取り込み画面 ============ -->
+  <section id="view-import" class="hidden">
+    <div class="topbar">
+      <button class="back" id="impBack">‹ もどる</button>
+      <span class="ttl">台本をとりこむ</span>
+    </div>
+
+    <!-- STEP 1 -->
+    <div class="card">
+      <h2><span class="step">1</span>記入テンプレートを用意</h2>
+      <p class="muted">PDFの台本から「だれが・なにを言うか」を表に整理します。<br>
+        まずは空のExcelテンプレート（＝記入用のひな形）をダウンロードしてください。</p>
+      <button class="btn sub gap" id="tmplBtn">⬇️ Excelテンプレートをダウンロード（.xlsx）</button>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="card">
+      <h2><span class="step">2</span>Claude に PDF を整理してもらう</h2>
+      <p class="muted">Claude のチャット（claude.ai）に <strong>台本のPDF</strong> と
+        <strong>ダウンロードしたテンプレート</strong> を貼り付けて、下の文をコピーして送ってください。
+        記入済みのExcelが返ってきます。</p>
+      <pre class="prompt" id="promptText"></pre>
+      <button class="btn sub gap" id="copyBtn">📋 この文をコピー</button>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="card">
+      <h2><span class="step">3</span>記入済みExcelをとりこむ</h2>
+      <div class="drop" id="drop">
+        <div class="ico">📄</div>
+        <div class="main">Excelファイルをここにドロップ</div>
+        <div class="sub2">またはタップして選択（.xlsx / .xls / .csv）</div>
+      </div>
+      <input type="file" id="file" accept=".xlsx,.xls,.csv">
+
+      <details style="margin-top:14px;">
+        <summary class="muted" style="cursor:pointer; font-weight:600;">かわりに、テキストを直接はりつける</summary>
+        <p class="muted" style="margin:8px 0;">「名前：セリフ」の形で1行ずつ。ト書き（動作の説明）は名前を空けて書いてください。</p>
+        <textarea id="pasteText" placeholder="ゆずは：おはよう。今日はいい天気ね。&#10;たろう：ほんとだ、散歩でも行こうか。&#10;　窓の外を、ふたりで見る。"></textarea>
+        <button class="btn sub gap" id="pasteBtn">この内容でとりこむ</button>
+      </details>
+
+      <div id="impErr" class="err-box hidden"></div>
+    </div>
+
+    <!-- STEP 4: 名前をつけて保存 -->
+    <div class="card hidden" id="saveCard">
+      <h2><span class="step">4</span>名前をつけて保存</h2>
+      <p class="muted" id="parsedInfo"></p>
+      <label class="field" for="scriptName">台本の名前</label>
+      <input type="text" id="scriptName" placeholder="例）夏の夜の夢　第1幕" autocomplete="off">
+      <button class="btn gap" id="saveBtn">保存して稽古をはじめる</button>
+    </div>
+  </section>
+
+  <!-- ============ 練習画面 ============ -->
+  <section id="view-practice" class="hidden">
+    <div class="topbar">
+      <button class="back" id="prBack">‹ 一覧</button>
+      <span class="ttl" id="prTitle"></span>
+      <button class="iconbtn" id="prDelete" title="この台本を削除">🗑️</button>
+    </div>
+
+    <div class="card" style="padding:16px 16px;">
+      <div class="chooser">
+        <div class="lab">練習する登場人物をえらぶ</div>
+        <div class="chips" id="charChips"></div>
+      </div>
+    </div>
+
+    <div id="practiceBody" class="hidden">
+      <div class="progress">
+        <span class="pos" id="posLabel"></span>
+        <span class="who" id="whoLabel"></span>
+      </div>
+      <div class="stage" id="stage"></div>
+      <div class="controls">
+        <button class="btn sub" id="prevBtn">← まえの5行</button>
+        <button class="btn" id="nextBtn">つぎの5行 →</button>
+      </div>
+      <div class="subrow">
+        <button class="btn ghost sm" id="revealAll">この5行を全部見る</button>
+        <button class="btn ghost sm" id="toStart">最初にもどる</button>
+      </div>
+    </div>
+    <div id="noCharMsg" class="empty">上から登場人物をえらぶと、稽古がはじまります 🎬</div>
+  </section>
+
+  <footer>おぼえりふ・つみき<br>セリフは、この端末の中だけに保存されます</footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const STORE_KEY = "serifu_scripts_v1";
+const CHUNK = 5;                       // 1ページに見せる行数
+const DIR_NAMES = ["", "ト書き", "とがき", "（ト書き）", "ト書", "地の文"];
+
+/* ---------- 保存まわり ---------- */
+function loadAll(){
+  try{ return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
+  catch(e){ return []; }
+}
+function saveAll(arr){ localStorage.setItem(STORE_KEY, JSON.stringify(arr)); }
+function uid(){ return "s" + Date.now().toString(36) + Math.floor(Math.random()*1e4).toString(36); }
+
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+let toastT;
+function toast(msg){
+  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove("show"), 1800);
+}
+
+/* ---------- 画面きりかえ ---------- */
+function show(view){
+  ["home","import","practice"].forEach(v=>{
+    $("#view-"+v).classList.toggle("hidden", v!==view);
+  });
+  window.scrollTo(0,0);
+}
+
+/* ====================================================== */
+/*  ホーム（台本一覧）                                     */
+/* ====================================================== */
+function renderHome(){
+  const arr = loadAll();
+  const list = $("#libList");
+  if(!arr.length){
+    list.innerHTML = '<div class="empty">まだ台本がありません。<br>下のボタンから最初の台本をとりこみましょう 🎭</div>';
+    show("home"); return;
+  }
+  list.innerHTML = arr.map(s=>{
+    const chars = uniqueChars(s.lines);
+    return '<div class="lib-item" data-id="'+s.id+'">'+
+      '<span class="emo">📕</span>'+
+      '<span class="meta"><span class="nm">'+esc(s.name)+'</span>'+
+        '<span class="sub">'+s.lines.length+'行・登場人物'+chars.length+'人'+
+          (s.char?'　/　練習中：'+esc(s.char):'')+'</span></span>'+
+      '<span class="go">›</span></div>';
+  }).join("");
+  list.querySelectorAll(".lib-item").forEach(el=>{
+    el.onclick = ()=> openPractice(el.dataset.id);
+  });
+  show("home");
+}
+
+/* ====================================================== */
+/*  取り込み                                               */
+/* ====================================================== */
+const CLAUDE_PROMPT =
+`添付した台本のPDFを、いっしょに添付したExcelテンプレート「台本テンプレート.xlsx」と同じ形式に整理してください。
+
+列は「番号／登場人物／セリフ」の3つです。
+・1行＝1つのセリフ（発言）にしてください。
+・話している人物の名前を「登場人物」列に、その人のセリフを「セリフ」列に入れてください。
+・ト書き（動作・情景の説明でセリフではない部分）は、「登場人物」列を空欄にして「セリフ」列に内容を入れてください。
+・台本に出てくる順番のまま、上から並べてください。
+・カッコ書きの感情表現なども、その人のセリフに含めてください。
+
+整理できたら、記入済みの .xlsx ファイルとして書き出して渡してください。`;
+
+let pendingLines = null;   // 取り込み済み・保存待ちの行データ
+
+function initImport(){
+  $("#promptText").textContent = CLAUDE_PROMPT;
+  $("#saveCard").classList.add("hidden");
+  $("#impErr").classList.add("hidden");
+  $("#scriptName").value = "";
+  $("#pasteText").value = "";
+  pendingLines = null;
+}
+
+/* テンプレートDL */
+function downloadTemplate(){
+  const data = [
+    ["番号","登場人物","セリフ"],
+    [1,"ゆずは","（ここに実際のセリフが入ります。例）おはよう。今日はいい天気ね。"],
+    [2,"たろう","（例）ほんとだ。散歩でも行こうか。"],
+    [3,"","（例：ト書き。登場人物は空欄）ふたり、窓の外をながめる。"],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws["!cols"] = [{wch:6},{wch:14},{wch:60}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "台本");
+  XLSX.writeFile(wb, "台本テンプレート.xlsx");
+}
+
+/* 行データを整形（共通） */
+function normLine(who, text){
+  who = String(who==null?"":who).trim();
+  text = String(text==null?"":text).trim();
+  if(!text) return null;
+  if(text.indexOf("（例")===0 || text.indexOf("(例")===0) return null; // テンプレ例は無視
+  const isDir = DIR_NAMES.indexOf(who) !== -1;
+  return { who: isDir ? "" : who, text: text, dir: isDir };
+}
+
+/* Excel/CSV 取り込み */
+function importFromFile(file){
+  const reader = new FileReader();
+  reader.onload = e=>{
+    try{
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:"array"});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:""});
+      const lines = rowsToLines(rows);
+      if(!lines.length) throw new Error("セリフが見つかりませんでした");
+      acceptLines(lines, file.name.replace(/\.(xlsx|xls|csv)$/i,""));
+    }catch(err){
+      showImpErr("ファイルを読み込めませんでした。テンプレートの形（番号／登場人物／セリフ）になっているか確認してください。");
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function rowsToLines(rows){
+  if(!rows || !rows.length) return [];
+  // ヘッダー行をさがす
+  let headerIdx = -1, nameCol = -1, textCol = -1;
+  for(let i=0;i<Math.min(rows.length,5);i++){
+    const r = rows[i].map(c=>String(c).trim());
+    const ni = r.findIndex(c=>/登場人物|人物|役名|役|名前|キャラ/.test(c));
+    const ti = r.findIndex(c=>/セリフ|台詞|せりふ|発言|内容/.test(c));
+    if(ni!==-1 && ti!==-1){ headerIdx=i; nameCol=ni; textCol=ti; break; }
+  }
+  const lines = [];
+  if(headerIdx !== -1){
+    for(let i=headerIdx+1;i<rows.length;i++){
+      const r = rows[i];
+      const l = normLine(r[nameCol], r[textCol]);
+      if(l) lines.push(l);
+    }
+  }else{
+    // ヘッダーなし：列数から推測（3列→[1]=名前,[2]=セリフ / 2列→[0]=名前,[1]=セリフ）
+    rows.forEach(r=>{
+      let who, text;
+      if(r.length>=3){ who=r[1]; text=r[2]; }
+      else if(r.length===2){ who=r[0]; text=r[1]; }
+      else { who=""; text=r[0]; }
+      const l = normLine(who, text);
+      if(l) lines.push(l);
+    });
+  }
+  return lines;
+}
+
+/* テキスト貼り付け取り込み */
+function importFromText(raw){
+  const lines = [];
+  raw.split(/\r?\n/).forEach(line=>{
+    const s = line.trim();
+    if(!s) return;
+    let m = s.match(/^([^：:「（(]{1,12})\s*[：:]\s*(.+)$/);          // 名前：セリフ
+    if(!m) m = s.match(/^([^「（(]{1,12})\s*「(.+)」\s*$/);             // 名前「セリフ」
+    if(m){
+      const l = normLine(m[1], m[2]); if(l) lines.push(l);
+    }else{
+      const l = normLine("", s); if(l) lines.push(l);             // ト書き扱い
+    }
+  });
+  if(!lines.length){ showImpErr("文章を読み取れませんでした。「名前：セリフ」の形で入力してください。"); return; }
+  acceptLines(lines, "");
+}
+
+function uniqueChars(lines){
+  const seen = []; const set = {};
+  lines.forEach(l=>{ if(!l.dir && l.who && !set[l.who]){ set[l.who]=1; seen.push(l.who); } });
+  return seen;
+}
+
+function acceptLines(lines, suggestName){
+  pendingLines = lines;
+  const chars = uniqueChars(lines);
+  $("#parsedInfo").innerHTML = "読み取れました ✅　<strong>"+lines.length+"行</strong>・登場人物 <strong>"+
+    chars.length+"人</strong>（"+chars.map(esc).join("・")+"）";
+  if(suggestName) $("#scriptName").value = suggestName;
+  $("#impErr").classList.add("hidden");
+  $("#saveCard").classList.remove("hidden");
+  $("#saveCard").scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+function showImpErr(msg){
+  const el = $("#impErr"); el.textContent = msg; el.classList.remove("hidden");
+}
+
+function saveNewScript(){
+  if(!pendingLines || !pendingLines.length){ toast("先に台本をとりこんでください"); return; }
+  let name = $("#scriptName").value.trim();
+  if(!name) name = "名前のない台本";
+  const arr = loadAll();
+  const rec = { id: uid(), name, lines: pendingLines, char:"", page:0, updated: Date.now() };
+  arr.unshift(rec);
+  saveAll(arr);
+  toast("保存しました");
+  openPractice(rec.id);
+}
+
+/* ====================================================== */
+/*  練習                                                   */
+/* ====================================================== */
+let cur = null;        // 現在の台本レコード
+let curPage = 0;
+
+function getRec(id){ return loadAll().find(s=>s.id===id); }
+function updateRec(patch){
+  const arr = loadAll();
+  const i = arr.findIndex(s=>s.id===cur.id);
+  if(i===-1) return;
+  arr[i] = Object.assign(arr[i], patch, {updated:Date.now()});
+  cur = arr[i]; saveAll(arr);
+}
+
+function openPractice(id){
+  cur = getRec(id);
+  if(!cur){ renderHome(); return; }
+  curPage = cur.page || 0;
+  $("#prTitle").textContent = cur.name;
+  renderCharChips();
+  if(cur.char && uniqueChars(cur.lines).indexOf(cur.char)!==-1){
+    selectChar(cur.char, false);
+  }else{
+    $("#practiceBody").classList.add("hidden");
+    $("#noCharMsg").classList.remove("hidden");
+  }
+  show("practice");
+}
+
+function renderCharChips(){
+  const chars = uniqueChars(cur.lines);
+  const box = $("#charChips");
+  box.innerHTML = chars.map(c=>
+    '<button class="chip'+(c===cur.char?' on':'')+'" data-c="'+esc(c)+'">'+esc(c)+'</button>'
+  ).join("");
+  box.querySelectorAll(".chip").forEach(el=>{
+    el.onclick = ()=> selectChar(el.dataset.c, true);
+  });
+}
+
+function selectChar(c, resetPage){
+  updateRec({ char: c, page: resetPage ? 0 : (cur.page||0) });
+  if(resetPage) curPage = 0;
+  renderCharChips();
+  $("#noCharMsg").classList.add("hidden");
+  $("#practiceBody").classList.remove("hidden");
+  renderStage();
+}
+
+function totalPages(){ return Math.max(1, Math.ceil(cur.lines.length / CHUNK)); }
+
+function renderStage(){
+  const start = curPage * CHUNK;
+  const slice = cur.lines.slice(start, start + CHUNK);
+  const stage = $("#stage");
+  stage.innerHTML = slice.map((l, i)=>{
+    const idx = start + i;
+    const isMe = !l.dir && l.who && l.who === cur.char;
+    const cls = "u" + (l.dir?" dir":"") + (isMe?" me":"");
+    let inner = "";
+    if(l.who && !l.dir) inner += '<div class="nm">'+esc(l.who)+'</div>';
+    if(isMe){
+      inner += '<button class="reveal" data-idx="'+idx+'">？　ここにセリフ　タップで答え</button>';
+    }else{
+      inner += '<div class="tx">'+esc(l.text)+'</div>';
+    }
+    return '<div class="'+cls+'" data-idx="'+idx+'">'+inner+'</div>';
+  }).join("");
+
+  // めくり：右端（読み始め）にスクロール位置を合わせる
+  stage.scrollLeft = stage.scrollWidth;
+
+  stage.querySelectorAll(".reveal").forEach(btn=>{
+    btn.onclick = ()=>{
+      const l = cur.lines[+btn.dataset.idx];
+      const tx = document.createElement("div");
+      tx.className = "tx revealed";
+      tx.textContent = l.text;
+      btn.replaceWith(tx);
+    };
+  });
+
+  // 進捗
+  const end = Math.min(start + slice.length, cur.lines.length);
+  $("#posLabel").textContent = (cur.lines.length? (start+1):0) + "〜" + end + "行 / 全" + cur.lines.length + "行（" + (curPage+1) + "/" + totalPages() + "ページ）";
+  $("#whoLabel").textContent = "練習：" + cur.char;
+  $("#prevBtn").disabled = curPage <= 0;
+  $("#nextBtn").disabled = curPage >= totalPages()-1;
+}
+
+function gotoPage(p){
+  curPage = Math.max(0, Math.min(p, totalPages()-1));
+  updateRec({ page: curPage });
+  renderStage();
+}
+
+function deleteCurrent(){
+  if(!confirm('「'+cur.name+'」を削除します。よろしいですか？')) return;
+  const arr = loadAll().filter(s=>s.id!==cur.id);
+  saveAll(arr);
+  toast("削除しました");
+  renderHome();
+}
+
+/* ====================================================== */
+/*  イベント配線                                           */
+/* ====================================================== */
+// ホーム
+$("#newBtn").onclick = ()=>{ initImport(); show("import"); };
+
+// 取り込み
+$("#impBack").onclick = renderHome;
+$("#tmplBtn").onclick = downloadTemplate;
+$("#copyBtn").onclick = ()=>{
+  navigator.clipboard.writeText(CLAUDE_PROMPT).then(()=>toast("コピーしました"))
+    .catch(()=>toast("コピーできませんでした"));
+};
+$("#file").onchange = e=>{ if(e.target.files[0]) importFromFile(e.target.files[0]); };
+const drop = $("#drop");
+drop.onclick = ()=> $("#file").click();
+["dragenter","dragover"].forEach(ev=> drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add("hover"); }));
+["dragleave","drop"].forEach(ev=> drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove("hover"); }));
+drop.addEventListener("drop", e=>{ if(e.dataTransfer.files[0]) importFromFile(e.dataTransfer.files[0]); });
+$("#pasteBtn").onclick = ()=> importFromText($("#pasteText").value);
+$("#saveBtn").onclick = saveNewScript;
+
+// 練習
+$("#prBack").onclick = renderHome;
+$("#prDelete").onclick = deleteCurrent;
+$("#prevBtn").onclick = ()=> gotoPage(curPage-1);
+$("#nextBtn").onclick = ()=> gotoPage(curPage+1);
+$("#revealAll").onclick = ()=>{
+  $("#stage").querySelectorAll(".reveal").forEach(btn=>{
+    const l = cur.lines[+btn.dataset.idx];
+    const tx = document.createElement("div");
+    tx.className = "tx revealed"; tx.textContent = l.text;
+    btn.replaceWith(tx);
+  });
+};
+$("#toStart").onclick = ()=> gotoPage(0);
+
+// 起動
+renderHome();
+</script>
+<!-- tsumiki-back-button -->
+<style>
+  #tsumikiEdge{position:fixed; top:0; bottom:0; left:0; width:22px; z-index:999;}
+  #tsumikiPeek{
+    position:fixed; top:50%; left:0; z-index:1001; margin-top:-23px;
+    width:46px; height:46px; display:flex; align-items:center; justify-content:center;
+    background:rgba(255,255,255,.92);
+    -webkit-backdrop-filter:saturate(180%) blur(14px); backdrop-filter:saturate(180%) blur(14px);
+    border:1px solid rgba(0,0,0,.06); border-radius:50%;
+    box-shadow:0 6px 20px rgba(0,0,0,.18);
+    color:#0071e3; font-size:24px; font-weight:600; line-height:1;
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Helvetica Neue",Arial,sans-serif;
+    transform:translateX(-70px) scale(.8); opacity:0; pointer-events:none;
+  }
+</style>
+<div id="tsumikiEdge"></div>
+<div id="tsumikiPeek">‹</div>
+<script>
+  (function(){
+    var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+      || window.navigator.standalone === true;
+    var fromTsumiki = false;
+    try{
+      if(document.referrer){
+        var r = new URL(document.referrer);
+        fromTsumiki = (r.origin === location.origin);
+      }
+    }catch(e){}
+    if(!(standalone && fromTsumiki)) return;
+
+    var peek = document.getElementById('tsumikiPeek');
+    var edge = document.getElementById('tsumikiEdge');
+
+    function goBack(){ location.href = 'index.html'; }
+
+    /* --- 左端エッジスワイプで戻る（iOS純正の戻る操作。見えるボタンは置かない） --- */
+    var sx=0, sy=0, prog=0, dragging=false, W=window.innerWidth;
+    var TRIGGER = Math.min(120, W*0.32);
+    window.addEventListener('resize', function(){ W=window.innerWidth; TRIGGER=Math.min(120, W*0.32); });
+
+    function reset(){
+      dragging = false; prog = 0;
+      peek.style.transition = 'transform .25s ease, opacity .25s ease';
+      peek.style.transform = 'translateX(-70px) scale(.8)';
+      peek.style.opacity = 0;
+    }
+    function start(e){
+      var t = e.touches ? e.touches[0] : e;
+      if(t.clientX > 26) return;
+      sx = t.clientX; sy = t.clientY; prog = 0; dragging = true;
+      peek.style.transition = 'none';
+    }
+    function move(e){
+      if(!dragging) return;
+      var t = e.touches ? e.touches[0] : e;
+      var dx = t.clientX - sx, dy = t.clientY - sy;
+      if(Math.abs(dy) > Math.abs(dx) + 12){ reset(); return; }
+      if(dx < 0) dx = 0;
+      prog = Math.min(dx / TRIGGER, 1);
+      peek.style.transform = 'translateX(' + (-70 + prog*82) + 'px) scale(' + (0.8 + prog*0.2) + ')';
+      peek.style.opacity = prog;
+      if(dx > 6 && e.cancelable) e.preventDefault();
+    }
+    function end(){
+      if(!dragging) return;
+      dragging = false;
+      if(prog >= 0.999){
+        peek.style.transition = 'transform .25s ease, opacity .25s ease';
+        peek.style.transform = 'translateX(20px) scale(1.05)';
+        peek.style.opacity = 1;
+        goBack();
+      }else{
+        reset();
+      }
+    }
+    edge.addEventListener('touchstart', start, {passive:true});
+    window.addEventListener('touchmove', move, {passive:false});
+    window.addEventListener('touchend', end, {passive:true});
+    window.addEventListener('touchcancel', end, {passive:true});
+  })();
+</script>
+<!-- /tsumiki-back-button -->
+</body>
+</html>
