@@ -138,13 +138,15 @@ h1{{font-size:22px;margin-bottom:4px}}
 .empty{{text-align:center;color:#8a93a5;font-size:15px;padding:64px 0}}
 .hint{{font-size:13px;color:#6b7689;line-height:1.9;margin-top:26px}}
 #reloadBtn{{position:fixed;right:18px;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);
-  width:56px;height:56px;border:none;border-radius:50%;cursor:pointer;
-  background:#54648c;color:#fff;font-size:25px;line-height:1;
+  width:56px;height:56px;border:none;border-radius:50%;cursor:pointer;padding:0;
+  background:#54648c;color:#fff;
   box-shadow:0 4px 14px rgba(20,30,60,.28);
   display:flex;align-items:center;justify-content:center;
   transition:transform .25s ease}}
+#reloadBtn svg{{width:26px;height:26px;display:block}}
 #reloadBtn:active{{transform:scale(.9)}}
-#reloadBtn.spin{{transform:rotate(360deg)}}
+#reloadBtn.spin svg{{animation:reloadSpin .55s ease}}
+@keyframes reloadSpin{{to{{transform:rotate(360deg)}}}}
 @media(prefers-color-scheme:dark){{
   body{{background:#11151d;color:#e8ecf4}}
   .card{{background:#1c2230;box-shadow:none}}
@@ -157,11 +159,11 @@ h1{{font-size:22px;margin-bottom:4px}}
 <p class="sub">公開前のアプリをここで実機チェックできます</p>
 {body}
 {hint}
-<button id="reloadBtn" aria-label="最新に更新" title="最新に更新">⟳</button>
+<button id="reloadBtn" aria-label="最新に更新" title="最新に更新"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg></button>
 <script>
 document.getElementById('reloadBtn').addEventListener('click', function(){{
   this.classList.add('spin');
-  setTimeout(function(){{ location.reload(true); }}, 260);
+  setTimeout(function(){{ location.reload(true); }}, 420);
 }});
 </script>
 </body>
