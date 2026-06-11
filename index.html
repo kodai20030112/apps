@@ -24,6 +24,12 @@
   h1{font-size:30px; font-weight:700; letter-spacing:-.02em; margin-top:10px;}
   .tagline{color:var(--sub); font-size:15px; margin-top:8px;}
   .count{color:var(--sub); font-size:13px; margin-top:16px;}
+  a.checkroom{display:inline-flex; align-items:center; gap:6px; margin-top:14px;
+    text-decoration:none; font-size:13px; font-weight:600; color:var(--sub);
+    background:var(--card); border:1px solid var(--line); border-radius:999px;
+    padding:7px 15px; transition:transform .15s ease;}
+  a.checkroom:active{transform:scale(.96);}
+  @media(hover:hover){ a.checkroom:hover{color:var(--ink);} }
   .section{margin-top:30px;}
   .section h2{font-size:19px; font-weight:700; letter-spacing:-.01em;
     padding:0 4px 12px; display:flex; align-items:center; gap:9px;}
@@ -50,51 +56,27 @@
   .desc{display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
     overflow:hidden; font-size:12px; color:var(--sub); line-height:1.4;}
   footer{text-align:center; color:var(--sub); font-size:12px; margin-top:36px; line-height:1.8;}
-  /* 今週のWork ダッシュボード */
+  /* 今週のWork ダッシュボード（テキストなし） */
   .dash{margin-top:16px; background:var(--card); border:1px solid var(--line);
-    border-radius:var(--radius); padding:14px 14px 11px;}
-  .dash-head{display:flex; align-items:center; gap:8px;}
-  .dash h2{font-size:14px; font-weight:700; letter-spacing:-.01em;
-    display:flex; align-items:center; gap:6px;}
-  .dash .ds{margin-left:auto; font-size:10px; font-weight:600; color:var(--sub);
-    background:var(--bg); border-radius:999px; padding:3px 8px; display:flex; align-items:center; gap:5px;}
-  .ds .dot{width:6px; height:6px; border-radius:50%; background:#34c759;}
-  .ds.off .dot{background:#c7c7cc;}
-  /* ヒーロー統計 */
-  .dstats{display:flex; gap:7px; margin:12px 0 2px;}
-  .dstat{flex:1; background:var(--bg); border-radius:13px; padding:9px 6px; text-align:center;}
-  .dstat .di{font-size:14px; line-height:1;}
-  .dstat b{font-size:22px; font-weight:800; display:block; letter-spacing:-.03em; line-height:1.05;
-    margin-top:3px; color:var(--accent);}
-  .dstat b small{font-size:12px; font-weight:700;}
-  .dstat span{font-size:10px; color:var(--sub); display:block; margin-top:1px;}
-  .dstat.warm b{color:#ff9500;}
-  /* アプリ×曜日 ヒートマップ */
-  .hm{margin:13px 0 4px; display:flex; flex-direction:column; gap:4px;}
-  .hm-row{display:grid; grid-template-columns:var(--hm-app) repeat(7,1fr) 22px;
-    gap:4px; align-items:center; --hm-app:88px;}
-  @media(max-width:420px){ .hm-row{--hm-app:70px; gap:3px;} }
-  .hm-app{display:flex; align-items:center; gap:5px; min-width:0;
+    border-radius:var(--radius); padding:14px 14px 11px; position:relative;}
+  .dash .ds{position:absolute; top:11px; right:11px; width:7px; height:7px;
+    border-radius:50%; background:#34c759;}
+  .ds.off{background:#c7c7cc;}
+  /* アプリ×曜日 ヒートマップ（テキストなし・絵文字とセルのみ） */
+  .hm{margin:0 0 4px; display:flex; flex-direction:column; gap:4px;}
+  .hm-row{display:grid; grid-template-columns:28px repeat(7,1fr);
+    gap:4px; align-items:center;}
+  @media(max-width:420px){ .hm-row{gap:3px;} }
+  .hm-app{display:flex; align-items:center; justify-content:center;
     text-decoration:none; color:inherit;}
   .hm-app:active{opacity:.55;}
-  .hm-app .he{font-size:13px; flex:0 0 auto;}
-  .hm-app .hl{font-size:11px; color:var(--ink); overflow:hidden;
-    text-overflow:ellipsis; white-space:nowrap;}
+  .hm-app .he{font-size:15px;}
   .hm-cell{aspect-ratio:1/1; max-height:24px; border-radius:5px; background:#ebebf0;
     transition:transform .12s ease;}
   .hm-cell.l1{background:#cfe3ff;} .hm-cell.l2{background:#8fc0ff;}
   .hm-cell.l3{background:#3b93ff;} .hm-cell.l4{background:#0071e3;}
   .hm-cell.today{box-shadow:0 0 0 1.5px #ffb340 inset;}
   .hm-cell.today.l1,.hm-cell.today.l2,.hm-cell.today.l3,.hm-cell.today.l4{box-shadow:0 0 0 1.5px #ff9500 inset;}
-  .hm-tot{font-size:11px; font-weight:800; color:var(--sub); text-align:right;}
-  /* ヘッダー行（曜日ラベル） */
-  .hm-head .hm-dl{font-size:10px; color:var(--sub); text-align:center; line-height:1;}
-  .hm-head .hm-dl.today{color:#ff9500; font-weight:800;}
-  /* 凡例 */
-  .hm-leg{display:flex; align-items:center; justify-content:flex-end; gap:5px;
-    margin:7px 2px 0; font-size:10px; color:var(--sub);}
-  .hm-leg i{width:12px; height:12px; border-radius:4px; display:inline-block;}
-  .hm-empty{margin:18px 4px; text-align:center; font-size:13px; color:var(--sub);}
   .feed-title{font-size:12px; color:var(--sub); font-weight:600; margin:18px 4px 4px;}
   a.fitem{display:flex; align-items:center; gap:11px; padding:11px 6px;
     text-decoration:none; color:var(--ink); border-top:1px solid var(--line);}
@@ -115,6 +97,7 @@
     <h1>つみき</h1>
     <p class="tagline">こうだいの制作物 — 小さなアプリを積み上げる</p>
     <p class="count" id="count"></p>
+    <a class="checkroom" href="check.html">🔍 チェックルーム<span style="opacity:.5">（公開前の確認）</span></a>
   </header>
 
   <section id="dash" class="dash" hidden></section>
@@ -209,12 +192,8 @@
 
     const sow = startOfWeek();
     const week = items.filter(e => (e.ts||0) >= sow);
-    const ach = week.filter(e => e.action !== "visit");
-    const achThisWeek = ach.length;
-    const activeDays = new Set(week.map(e => new Date(e.ts).toDateString())).size;
 
     const todayIdx = (new Date().getDay()+6)%7;
-    const dayLabels = ["月","火","水","木","金","土","日"];
 
     /* Workアプリの絵文字・短ラベル（index.htメニューから流用） */
     const workCat = categories.find(c => c.key === "work") || {apps:[]};
@@ -232,54 +211,29 @@
       if(!perApp[app]) perApp[app] = {days:[0,0,0,0,0,0,0], total:0};
       perApp[app].days[d]++; perApp[app].total++;
     });
-    /* 活動の多い順に並べる */
+    /* 活動の多い順に上位5アプリだけ表示 */
     const rows = Object.keys(perApp)
       .map(app => ({app, ...perApp[app]}))
-      .sort((a,b)=> b.total - a.total);
+      .sort((a,b)=> b.total - a.total)
+      .slice(0, 5);
 
     const lvl = c => c===0 ? "" : (c>=4 ? " l4" : " l"+c);   // 1,2,3,4+
-    const headRow =
-      '<div class="hm-row hm-head"><div></div>'+
-      dayLabels.map((d,i)=>'<div class="hm-dl'+(i===todayIdx?" today":"")+'">'+d+'</div>').join("")+
-      '<div></div></div>';
     const bodyRows = rows.map(r=>{
       const m = APP_META[r.app];
       const cells = r.days.map((c,i)=>
         '<div class="hm-cell'+lvl(c)+(i===todayIdx?" today":"")+'"></div>').join("");
       return '<div class="hm-row">'+
-        '<a class="hm-app" href="'+esc(r.app)+'.html">'+
-          '<span class="he">'+m.emoji+'</span>'+
-          '<span class="hl">'+esc(m.label)+'</span></a>'+
-        cells+
-        '<div class="hm-tot">'+r.total+'</div></div>';
+        '<a class="hm-app" href="'+esc(r.app)+'.html" title="'+esc(m.label)+'">'+
+          '<span class="he">'+m.emoji+'</span></a>'+
+        cells+'</div>';
     }).join("");
-    const heatmap = rows.length
-      ? '<div class="hm">'+headRow+bodyRows+'</div>'+
-        '<div class="hm-leg">少'+
-          '<i style="background:#ebebf0"></i><i style="background:#cfe3ff"></i>'+
-          '<i style="background:#8fc0ff"></i><i style="background:#3b93ff"></i>'+
-          '<i style="background:#0071e3"></i>多</div>'
-      : '<div class="hm-empty">今週はまだ活動がありません</div>';
-
-    /* 連続活動日数（実績がある日を今日からさかのぼって数える） */
-    const achDays = new Set(items.filter(e=>e.action!=="visit")
-      .map(e=>new Date(e.ts).toDateString()));
-    let streak = 0; const cur = new Date(); cur.setHours(0,0,0,0);
-    while(achDays.has(cur.toDateString())){ streak++; cur.setDate(cur.getDate()-1); }
+    if(!rows.length) return;   // 今週の活動がなければカード自体を出さない
 
     const dash = document.getElementById("dash");
     dash.innerHTML =
-      '<div class="dash-head">'+
-        '<h2>📊 今週のWork</h2>'+
-        '<span class="ds'+(res.connected?"":" off")+'"><span class="dot"></span>'+
-          (res.connected ? "クラウド同期中" : "この端末の記録")+'</span>'+
-      '</div>'+
-      '<div class="dstats">'+
-        '<div class="dstat"><div class="di">🎯</div><b>'+achThisWeek+'</b><span>今週の実績</span></div>'+
-        '<div class="dstat warm"><div class="di">🔥</div><b>'+streak+'<small>日</small></b><span>連続活動</span></div>'+
-        '<div class="dstat"><div class="di">📅</div><b>'+activeDays+'<small>日</small></b><span>活動した日</span></div>'+
-      '</div>'+
-      heatmap;
+      '<span class="ds'+(res.connected?"":" off")+'" title="'+
+        (res.connected ? "クラウド同期中" : "この端末の記録")+'"></span>'+
+      '<div class="hm">'+bodyRows+'</div>';
     dash.hidden = false;
   })();
 </script>

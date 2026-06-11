@@ -137,6 +137,14 @@ h1{{font-size:22px;margin-bottom:4px}}
 .ch{{font-size:22px;color:#c2c9d6}}
 .empty{{text-align:center;color:#8a93a5;font-size:15px;padding:64px 0}}
 .hint{{font-size:13px;color:#6b7689;line-height:1.9;margin-top:26px}}
+#reloadBtn{{position:fixed;right:18px;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);
+  width:56px;height:56px;border:none;border-radius:50%;cursor:pointer;
+  background:#54648c;color:#fff;font-size:25px;line-height:1;
+  box-shadow:0 4px 14px rgba(20,30,60,.28);
+  display:flex;align-items:center;justify-content:center;
+  transition:transform .25s ease}}
+#reloadBtn:active{{transform:scale(.9)}}
+#reloadBtn.spin{{transform:rotate(360deg)}}
 @media(prefers-color-scheme:dark){{
   body{{background:#11151d;color:#e8ecf4}}
   .card{{background:#1c2230;box-shadow:none}}
@@ -149,6 +157,13 @@ h1{{font-size:22px;margin-bottom:4px}}
 <p class="sub">公開前のアプリをここで実機チェックできます</p>
 {body}
 {hint}
+<button id="reloadBtn" aria-label="最新に更新" title="最新に更新">⟳</button>
+<script>
+document.getElementById('reloadBtn').addEventListener('click', function(){{
+  this.classList.add('spin');
+  setTimeout(function(){{ location.reload(true); }}, 260);
+}});
+</script>
 </body>
 </html>
 """, encoding="utf-8")
