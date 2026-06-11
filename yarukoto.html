@@ -454,15 +454,16 @@ function migrate(){
   });
 }
 
-/* 完了したものは24時間で自動的に消す */
-const PURGE_MS = 24*60*60*1000;
+/* 完了したものは日付が変わる00:00に自動的に消す */
 function purgeDone(){
   const now = Date.now();
-  const cutoff = now - PURGE_MS;
+  const startOfToday = new Date();
+  startOfToday.setHours(0,0,0,0);
+  const cutoff = startOfToday.getTime();  // 今日の00:00より前に完了したものは消す
   let changed = false;
   const sweep = (arr)=>arr.filter(x=>{
     if(!x.done) return true;
-    // 旧データで doneAt が無いものは、ここで起点を打って24時間の猶予を与える
+    // 旧データで doneAt が無いものは、ここで起点を打って今日いっぱいの猶予を与える
     if(!x.doneAt){ x.doneAt = now; changed = true; return true; }
     if(x.doneAt < cutoff){ changed = true; return false; }
     return true;
@@ -570,7 +571,7 @@ function renderChecklist(kind){
   let html = '';
   html += active.map(x=>rowHTML(x, kind)).join('');
   if(done.length){
-    html += '<div class="group-label">✓ '+(isTodo?'完了':'買ったもの')+'（'+done.length+'）<span class="gl-note">24時間で自動的に消えます</span></div>';
+    html += '<div class="group-label">✓ '+(isTodo?'完了':'買ったもの')+'（'+done.length+'）<span class="gl-note">日付が変わると自動的に消えます</span></div>';
     html += done.map(x=>rowHTML(x, kind)).join('');
     html += '<div class="foot-act"><button data-clear="'+kind+'">'+(isTodo?'完了したものを消す':'買ったものを消す')+'</button></div>';
   }
@@ -637,7 +638,7 @@ function renderIdeaDetail(el){
       html += later.map(ideaItemHTML).join('');
     }
     if(done.length){
-      html += '<div class="group-label">✓ 完了（'+done.length+'）<span class="gl-note">24時間で自動的に消えます</span></div>';
+      html += '<div class="group-label">✓ 完了（'+done.length+'）<span class="gl-note">日付が変わると自動的に消えます</span></div>';
       html += done.map(ideaItemHTML).join('');
       html += '<div class="foot-act"><button data-clearidea="1">完了したものを消す</button></div>';
     }
