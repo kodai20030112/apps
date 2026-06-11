@@ -546,7 +546,7 @@ function render(){
 }
 function renderCounts(){
   const t = db.todos.filter(x=>!x.done).length;
-  const i = db.ideas.filter(x=>!x.done).length;
+  const i = db.ideas.filter(x=>!x.done && !x.later).length;  // 「あとで」はカウントしない
   const s = db.shopping.filter(x=>!x.done).length;
   document.getElementById('c-todo').textContent = t || '';
   document.getElementById('c-idea').textContent = i || '';
@@ -593,8 +593,14 @@ function renderIdeas(){
   if(ideaApp){ renderIdeaDetail(el); return; }
 
   // 件数を集計（未完了＝activeをラベルに、全体＝totalをタイル表示判定に）
-  const total = {}, active = {};
-  db.ideas.forEach(x=>{ total[x.app]=(total[x.app]||0)+1; if(!x.done) active[x.app]=(active[x.app]||0)+1; });
+  const total = {}, active = {}, laterCnt = {};
+  db.ideas.forEach(x=>{
+    total[x.app]=(total[x.app]||0)+1;
+    if(x.done) return;
+    // 「あとで」に送ったものは件数にカウントしない
+    if(x.later) laterCnt[x.app]=(laterCnt[x.app]||0)+1;
+    else active[x.app]=(active[x.app]||0)+1;
+  });
 
   // 並べるタイル：アプリ制作（常設）＋ アイデアのあるアプリのみ
   const tiles = [NEW_APP];
@@ -607,8 +613,8 @@ function renderIdeas(){
 
   let html = '<div class="idea-grid">';
   html += tiles.map(a=>{
-    const n = active[a.key] || 0, tt = total[a.key] || 0;
-    const label = n ? n+'件のアイデア' : (tt ? 'すべて完了' : 'メモする');
+    const n = active[a.key] || 0, L = laterCnt[a.key] || 0, tt = total[a.key] || 0;
+    const label = n ? n+'件のアイデア' : (L ? '🌙 あとで'+L+'件' : (tt ? 'すべて完了' : 'メモする'));
     return '<button class="app-tile'+(a.key==='_new'?' make':'')+'" data-app="'+esc(a.key)+'">'+
       '<span class="at-emoji">'+a.emoji+'</span>'+
       '<span class="at-label">'+esc(a.label)+'</span>'+
