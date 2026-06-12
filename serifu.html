@@ -618,6 +618,7 @@ function saveNewScript(){
 /* ====================================================== */
 let cur = null;        // 現在の台本レコード
 let curPage = 0;
+let revealed = new Set(); // 答えを開いた行（全行インデックス）。ページを移ると空にする
 let pages = [];        // [{s,e}] ページ（PDFページ or 5行）の区切り。行インデックス基準
 let chapters = [];     // [{idx,label}] 章見出し
 let builtWidth = 0;    // pages を作ったときの枠の幅（変わったら作り直す目印）
@@ -804,6 +805,7 @@ function renderCharChips(){
 function selectChar(c){
   updateRec({ char: c, page: 0 });          // 役を変えたら最初から
   curPage = 0;
+  revealed.clear();                          // 役を変えたら答えは閉じる
   globalFontPx = 0;                          // 役が変わると？になる行＝詰まり具合が変わるので測り直す
   renderCharChips();
   enterPractice();
@@ -842,11 +844,8 @@ function renderStage(){
 
   stage.querySelectorAll(".reveal").forEach(btn=>{
     btn.onclick = ()=>{
-      const l = cur.lines[+btn.dataset.idx];
-      const tx = document.createElement("div");
-      tx.className = "tx revealed";
-      tx.textContent = l.text;
-      btn.replaceWith(tx);   // サイズは固定（測定時に答え全文ぶんで収めてある）
+      revealed.add(+btn.dataset.idx);   // 開いた行を記録して描き直す（DOM差し替えはしない）
+      renderStage();                    // サイズは固定（測定時に答え全文ぶんで収めてある）
     };
   });
 
@@ -875,10 +874,12 @@ function pageInnerHTML(pg, measure){
     const cls = "u" + (l.dir?" dir":"") + (isMe?" me":"");
     // 名前ガターは常に確保（ト書きなど名前が無い列も同じ高さから始まるようそろえる）
     let inner = '<div class="nm">'+(l.who && !l.dir ? esc(l.who) : "")+'</div>';
-    if(isMe && !measure){
+    if(isMe && !measure && !revealed.has(idx)){
       inner += '<button class="reveal" data-idx="'+idx+'">？</button>';
     }else if(isMe){
-      inner += '<div class="tx revealed">'+esc(l.text)+'</div>';   // 測定：答え全文ぶん
+      // 開いた行（measure時は全行）は答え全文。DOMを差し替えず毎回ここから描き直す
+      // ＝WebKitで flex アイテムを replaceWith すると潰れて切れる問題を回避。
+      inner += '<div class="tx revealed">'+esc(l.text)+'</div>';
     }else{
       inner += '<div class="tx">'+esc(l.text)+'</div>';
     }
@@ -928,6 +929,7 @@ function computeGlobalFont(){
 
 function gotoPage(p){
   curPage = Math.max(0, Math.min(p, totalPages()-1));
+  revealed.clear();               // ページを移ったら答えは閉じる
   updateRec({ page: curPage });
   renderStage();
 }
@@ -978,12 +980,8 @@ $("#dHome").onclick = ()=>{ closeDrawer(true); renderHome(); };
 $("#prevBtn").onclick = ()=> gotoPage(curPage-1);
 $("#nextBtn").onclick = ()=> gotoPage(curPage+1);
 $("#revealAll").onclick = ()=>{
-  $("#stage").querySelectorAll(".reveal").forEach(btn=>{
-    const l = cur.lines[+btn.dataset.idx];
-    const tx = document.createElement("div");
-    tx.className = "tx revealed"; tx.textContent = l.text;
-    btn.replaceWith(tx);   // サイズは固定（測定時に答え全文ぶんで収めてある）
-  });
+  $("#stage").querySelectorAll(".reveal").forEach(btn=> revealed.add(+btn.dataset.idx));
+  renderStage();   // まとめて開いて描き直す（DOM差し替えはしない）
 };
 
 // 画面の向き・サイズが変わったら、ページ分けを作り直して枠に合わせ直す。
