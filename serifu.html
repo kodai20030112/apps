@@ -620,6 +620,7 @@ let cur = null;        // 現在の台本レコード
 let curPage = 0;
 let pages = [];        // [{s,e}] ページ（PDFページ or 5行）の区切り。行インデックス基準
 let chapters = [];     // [{idx,label}] 章見出し
+let builtWidth = 0;    // pages を作ったときの枠の幅（幅が変わったら作り直す目印）
 
 function getRec(id){ return loadAll().find(s=>s.id===id); }
 function updateRec(patch){
@@ -672,18 +673,28 @@ function enterPractice(){
   });
 }
 
-/* 1画面に出す列数のめやす。画面幅から、字が小さくなりすぎない列数を決める。
-   （台本のページに行が多いときは、同じページ番号のまま「①/②…」と分けて見せる） */
+/* 1画面に横に並べる列数のめやす（少ないほど字が大きくなる）。 */
 function colsPerScreen(){
   const stage = $("#stage");
   const w = (stage && stage.clientWidth) || window.innerWidth || 360;
   const avail = w - 40;                 // 左右の余白ぶん
-  return Math.max(4, Math.floor(avail / 37));   // 1列≒37px見当で読める列数
+  return Math.max(3, Math.floor(avail / 54));   // 1列を広めにとって字を大きく
+}
+
+/* 1列にだいたい何文字入るか（枠の高さ÷目標の文字サイズ）。
+   長いセリフが何列ぶんに折り返るかの見積りに使う。 */
+function charsPerCol(){
+  const stage = $("#stage");
+  const h = (stage && stage.clientHeight) || (window.innerHeight * 0.78) || 560;
+  return Math.max(10, Math.floor((h - 44) / 19));   // 文字19pxめやす
 }
 
 /* ページの区切りを作る。
    行に page（台本のページ番号）があればそのページごと、なければ5行ずつ。
-   1ページの行数が多すぎて字がつぶれる場合は、同じページのまま複数画面に分ける。 */
+   1ページに行が多い／長いセリフがあって字がつぶれる場合は、
+   同じページ番号のまま複数画面（①/②…）に分ける。
+   ※長いセリフは「折り返って何列ぶんになるか」を見越して数えるので、
+   　長文ページほど少なめに分けて字を大きく保てる。 */
 function buildPages(){
   const L = cur.lines || [];
   const groups = [];
@@ -699,23 +710,29 @@ function buildPages(){
   }else{
     for(let i=0;i<L.length;i+=CHUNK) groups.push({s:i, e:Math.min(i+CHUNK, L.length), page:null});
   }
-  // 読みやすさのため、列が多すぎるページは同じページ番号のまま分割
-  const maxCols = colsPerScreen();
+  const budget = colsPerScreen();        // 1画面に並べられる列数（折り返し込み）
+  const cpc = charsPerCol();
+  const weight = (i)=>{                   // そのセリフが占める列数の見積り（折り返し込み）
+    const t = (L[i] && L[i].text) ? [...String(L[i].text)].length : 1;
+    return 1 + Math.floor(t / cpc);
+  };
   pages = [];
   groups.forEach(g=>{
-    const total = g.e - g.s;
-    if(g.page == null || total <= maxCols){
-      pages.push({s:g.s, e:g.e, page:g.page, part:0, parts:1});
-    }else{
-      const parts = Math.ceil(total / maxCols);
-      const per = Math.ceil(total / parts);              // なるべく均等に分ける
-      let k = 0;
-      for(let s=g.s; s<g.e; s+=per){
-        pages.push({s:s, e:Math.min(s+per, g.e), page:g.page, part:k++, parts:parts});
-      }
+    if(g.page == null){ pages.push({s:g.s, e:g.e, page:null, part:0, parts:1}); return; }
+    // 重み（折り返し込みの列数）が budget を超えない範囲でまとめ、超えたら次の画面へ
+    const segs = [];
+    let s = g.s, acc = 0;
+    for(let i=g.s; i<g.e; i++){
+      const w = weight(i);
+      if(i > s && acc + w > budget){ segs.push([s, i]); s = i; acc = 0; }
+      acc += w;
     }
+    segs.push([s, g.e]);
+    segs.forEach(([a,b],k)=> pages.push({s:a, e:b, page:g.page, part:k, parts:segs.length}));
   });
   if(!pages.length) pages.push({s:0, e:0, page:null, part:0, parts:1});
+  const st = $("#stage");
+  builtWidth = (st && st.clientWidth) || 0;   // この幅で分割した、と記録
 }
 
 /* 台本ページ番号の通し（重複なし）。進捗表示用 */
@@ -788,6 +805,13 @@ function selectChar(c){
 function totalPages(){ return Math.max(1, pages.length); }
 
 function renderStage(){
+  // 枠の幅が分割時と変わっていたら（または未確定だったら）、いまの幅で分け直す（表示直前のズレを自己修復）
+  const stW = $("#stage").clientWidth;
+  if(stW > 0 && (builtWidth <= 0 || Math.abs(stW - builtWidth) > 8)){
+    const topLine = (pages[curPage] || {s:0}).s;
+    buildPages();
+    curPage = pageOfLine(topLine);
+  }
   if(curPage > pages.length-1) curPage = pages.length-1;
   if(curPage < 0) curPage = 0;
   const pg = pages[curPage] || {s:0, e:0};
@@ -840,24 +864,25 @@ function renderStage(){
   $("#nextBtn").disabled = curPage >= totalPages()-1;
 }
 
-/* ページ内容を枠に合わせて拡大率（transform:scale）で縮める。
-   余白も列の間隔も一緒に縮むので、フォントだけ縮める方式と違って必ず枠内に収まり、
-   一番左（最後）のセリフが切れない。短いページは等倍（拡大はしない）。 */
+/* ページ内容を枠に合わせる。
+   縦書きなので、文章は枠の高さいっぱいまで進んでから次の列へ折り返す。
+   そこで「横にはみ出さない最大のフォントサイズ」を二分探索で求める。
+   こうすると枠の高さを下まで使い切り、文字も可能なかぎり大きくなる
+   （前の transform で一律に縮める方式だと、横基準で縮んで下が余っていた）。 */
 function fitStage(){
   const stage = $("#stage");
   const inner = stage.querySelector(".stage-inner");
-  if(!inner) return;
-  inner.style.transform = "none";
-  const cs = getComputedStyle(stage);
-  const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
-  const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
-  const availW = stage.clientWidth - padX;
-  const availH = stage.clientHeight - padY;
-  const natW = inner.scrollWidth;
-  const natH = inner.scrollHeight;
-  if(natW <= 0 || natH <= 0 || availW <= 0 || availH <= 0) return;
-  const scale = Math.min(availW / natW, availH / natH, 1);
-  inner.style.transform = "scale(" + scale + ")";
+  if(inner) inner.style.transform = "none";   // 旧方式の名残を消す
+  if(stage.clientWidth <= 0 || stage.clientHeight <= 0) return;
+  let lo = 11, hi = 34, best = lo;             // 文字サイズの下限・上限(px)
+  for(let it = 0; it < 12; it++){
+    const mid = (lo + hi) / 2;
+    stage.style.fontSize = mid + "px";
+    const over = (stage.scrollWidth > stage.clientWidth + 1) ||
+                 (stage.scrollHeight > stage.clientHeight + 1);
+    if(over){ hi = mid; } else { best = mid; lo = mid; }
+  }
+  stage.style.fontSize = best + "px";
 }
 
 function gotoPage(p){
