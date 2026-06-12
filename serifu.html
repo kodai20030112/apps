@@ -620,9 +620,11 @@ let cur = null;        // 現在の台本レコード
 let curPage = 0;
 let pages = [];        // [{s,e}] ページ（PDFページ or 5行）の区切り。行インデックス基準
 let chapters = [];     // [{idx,label}] 章見出し
-let builtWidth = 0;    // pages を作ったときの枠の幅（幅が変わったら作り直す目印）
+let builtWidth = 0;    // pages を作ったときの枠の幅（変わったら作り直す目印）
+let builtHeight = 0;   // pages を作ったときの枠の高さ（折り返し列数が変わるので高さも見る）
 let globalFontPx = 0;  // 全ページ共通の文字サイズ（いちばん詰まったページに合わせる）
-let fontBuiltWidth = -1; // globalFontPx を測ったときの枠の幅（変わったら測り直す）
+let fontBuiltWidth = -1;  // globalFontPx を測ったときの枠の幅（変わったら測り直す）
+let fontBuiltHeight = -1; // globalFontPx を測ったときの枠の高さ（dvh変化＝バナー/アドレスバーで変わる）
 
 function getRec(id){ return loadAll().find(s=>s.id===id); }
 function updateRec(patch){
@@ -735,7 +737,8 @@ function buildPages(){
   });
   if(!pages.length) pages.push({s:0, e:0, page:null, part:0, parts:1});
   const st = $("#stage");
-  builtWidth = (st && st.clientWidth) || 0;   // この幅で分割した、と記録
+  builtWidth = (st && st.clientWidth) || 0;    // この幅・高さで分割した、と記録
+  builtHeight = (st && st.clientHeight) || 0;
 }
 
 /* 台本ページ番号の通し（重複なし）。進捗表示用 */
@@ -809,9 +812,10 @@ function selectChar(c){
 function totalPages(){ return Math.max(1, pages.length); }
 
 function renderStage(){
-  // 枠の幅が分割時と変わっていたら（または未確定だったら）、いまの幅で分け直す（表示直前のズレを自己修復）
-  const stW = $("#stage").clientWidth;
-  if(stW > 0 && (builtWidth <= 0 || Math.abs(stW - builtWidth) > 8)){
+  // 枠のサイズが分割時と変わっていたら（または未確定だったら）、いまのサイズで分け直す（表示直前のズレを自己修復）。
+  // 幅＝列数、高さ＝1列に入る文字数、どちらも分割に効くので両方を見る（dvh変化で高さだけ変わるケース対策）。
+  const stW = $("#stage").clientWidth, stH = $("#stage").clientHeight;
+  if(stW > 0 && (builtWidth <= 0 || Math.abs(stW - builtWidth) > 8 || Math.abs(stH - builtHeight) > 8)){
     const topLine = (pages[curPage] || {s:0}).s;
     buildPages();
     curPage = pageOfLine(topLine);
@@ -826,9 +830,12 @@ function renderStage(){
   const maxName = Math.max(2, ...uniqueChars(cur.lines).map(c=>[...String(c)].length));
   stage.style.setProperty("--nmlen", maxName);
 
-  // 全ページ共通の文字サイズを先に確定（枠の幅が変わっていたら測り直す）。
+  // 全ページ共通の文字サイズを先に確定（枠のサイズが変わっていたら測り直す）。
   // ※innerHTML を測定用に差し替えるので、本番の中身を入れる前にやる。
-  if(globalFontPx <= 0 || fontBuiltWidth !== builtWidth){ computeGlobalFont(); }
+  // 幅だけでなく高さも見る：高さが縮むと、答えを開いたとき縦にあふれて切れてしまうため。
+  if(globalFontPx <= 0 ||
+     Math.abs($("#stage").clientWidth - fontBuiltWidth) > 2 ||
+     Math.abs($("#stage").clientHeight - fontBuiltHeight) > 2){ computeGlobalFont(); }
 
   stage.innerHTML = '<div class="stage-inner">' + pageInnerHTML(pg) + '</div>';
   stage.style.fontSize = (globalFontPx > 0 ? globalFontPx : 22) + "px";   // 全ページ同じサイズ（答えを出しても変えない）
@@ -914,7 +921,8 @@ function computeGlobalFont(){
     }
   }
   globalFontPx = best;
-  fontBuiltWidth = builtWidth;
+  fontBuiltWidth = stage.clientWidth;     // この幅・高さで測った、と記録
+  fontBuiltHeight = stage.clientHeight;
   stage.innerHTML = saved;
 }
 
@@ -978,20 +986,33 @@ $("#revealAll").onclick = ()=>{
   });
 };
 
-// 画面の向き・サイズが変わったら、ページ分けを作り直して枠に合わせ直す
-let resizeT;
-window.addEventListener("resize", ()=>{
-  clearTimeout(resizeT);
-  resizeT = setTimeout(()=>{
+// 画面の向き・サイズが変わったら、ページ分けを作り直して枠に合わせ直す。
+let relayoutT;
+function relayout(){
+  clearTimeout(relayoutT);
+  relayoutT = setTimeout(()=>{
     if($("#view-practice").classList.contains("hidden") ||
        $("#practiceMain").classList.contains("hidden") || !cur) return;
+    const stage = $("#stage");
+    if(stage.clientWidth <= 0 || stage.clientHeight <= 0) return;
+    // 枠のサイズが本当に変わったときだけ作り直す（無駄な再計算を避ける）
+    if(Math.abs(stage.clientWidth - builtWidth) <= 2 &&
+       Math.abs(stage.clientHeight - builtHeight) <= 2) return;
     const topLine = (pages[curPage] || {s:0}).s;   // 今見ている先頭の行をおぼえておく
     buildPages();                                   // 列数のめやすが変わるので分け直す
     globalFontPx = 0;                               // 枠の縦横が変わったので文字サイズも測り直す
     curPage = pageOfLine(topLine);                  // 同じあたりを表示し続ける
     renderStage();
-  }, 150);
-});
+  }, 120);
+}
+window.addEventListener("resize", relayout);
+// resize イベントが出ない高さ変化（dvh＝アドレスバー/アプリバナーの出入り）も拾うため、
+// 枠そのもののサイズ変化を ResizeObserver で監視する。これが無いと古い大きさの
+// 文字サイズのまま残り、答えを開いたとき縦にあふれて切れてしまう。
+if(window.ResizeObserver){
+  const ro = new ResizeObserver(()=> relayout());
+  ro.observe($("#stage"));
+}
 
 // 起動
 ensureSeed();
