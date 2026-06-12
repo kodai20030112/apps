@@ -621,6 +621,8 @@ let curPage = 0;
 let pages = [];        // [{s,e}] ページ（PDFページ or 5行）の区切り。行インデックス基準
 let chapters = [];     // [{idx,label}] 章見出し
 let builtWidth = 0;    // pages を作ったときの枠の幅（幅が変わったら作り直す目印）
+let globalFontPx = 0;  // 全ページ共通の文字サイズ（いちばん詰まったページに合わせる）
+let fontBuiltWidth = -1; // globalFontPx を測ったときの枠の幅（変わったら測り直す）
 
 function getRec(id){ return loadAll().find(s=>s.id===id); }
 function updateRec(patch){
@@ -635,6 +637,7 @@ function openPractice(id){
   cur = getRec(id);
   if(!cur){ renderHome(); return; }
   curPage = cur.page || 0;
+  globalFontPx = 0;             // 台本ごとに詰まり具合が違うので、開くたび文字サイズを測り直す
   $("#prTitle").textContent = cur.name;
   $("#prTitle2").textContent = cur.name;
   buildPages();
@@ -693,8 +696,8 @@ function charsPerCol(){
    行に page（台本のページ番号）があればそのページごと、なければ5行ずつ。
    1ページに行が多い／長いセリフがあって字がつぶれる場合は、
    同じページ番号のまま複数画面（①/②…）に分ける。
-   ※長いセリフは「折り返って何列ぶんになるか」を見越して数えるので、
-   　長文ページほど少なめに分けて字を大きく保てる。 */
+   ※文字サイズは全画面で統一する（computeGlobalFont）。分割は
+   　「いちばん詰まった画面でも読める大きさを保つ」ための手段。 */
 function buildPages(){
   const L = cur.lines || [];
   const groups = [];
@@ -798,6 +801,7 @@ function renderCharChips(){
 function selectChar(c){
   updateRec({ char: c, page: 0 });          // 役を変えたら最初から
   curPage = 0;
+  globalFontPx = 0;                          // 役が変わると？になる行＝詰まり具合が変わるので測り直す
   renderCharChips();
   enterPractice();
 }
@@ -821,21 +825,13 @@ function renderStage(){
   // 名前ガターの幅＝この台本で一番長い名前の文字数ぶん（どのセリフも同じ位置から始まる）
   const maxName = Math.max(2, ...uniqueChars(cur.lines).map(c=>[...String(c)].length));
   stage.style.setProperty("--nmlen", maxName);
-  const html = slice.map((l, i)=>{
-    const idx = start + i;
-    const isMe = !l.dir && l.who && l.who === cur.char;
-    const cls = "u" + (l.dir?" dir":"") + (isMe?" me":"");
-    let inner = "";
-    // 名前ガターは常に確保（ト書きなど名前が無い列も同じ高さから始まるようそろえる）
-    inner += '<div class="nm">'+(l.who && !l.dir ? esc(l.who) : "")+'</div>';
-    if(isMe){
-      inner += '<button class="reveal" data-idx="'+idx+'">？</button>';
-    }else{
-      inner += '<div class="tx">'+esc(l.text)+'</div>';
-    }
-    return '<div class="'+cls+'" data-idx="'+idx+'">'+inner+'</div>';
-  }).join("");
-  stage.innerHTML = '<div class="stage-inner">' + html + '</div>';
+
+  // 全ページ共通の文字サイズを先に確定（枠の幅が変わっていたら測り直す）。
+  // ※innerHTML を測定用に差し替えるので、本番の中身を入れる前にやる。
+  if(globalFontPx <= 0 || fontBuiltWidth !== builtWidth){ computeGlobalFont(); }
+
+  stage.innerHTML = '<div class="stage-inner">' + pageInnerHTML(pg) + '</div>';
+  stage.style.fontSize = (globalFontPx > 0 ? globalFontPx : 22) + "px";   // 全ページ同じサイズ（答えを出しても変えない）
 
   stage.querySelectorAll(".reveal").forEach(btn=>{
     btn.onclick = ()=>{
@@ -843,12 +839,9 @@ function renderStage(){
       const tx = document.createElement("div");
       tx.className = "tx revealed";
       tx.textContent = l.text;
-      btn.replaceWith(tx);
-      fitStage();   // 答え（全文）を出したら、その長さに合わせて収め直す
+      btn.replaceWith(tx);   // サイズは固定（測定時に答え全文ぶんで収めてある）
     };
   });
-
-  fitStage();   // ページ全体を拡大率で縮めて、必ず枠内に収める（セリフが切れない）
 
   // 進捗（台本のページ番号がある場合はそれを主役に表示）
   const end = Math.min(pg.e, cur.lines.length);
@@ -864,25 +857,65 @@ function renderStage(){
   $("#nextBtn").disabled = curPage >= totalPages()-1;
 }
 
-/* ページ内容を枠に合わせる。
-   縦書きなので、文章は枠の高さいっぱいまで進んでから次の列へ折り返す。
-   そこで「横にはみ出さない最大のフォントサイズ」を二分探索で求める。
-   こうすると枠の高さを下まで使い切り、文字も可能なかぎり大きくなる
-   （前の transform で一律に縮める方式だと、横基準で縮んで下が余っていた）。 */
-function fitStage(){
+/* 1ページぶんの中身（縦書きの列）を組み立てる。
+   measure=true のときは、練習役のセリフも「？ボタン」ではなく答え全文(.tx revealed)で
+   出す。＝答えを出した最大状態。この状態で収まるサイズを測れば、答えを出しても崩れない。 */
+function pageInnerHTML(pg, measure){
+  const start = pg.s;
+  return cur.lines.slice(pg.s, pg.e).map((l, i)=>{
+    const idx = start + i;
+    const isMe = !l.dir && l.who && l.who === cur.char;
+    const cls = "u" + (l.dir?" dir":"") + (isMe?" me":"");
+    // 名前ガターは常に確保（ト書きなど名前が無い列も同じ高さから始まるようそろえる）
+    let inner = '<div class="nm">'+(l.who && !l.dir ? esc(l.who) : "")+'</div>';
+    if(isMe && !measure){
+      inner += '<button class="reveal" data-idx="'+idx+'">？</button>';
+    }else if(isMe){
+      inner += '<div class="tx revealed">'+esc(l.text)+'</div>';   // 測定：答え全文ぶん
+    }else{
+      inner += '<div class="tx">'+esc(l.text)+'</div>';
+    }
+    return '<div class="'+cls+'" data-idx="'+idx+'">'+inner+'</div>';
+  }).join("");
+}
+
+/* いまの枠に、指定サイズで中身が収まるか（縦横ともはみ出さないか）。 */
+function fitsAt(px){
   const stage = $("#stage");
-  const inner = stage.querySelector(".stage-inner");
-  if(inner) inner.style.transform = "none";   // 旧方式の名残を消す
-  if(stage.clientWidth <= 0 || stage.clientHeight <= 0) return;
-  let lo = 11, hi = 34, best = lo;             // 文字サイズの下限・上限(px)
-  for(let it = 0; it < 12; it++){
-    const mid = (lo + hi) / 2;
-    stage.style.fontSize = mid + "px";
-    const over = (stage.scrollWidth > stage.clientWidth + 1) ||
-                 (stage.scrollHeight > stage.clientHeight + 1);
-    if(over){ hi = mid; } else { best = mid; lo = mid; }
+  stage.style.fontSize = px + "px";
+  return (stage.scrollWidth <= stage.clientWidth + 1) &&
+         (stage.scrollHeight <= stage.clientHeight + 1);
+}
+
+/* 全画面共通の文字サイズを決める。
+   各画面が「？ボタン状態（横幅が最大）」と「答え全文状態（列の長さが最大）」の
+   どちらでも枠に収まる最大サイズを調べ、そのうち一番小さいもの
+   ＝いちばん詰まった画面に合わせる。
+   こうすると全画面が同じサイズで、どの画面もセリフが切れない。
+   縦書きなので、文章は枠の高さいっぱいまで進んでから次の列へ折り返す。 */
+function computeGlobalFont(){
+  const stage = $("#stage");
+  if(!stage || stage.clientWidth <= 0 || stage.clientHeight <= 0) return;
+  const saved = stage.innerHTML;
+  const maxName = Math.max(2, ...uniqueChars(cur.lines).map(c=>[...String(c)].length));
+  stage.style.setProperty("--nmlen", maxName);
+  let best = 34;                                  // 文字サイズの上限(px)から下げていく
+  const FLOOR = 10;                               // これ以上は小さくしない下限(px)
+  for(let pi = 0; pi < pages.length && best > FLOOR; pi++){
+    for(const measure of [false, true]){          // ？ボタン状態と答え全文状態の両方で確認
+      stage.innerHTML = '<div class="stage-inner">' + pageInnerHTML(pages[pi], measure) + '</div>';
+      if(fitsAt(best)) continue;                  // いまの best で収まる → この状態は制約にならない
+      let lo = FLOOR, hi = best;                   // best では収まらない → 収まる最大サイズを二分探索
+      for(let it = 0; it < 9; it++){
+        const mid = (lo + hi) / 2;
+        if(fitsAt(mid)){ lo = mid; } else { hi = mid; }
+      }
+      best = Math.max(FLOOR, lo);
+    }
   }
-  stage.style.fontSize = best + "px";
+  globalFontPx = best;
+  fontBuiltWidth = builtWidth;
+  stage.innerHTML = saved;
 }
 
 function gotoPage(p){
@@ -941,9 +974,8 @@ $("#revealAll").onclick = ()=>{
     const l = cur.lines[+btn.dataset.idx];
     const tx = document.createElement("div");
     tx.className = "tx revealed"; tx.textContent = l.text;
-    btn.replaceWith(tx);
+    btn.replaceWith(tx);   // サイズは固定（測定時に答え全文ぶんで収めてある）
   });
-  fitStage();
 };
 
 // 画面の向き・サイズが変わったら、ページ分けを作り直して枠に合わせ直す
@@ -955,6 +987,7 @@ window.addEventListener("resize", ()=>{
        $("#practiceMain").classList.contains("hidden") || !cur) return;
     const topLine = (pages[curPage] || {s:0}).s;   // 今見ている先頭の行をおぼえておく
     buildPages();                                   // 列数のめやすが変わるので分け直す
+    globalFontPx = 0;                               // 枠の縦横が変わったので文字サイズも測り直す
     curPage = pageOfLine(topLine);                  // 同じあたりを表示し続ける
     renderStage();
   }, 150);
